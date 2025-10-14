@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -13,7 +13,6 @@ import {
   Pencil,
   Trash2,
   Search,
-  Plus,
   CheckCircle2,
   PlayCircle,
   Eye,
@@ -21,12 +20,9 @@ import {
   AlertTriangle,
   ArrowUpDown,
   Clock,
-  Square,
-  CheckSquare,
-  Receipt,
 } from "lucide-react"
 import type { TaxDueDate, Client, Tax, FiscalEventStatus } from "@/lib/types"
-import { deleteTax } from "@/lib/storage"
+import { deleteTax, saveTaxStatus } from "@/lib/storage"
 import { formatDate, isOverdue } from "@/lib/date-utils"
 import { getRecurrenceDescription } from "@/lib/recurrence-utils"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -37,7 +33,7 @@ type TaxListProps = {
   clients: Client[]
   taxTemplates: Tax[]
   onUpdate: () => void
-  onEdit: (tax: Tax) => void // Changed to emit event
+  onEdit: (tax: Tax) => void
 }
 
 export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate, onEdit }: TaxListProps) {
@@ -50,13 +46,7 @@ export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate, onEdit
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
   const [selectedTaxIds, setSelectedTaxIds] = useState<string[]>([]);
 
-  const [localTaxDueDates, setLocalTaxDueDates] = useState<TaxDueDate[]>(taxesDueDates);
-
-  useEffect(() => {
-    setLocalTaxDueDates(taxesDueDates);
-  }, [taxesDueDates]);
-
-  const filteredTaxes = localTaxDueDates.filter((tax) => {
+  const filteredTaxes = taxesDueDates.filter((tax) => {
     const matchesSearch =
       tax.name.toLowerCase().includes(search.toLowerCase()) ||
       tax.client.name.toLowerCase().includes(search.toLowerCase()) ||
@@ -96,20 +86,20 @@ export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate, onEdit
   }
 
   const handleCompleteTax = (taxDueDate: TaxDueDate) => {
-    setLocalTaxDueDates(prev => prev.map(t => t.id === taxDueDate.id ? { ...t, status: "completed" } : t));
+    saveTaxStatus(taxDueDate.id, "completed")
+    onUpdate()
     toast({
       title: "Imposto processado!",
-      description: `O imposto "${taxDueDate.name}" foi marcado como processado (não persistente).`,
-      variant: "default",
+      description: `O imposto "${taxDueDate.name}" foi marcado como processado.`,
     });
   }
 
   const handleInProgressTax = (taxDueDate: TaxDueDate) => {
-    setLocalTaxDueDates(prev => prev.map(t => t.id === taxDueDate.id ? { ...t, status: "in_progress" } : t));
+    saveTaxStatus(taxDueDate.id, "in_progress")
+    onUpdate()
     toast({
       title: "Imposto em processamento!",
-      description: `O imposto "${taxDueDate.name}" foi marcado como em processamento (não persistente).`,
-      variant: "default",
+      description: `O imposto "${taxDueDate.name}" foi marcado como em processamento.`,
     });
   }
 
@@ -202,7 +192,7 @@ export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate, onEdit
     if (!confirm(`Tem certeza que deseja marcar ${selectedTaxIds.length} imposto(s) como processado(s)?`)) return;
 
     selectedTaxIds.forEach((id) => {
-      const tax = localTaxDueDates.find((t) => t.id === id);
+      const tax = taxesDueDates.find((t) => t.id === id);
       if (tax) {
         handleCompleteTax(tax);
       }
@@ -215,7 +205,7 @@ export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate, onEdit
     if (!confirm(`Tem certeza que deseja marcar ${selectedTaxIds.length} imposto(s) como em processamento?`)) return;
 
     selectedTaxIds.forEach((id) => {
-      const tax = localTaxDueDates.find((t) => t.id === id);
+      const tax = taxesDueDates.find((t) => t.id === id);
       if (tax) {
         handleInProgressTax(tax);
       }
@@ -412,11 +402,11 @@ export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate, onEdit
                           <Eye className="size-4 mr-2" />
                           Ver detalhes
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => onEdit(taxTemplates.find(t => t.id === tax.id) || tax)}>
+                        <DropdownMenuItem onClick={() => onEdit(taxTemplates.find(t => t.id === tax.id.split('-')[0]) || tax)}>
                           <Pencil className="size-4 mr-2" />
                           Editar Imposto
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDeleteTaxTemplate(tax.id)} className="text-destructive">
+                        <DropdownMenuItem onClick={() => handleDeleteTaxTemplate(tax.id.split('-')[0])} className="text-destructive">
                           <Trash2 className="size-4 mr-2" />
                           Excluir Imposto
                         </DropdownMenuItem>

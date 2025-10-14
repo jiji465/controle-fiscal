@@ -1,4 +1,4 @@
-import type { Client, Tax, Obligation, Notification, Installment } from "./types"
+import type { Client, Tax, Obligation, Notification, Installment, FiscalEventStatus } from "./types"
 
 const STORAGE_KEYS = {
   CLIENTS: "fiscal_clients",
@@ -6,6 +6,7 @@ const STORAGE_KEYS = {
   OBLIGATIONS: "fiscal_obligations",
   NOTIFICATIONS: "fiscal_notifications",
   INSTALLMENTS: "fiscal_installments", // New key for installments
+  TAX_STATUSES: "fiscal_tax_statuses",
 }
 
 // Client Storage
@@ -75,6 +76,19 @@ export const saveObligation = (obligation: Obligation): void => {
 export const deleteObligation = (id: string): void => {
   const obligations = getObligations().filter((o) => o.id !== id)
   localStorage.setItem(STORAGE_KEYS.OBLIGATIONS, JSON.stringify(obligations))
+}
+
+// Tax Status Storage
+export const getTaxStatuses = (): Record<string, FiscalEventStatus> => {
+  if (typeof window === "undefined") return {}
+  const data = localStorage.getItem(STORAGE_KEYS.TAX_STATUSES)
+  return data ? JSON.parse(data) : {}
+}
+
+export const saveTaxStatus = (taxDueDateId: string, status: FiscalEventStatus): void => {
+  const statuses = getTaxStatuses()
+  statuses[taxDueDateId] = status
+  localStorage.setItem(STORAGE_KEYS.TAX_STATUSES, JSON.stringify(statuses))
 }
 
 // Installment Storage

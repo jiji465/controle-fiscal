@@ -1,5 +1,5 @@
 import type { DashboardStats, ObligationWithDetails, TaxDueDate, Tax, Client, Installment, InstallmentWithDetails, FiscalEventStatus, FiscalEventType } from "./types"
-import { getClients, getTaxes, getObligations, getInstallments } from "./storage"
+import { getClients, getTaxes, getObligations, getInstallments, getTaxStatuses } from "./storage"
 import { calculateDueDate, isOverdue, isUpcomingThisWeek, calculateTaxDueDate, calculateInstallmentDueDate } from "./date-utils"
 
 export const getObligationsWithDetails = (): ObligationWithDetails[] => {
@@ -44,6 +44,7 @@ export const getTaxesDueDates = (monthsAhead: number = 3): TaxDueDate[] => {
   const clients = getClients();
   const today = new Date();
   const taxDueDates: TaxDueDate[] = [];
+  const taxStatuses = getTaxStatuses();
 
   const unknownClient: Client = {
     id: "unknown",
@@ -66,25 +67,32 @@ export const getTaxesDueDates = (monthsAhead: number = 3): TaxDueDate[] => {
       }
 
       const client = tax.clientId ? clients.find(c => c.id === tax.clientId) || unknownClient : unknownClient;
-      const status: FiscalEventStatus = isOverdue(calculatedDueDate.toISOString()) ? "overdue" : "pending";
+      
+      const uniqueId = `${tax.id}-${calculatedDueDate.toISOString().split("T")[0]}`;
+      const storedStatus = taxStatuses[uniqueId];
+      const isEventOverdue = isOverdue(calculatedDueDate.toISOString());
+      
+      let status: FiscalEventStatus = "pending";
+      if (storedStatus) {
+        status = storedStatus;
+      } else if (isEventOverdue) {
+        status = "overdue";
+      }
 
       taxDueDates.push({
         ...tax,
+        id: uniqueId,
         client,
         calculatedDueDate: calculatedDueDate.toISOString(),
-        status, // Explicitly add the derived status
-        type: "tax", // Explicitly add the type from FiscalEventBase
-        // Taxes don't have amount, completedAt, completedBy, paidAt, paidBy in this context
+        status,
+        type: "tax",
       } as TaxDueDate);
     }
   });
 
-  // Filter out duplicates and past dates
-  const uniqueTaxDueDates = Array.from(new Map(taxDueDates.map(item => [item.id, item])).values())
-    .filter(item => new Date(item.calculatedDueDate) >= today || isOverdue(item.calculatedDueDate)) // Keep current/future or overdue
+  return taxDueDates
+    .filter(item => new Date(item.calculatedDueDate) >= today || isOverdue(item.calculatedDueDate))
     .sort((a, b) => new Date(a.calculatedDueDate).getTime() - new Date(b.calculatedDueDate).getTime());
-
-  return uniqueTaxDueDates;
 };
 
 export const getInstallmentsWithDetails = (): InstallmentWithDetails[] => {

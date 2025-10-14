@@ -60,7 +60,7 @@ export default function DashboardPage() {
   })
   const upcomingInstallmentsThisWeek = installments.filter((i) => {
     const dueDate = new Date(i.calculatedDueDate)
-    return dueDate >= today && dueDate <= nextWeek && i.status !== "paid"
+    return dueDate >= today && dueDate <= nextWeek && i.status !== "completed"
   })
   const upcomingTaxesThisWeek = taxesDueDates.filter((t) => {
     const dueDate = new Date(t.calculatedDueDate)
