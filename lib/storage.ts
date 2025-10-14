@@ -1,10 +1,11 @@
-import type { Client, Tax, Obligation, Notification } from "./types"
+import type { Client, Tax, Obligation, Notification, Installment } from "./types"
 
 const STORAGE_KEYS = {
   CLIENTS: "fiscal_clients",
   TAXES: "fiscal_taxes",
   OBLIGATIONS: "fiscal_obligations",
-  NOTIFICATIONS: "fiscal_notifications", // Added for notifications
+  NOTIFICATIONS: "fiscal_notifications",
+  INSTALLMENTS: "fiscal_installments", // New key for installments
 }
 
 // Client Storage
@@ -74,6 +75,29 @@ export const saveObligation = (obligation: Obligation): void => {
 export const deleteObligation = (id: string): void => {
   const obligations = getObligations().filter((o) => o.id !== id)
   localStorage.setItem(STORAGE_KEYS.OBLIGATIONS, JSON.stringify(obligations))
+}
+
+// Installment Storage
+export const getInstallments = (): Installment[] => {
+  if (typeof window === "undefined") return []
+  const data = localStorage.getItem(STORAGE_KEYS.INSTALLMENTS)
+  return data ? JSON.parse(data) : []
+}
+
+export const saveInstallment = (installment: Installment): void => {
+  const installments = getInstallments()
+  const index = installments.findIndex((i) => i.id === installment.id)
+  if (index >= 0) {
+    installments[index] = installment
+  } else {
+    installments.push(installment)
+  }
+  localStorage.setItem(STORAGE_KEYS.INSTALLMENTS, JSON.stringify(installments))
+}
+
+export const deleteInstallment = (id: string): void => {
+  const installments = getInstallments().filter((i) => i.id !== id)
+  localStorage.setItem(STORAGE_KEYS.INSTALLMENTS, JSON.stringify(installments))
 }
 
 // Notification Storage

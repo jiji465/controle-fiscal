@@ -5,8 +5,8 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CheckCircle2, Clock, AlertTriangle, Calendar, TrendingUp, Users, BarChart3, PieChart, LayoutDashboard } from "lucide-react"
-import type { ObligationWithDetails } from "@/lib/types"
+import { CheckCircle2, Clock, AlertTriangle, Calendar, TrendingUp, Users, BarChart3, PieChart, LayoutDashboard, DollarSign } from "lucide-react"
+import type { ObligationWithDetails, InstallmentWithDetails, TaxDueDate } from "@/lib/types"
 import { formatDate, formatCurrency } from "@/lib/date-utils"
 import { getRecurrenceDescription } from "@/lib/recurrence-utils"
 import { useState, useMemo } from "react"
@@ -14,84 +14,126 @@ import { calculateProductivityMetrics } from "@/lib/metrics" // Import calculate
 
 type ReportsPanelProps = {
   obligations: ObligationWithDetails[]
+  installments: InstallmentWithDetails[] // New prop for installments
+  taxesDueDates: TaxDueDate[] // New prop for tax due dates
 }
 
-export function ReportsPanel({ obligations }: ReportsPanelProps) {
+export function ReportsPanel({ obligations, installments, taxesDueDates }: ReportsPanelProps) {
   const [periodFilter, setPeriodFilter] = useState<string>("all")
 
-  const filteredObligations = useMemo(() => {
-    return obligations.filter((obl) => {
-      const oblDate = new Date(obl.calculatedDueDate)
+  const allFiscalEvents = useMemo(() => {
+    return [...obligations, ...installments, ...taxesDueDates];
+  }, [obligations, installments, taxesDueDates]);
+
+  const filteredEvents = useMemo(() => {
+    return allFiscalEvents.filter((event) => {
+      const eventDate = new Date(event.calculatedDueDate)
       const now = new Date()
 
       switch (periodFilter) {
         case "this_month":
-          return oblDate.getMonth() === now.getMonth() && oblDate.getFullYear() === now.getFullYear()
+          return eventDate.getMonth() === now.getMonth() && eventDate.getFullYear() === now.getFullYear()
         case "last_month":
           const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-          return oblDate.getMonth() === lastMonth.getMonth() && oblDate.getFullYear() === lastMonth.getFullYear()
+          return eventDate.getMonth() === lastMonth.getMonth() && eventDate.getFullYear() === lastMonth.getFullYear()
         case "this_quarter":
           const quarter = Math.floor(now.getMonth() / 3)
-          const oblQuarter = Math.floor(oblDate.getMonth() / 3)
-          return oblQuarter === quarter && oblDate.getFullYear() === now.getFullYear()
+          const eventQuarter = Math.floor(eventDate.getMonth() / 3)
+          return eventQuarter === quarter && eventDate.getFullYear() === now.getFullYear()
         case "this_year":
-          return oblDate.getFullYear() === now.getFullYear()
+          return eventDate.getFullYear() === now.getFullYear()
         default:
           return true
       }
     })
-  }, [obligations, periodFilter]);
+  }, [allFiscalEvents, periodFilter]);
 
-  const metrics = useMemo(() => calculateProductivityMetrics(filteredObligations), [filteredObligations]);
+  // Metrics for obligations only for now, as productivity is more tied to them
+  const metrics = useMemo(() => calculateProductivityMetrics(obligations), [obligations]);
 
-  const completed = filteredObligations.filter((o) => o.status === "completed")
-  const inProgress = filteredObligations.filter((o) => o.status === "in_progress")
-  const pending = filteredObligations.filter((o) => o.status === "pending")
-  const overdue = filteredObligations.filter((o) => o.status === "overdue")
+  const completedObligations = filteredEvents.filter((e) => e.type === "obligation" && e.status === "completed") as ObligationWithDetails[];
+  const paidInstallments = filteredEvents.filter((e) => e.type === "installment" && e.status === "paid") as InstallmentWithDetails[];
+  const inProgressObligations = filteredEvents.filter((e) => e.type === "obligation" && e.status === "in_progress") as ObligationWithDetails[];
+  const pendingObligations = filteredEvents.filter((e) => e.type === "obligation" && e.status === "pending") as ObligationWithDetails[];
+  const pendingInstallments = filteredEvents.filter((e) => e.type === "installment" && e.status === "pending") as InstallmentWithDetails[];
+  const pendingTaxes = filteredEvents.filter((e) => e.type === "tax" && e.status === "pending") as TaxDueDate[];
+  const overdueEvents = filteredEvents.filter((e) => e.status === "overdue");
+
+  const totalCompletedOrPaid = completedObligations.length + paidInstallments.length;
+  const totalEventsConsidered = filteredEvents.length;
 
   const completionRate =
-    filteredObligations.length > 0 ? Math.round((completed.length / filteredObligations.length) * 100) : 0
+    totalEventsConsidered > 0 ? Math.round((totalCompletedOrPaid / totalEventsConsidered) * 100) : 0
 
-  const completedOnTime = completed.filter((obl) => {
+  const completedObligationsOnTime = completedObligations.filter((obl) => {
     if (!obl.realizationDate) return false
     return new Date(obl.realizationDate) <= new Date(obl.calculatedDueDate)
   })
-  const onTimeRate = completed.length > 0 ? Math.round((completedOnTime.length / completed.length) * 100) : 0
+  const paidInstallmentsOnTime = paidInstallments.filter((inst) => {
+    if (!inst.paidAt) return false;
+    return new Date(inst.paidAt) <= new Date(inst.calculatedDueDate);
+  });
 
-  // Obrigações por cliente
-  const byClient = filteredObligations.reduce(
-    (acc, obl) => {
-      const clientName = obl.client.name
+  const totalCompletedOnTime = completedObligationsOnTime.length + paidInstallmentsOnTime.length;
+  const totalCompletedAndPaid = completedObligations.length + paidInstallments.length;
+  const onTimeRate = totalCompletedAndPaid > 0 ? Math.round((totalCompletedOnTime / totalCompletedAndPaid) * 100) : 0;
+
+  // Events by client
+  const byClient = filteredEvents.reduce(
+    (acc, event) => {
+      const clientName = event.client.name
       if (!acc[clientName]) {
-        acc[clientName] = { total: 0, completed: 0, pending: 0, inProgress: 0 }
+        acc[clientName] = { total: 0, completed: 0, pending: 0, inProgress: 0, paid: 0, overdue: 0 }
       }
       acc[clientName].total++
-      if (obl.status === "completed") acc[clientName].completed++
-      if (obl.status === "pending") acc[clientName].pending++
-      if (obl.status === "in_progress") acc[clientName].inProgress++
+      if (event.type === "obligation") {
+        if (event.status === "completed") acc[clientName].completed++;
+        if (event.status === "pending") acc[clientName].pending++;
+        if (event.status === "in_progress") acc[clientName].inProgress++;
+      } else if (event.type === "installment") {
+        if (event.status === "paid") acc[clientName].paid++;
+        if (event.status === "pending") acc[clientName].pending++;
+      } else if (event.type === "tax") {
+        if (event.status === "pending") acc[clientName].pending++;
+      }
+      if (event.status === "overdue") acc[clientName].overdue++;
       return acc
     },
-    {} as Record<string, { total: number; completed: number; pending: number; inProgress: number }>,
+    {} as Record<string, { total: number; completed: number; pending: number; inProgress: number; paid: number; overdue: number }>,
   )
 
-  // Obrigações por tipo de recorrência
-  const byRecurrence = filteredObligations.reduce(
-    (acc, obl) => {
-      const recurrence = getRecurrenceDescription(obl)
-      acc[recurrence] = (acc[recurrence] || 0) + 1
-      return acc
+  // Events by type
+  const byType = filteredEvents.reduce(
+    (acc, event) => {
+      acc[event.type] = (acc[event.type] || 0) + 1;
+      return acc;
+    },
+    {} as Record<FiscalEventType, number>
+  );
+
+  // Events by recurrence (for obligations and installments)
+  const byRecurrence = filteredEvents.reduce(
+    (acc, event) => {
+      if (event.type === "obligation" || event.type === "installment") {
+        const recurrence = getRecurrenceDescription(event);
+        acc[recurrence] = (acc[recurrence] || 0) + 1;
+      }
+      return acc;
     },
     {} as Record<string, number>,
   )
 
-  const byTax = filteredObligations.reduce(
-    (acc, obl) => {
-      const taxName = obl.tax?.name || "Sem imposto"
-      if (!acc[taxName]) {
-        acc[taxName] = { total: 0, completed: 0 }
+  // Events by tax (for obligations)
+  const byTax = filteredEvents.reduce(
+    (acc, event) => {
+      if (event.type === "obligation") {
+        const taxName = (event as ObligationWithDetails).tax?.name || "Sem imposto"
+        if (!acc[taxName]) {
+          acc[taxName] = { total: 0, completed: 0 }
+        }
+        acc[taxName].total++
+        if (event.status === "completed") acc[taxName].completed++
       }
-      acc[taxName].total++
-      if (obl.status === "completed") acc[taxName].completed++
       return acc
     },
     {} as Record<string, { total: number; completed: number }>,
@@ -124,11 +166,11 @@ export function ReportsPanel({ obligations }: ReportsPanelProps) {
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <CheckCircle2 className="size-4 text-green-600" />
-              Concluídas
+              Concluídas/Pagas
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{completed.length}</div>
+            <div className="text-2xl font-bold">{totalCompletedOrPaid}</div>
             <Progress value={completionRate} className="mt-2" />
             <p className="text-xs text-muted-foreground mt-1">{completionRate}% do total</p>
           </CardContent>
@@ -142,9 +184,9 @@ export function ReportsPanel({ obligations }: ReportsPanelProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{completedOnTime.length}</div>
+            <div className="text-2xl font-bold">{totalCompletedOnTime}</div>
             <Progress value={onTimeRate} className="mt-2" />
-            <p className="text-xs text-muted-foreground mt-1">{onTimeRate}% das concluídas</p>
+            <p className="text-xs text-muted-foreground mt-1">{onTimeRate}% das concluídas/pagas</p>
           </CardContent>
         </Card>
 
@@ -156,9 +198,9 @@ export function ReportsPanel({ obligations }: ReportsPanelProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{inProgress.length}</div>
+            <div className="text-2xl font-bold">{inProgressObligations.length}</div>
             <p className="text-xs text-muted-foreground mt-3">
-              {Math.round((inProgress.length / (filteredObligations.length || 1)) * 100)}% do total
+              {Math.round((inProgressObligations.length / (totalEventsConsidered || 1)) * 100)}% do total
             </p>
           </CardContent>
         </Card>
@@ -171,8 +213,8 @@ export function ReportsPanel({ obligations }: ReportsPanelProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold">{pending.length}</div>
-            <p className="text-xs text-muted-foreground mt-3">Aguardando início</p>
+            <div className="text-2xl font-bold">{pendingObligations.length + pendingInstallments.length + pendingTaxes.length}</div>
+            <p className="text-xs text-muted-foreground mt-3">Aguardando início/pagamento</p>
           </CardContent>
         </Card>
 
@@ -184,7 +226,7 @@ export function ReportsPanel({ obligations }: ReportsPanelProps) {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="text-2xl font-bold text-red-600">{overdue.length}</div>
+            <div className="text-2xl font-bold text-red-600">{overdueEvents.length}</div>
             <p className="text-xs text-muted-foreground mt-3">Requerem atenção imediata</p>
           </CardContent>
         </Card>
@@ -194,15 +236,16 @@ export function ReportsPanel({ obligations }: ReportsPanelProps) {
       <Tabs defaultValue="clients" className="space-y-4">
         <TabsList>
           <TabsTrigger value="clients">Por Cliente</TabsTrigger>
-          <TabsTrigger value="tax">Por Imposto</TabsTrigger>
+          <TabsTrigger value="type">Por Tipo</TabsTrigger>
+          <TabsTrigger value="tax">Por Imposto (Obrigações)</TabsTrigger>
           <TabsTrigger value="recurrence">Por Recorrência</TabsTrigger>
-          <TabsTrigger value="completed">Finalizadas</TabsTrigger>
+          <TabsTrigger value="completed">Finalizadas/Pagas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="clients" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Obrigações por Cliente</CardTitle>
+              <CardTitle>Eventos por Cliente</CardTitle>
               <CardDescription>Distribuição de tarefas entre os clientes</CardDescription>
             </CardHeader>
             <CardContent>
@@ -211,16 +254,42 @@ export function ReportsPanel({ obligations }: ReportsPanelProps) {
                   <div key={client} className="space-y-2">
                     <div className="flex items-center justify-between">
                       <span className="font-medium">{client}</span>
-                      <span className="text-sm text-muted-foreground">{stats.total} obrigações</span>
+                      <span className="text-sm text-muted-foreground">{stats.total} eventos</span>
                     </div>
                     <div className="flex gap-2">
-                      <Badge className="bg-green-600">{stats.completed} concluídas</Badge>
-                      <Badge className="bg-blue-600">{stats.inProgress} em andamento</Badge>
-                      <Badge variant="secondary">{stats.pending} pendentes</Badge>
+                      {stats.completed > 0 && <Badge className="bg-green-600">{stats.completed} obrigações concluídas</Badge>}
+                      {stats.paid > 0 && <Badge className="bg-green-600">{stats.paid} parcelamentos pagos</Badge>}
+                      {stats.inProgress > 0 && <Badge className="bg-blue-600">{stats.inProgress} obrigações em andamento</Badge>}
+                      {stats.pending > 0 && <Badge variant="secondary">{stats.pending} pendentes</Badge>}
+                      {stats.overdue > 0 && <Badge variant="destructive">{stats.overdue} atrasados</Badge>}
                     </div>
-                    <Progress value={(stats.completed / stats.total) * 100} className="h-2" />
+                    <Progress value={((stats.completed + stats.paid) / stats.total) * 100} className="h-2" />
                   </div>
                 ))}
+              </div>
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        <TabsContent value="type" className="space-y-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>Eventos por Tipo</CardTitle>
+              <CardDescription>Distribuição por categoria de evento fiscal</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-4">
+                {Object.entries(byType)
+                  .sort(([, a], [, b]) => b - a)
+                  .map(([type, count]) => (
+                    <div key={type} className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="font-medium capitalize">{type === "obligation" ? "Obrigações" : type === "tax" ? "Impostos" : "Parcelamentos"}</span>
+                        <Badge variant="outline">{count} eventos</Badge>
+                      </div>
+                      <Progress value={(count / totalEventsConsidered) * 100} className="h-2" />
+                    </div>
+                  ))}
               </div>
             </CardContent>
           </Card>
@@ -230,7 +299,7 @@ export function ReportsPanel({ obligations }: ReportsPanelProps) {
           <Card>
             <CardHeader>
               <CardTitle>Obrigações por Tipo de Imposto</CardTitle>
-              <CardDescription>Distribuição por categoria fiscal</CardDescription>
+              <CardDescription>Distribuição por categoria fiscal (apenas obrigações)</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-4">
@@ -257,15 +326,15 @@ export function ReportsPanel({ obligations }: ReportsPanelProps) {
         <TabsContent value="recurrence" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Obrigações por Tipo de Recorrência</CardTitle>
-              <CardDescription>Distribuição por frequência de vencimento</CardDescription>
+              <CardTitle>Eventos por Tipo de Recorrência</CardTitle>
+              <CardDescription>Distribuição por frequência de vencimento (obrigações e parcelamentos)</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {Object.entries(byRecurrence).map(([recurrence, count]) => (
                   <div key={recurrence} className="flex items-center justify-between p-3 border rounded-lg">
                     <span className="font-medium">{recurrence}</span>
-                    <Badge variant="outline">{count} obrigações</Badge>
+                    <Badge variant="outline">{count} eventos</Badge>
                   </div>
                 ))}
               </div>
@@ -276,30 +345,35 @@ export function ReportsPanel({ obligations }: ReportsPanelProps) {
         <TabsContent value="completed" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Obrigações Finalizadas</CardTitle>
-              <CardDescription>Histórico de tarefas concluídas</CardDescription>
+              <CardTitle>Eventos Finalizados/Pagos</CardTitle>
+              <CardDescription>Histórico de tarefas concluídas e parcelamentos pagos</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
-                {completed.length === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">Nenhuma obrigação concluída ainda</p>
+                {totalCompletedOrPaid === 0 ? (
+                  <p className="text-center text-muted-foreground py-8">Nenhum evento concluído ou pago ainda</p>
                 ) : (
-                  completed.map((obl) => (
-                    <div key={obl.id} className="flex items-start justify-between p-3 border rounded-lg">
+                  [...completedObligations, ...paidInstallments].sort((a,b) => new Date(b.calculatedDueDate).getTime() - new Date(a.calculatedDueDate).getTime()).map((event) => (
+                    <div key={event.id} className="flex items-start justify-between p-3 border rounded-lg">
                       <div className="space-y-1">
-                        <div className="font-medium">{obl.name}</div>
-                        <div className="text-sm text-muted-foreground">{obl.client.name}</div>
-                        {obl.realizationDate && (
+                        <div className="font-medium">{event.name}</div>
+                        <div className="text-sm text-muted-foreground">{event.client.name}</div>
+                        {event.type === "obligation" && (event as ObligationWithDetails).realizationDate && (
                           <div className="text-xs text-muted-foreground">
-                            Realizada em: {formatDate(obl.realizationDate)}
+                            Realizada em: {formatDate((event as ObligationWithDetails).realizationDate!)}
+                          </div>
+                        )}
+                        {event.type === "installment" && (event as InstallmentWithDetails).paidAt && (
+                          <div className="text-xs text-muted-foreground">
+                            Pago em: {formatDate((event as InstallmentWithDetails).paidAt!)}
                           </div>
                         )}
                       </div>
                       <div className="text-right">
-                        {obl.amount && <div className="font-medium">{formatCurrency(obl.amount)}</div>}
+                        {event.amount && <div className="font-medium">{formatCurrency(event.amount)}</div>}
                         <Badge className="bg-green-600 mt-1">
                           <CheckCircle2 className="size-3 mr-1" />
-                          Concluída
+                          {event.type === "obligation" ? "Concluída" : "Pago"}
                         </Badge>
                       </div>
                     </div>

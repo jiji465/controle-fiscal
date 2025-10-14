@@ -1,4 +1,4 @@
-import type { WeekendRule, Tax } from "./types"
+import type { WeekendRule, Tax, Installment } from "./types"
 
 export const isWeekend = (date: Date): boolean => {
   const day = date.getDay()
@@ -29,7 +29,7 @@ export const adjustForWeekend = (date: Date, rule: WeekendRule): Date => {
 export const calculateDueDate = (
   dueDay: number,
   dueMonth: number | undefined,
-  frequency: string,
+  frequency: string, // This is now less relevant for Tax/Installment, but kept for Obligation
   weekendRule: WeekendRule,
   referenceDate: Date = new Date(),
 ): Date => {
@@ -63,43 +63,38 @@ export const calculateTaxDueDate = (
   referenceDate: Date = new Date(),
 ): Date => {
   if (tax.dueDay === undefined) {
-    // If no dueDay, return the referenceDate. Taxes without a dueDay won't be displayed on the calendar.
-    return referenceDate;
+    return referenceDate; // Or throw an error, depending on desired behavior for invalid tax templates
   }
 
-  let dueDate: Date;
-  // For Tax templates, we calculate the next upcoming due date based on its recurrence and dueDay.
-  // This is a simplified calculation for display purposes in the calendar.
-  dueDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), tax.dueDay);
+  let dueDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), tax.dueDay);
+
+  // Ensure the due date is in the future or current month/day
+  if (dueDate < referenceDate && dueDate.getDate() !== referenceDate.getDate()) {
+    dueDate.setMonth(dueDate.getMonth() + (tax.recurrenceInterval || 1));
+  }
 
   // Adjust based on recurrence type to find the next relevant date
   switch (tax.recurrence) {
     case "monthly":
-    case "custom": // Assuming custom is also monthly-based for simplicity here
-      if (dueDate < referenceDate && dueDate.getDate() !== referenceDate.getDate()) {
-        dueDate.setMonth(dueDate.getMonth() + (tax.recurrenceInterval || 1));
-      }
+    case "custom":
+      // Already handled by initial check and recurrenceInterval
       break;
     case "bimonthly":
-      // Find the next bimonthly occurrence
       while (dueDate < referenceDate || (dueDate.getMonth() % 2 !== referenceDate.getMonth() % 2)) {
         dueDate.setMonth(dueDate.getMonth() + 1);
       }
       break;
     case "quarterly":
-      // Find the next quarterly occurrence
       while (dueDate < referenceDate || (dueDate.getMonth() % 3 !== referenceDate.getMonth() % 3)) {
         dueDate.setMonth(dueDate.getMonth() + 1);
       }
       break;
     case "semiannual":
-      // Find the next semiannual occurrence
       while (dueDate < referenceDate || (dueDate.getMonth() % 6 !== referenceDate.getMonth() % 6)) {
         dueDate.setMonth(dueDate.getMonth() + 1);
       }
       break;
     case "annual":
-      // Find the next annual occurrence
       if (dueDate < referenceDate) {
         dueDate.setFullYear(dueDate.getFullYear() + 1);
       }
@@ -108,6 +103,60 @@ export const calculateTaxDueDate = (
 
   return adjustForWeekend(dueDate, tax.weekendRule);
 };
+
+export const calculateInstallmentDueDate = (
+  installment: Installment,
+  referenceDate: Date = new Date(),
+): Date => {
+  let dueDate: Date;
+
+  // Start with the current year/month and the installment's dueDay
+  dueDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), installment.dueDay);
+
+  // If a specific dueMonth is defined (e.g., for annual installments)
+  if (installment.dueMonth !== undefined) {
+    dueDate.setMonth(installment.dueMonth - 1); // Months are 0-indexed
+    if (dueDate < referenceDate && dueDate.getDate() !== referenceDate.getDate()) {
+      dueDate.setFullYear(dueDate.getFullYear() + 1);
+    }
+  } else {
+    // For monthly or other recurring types without a specific month
+    if (dueDate < referenceDate && dueDate.getDate() !== referenceDate.getDate()) {
+      dueDate.setMonth(dueDate.getMonth() + (installment.recurrenceInterval || 1));
+    }
+  }
+
+  // Adjust based on recurrence type to find the next relevant date
+  switch (installment.recurrence) {
+    case "monthly":
+    case "custom":
+      // Already handled by initial check and recurrenceInterval
+      break;
+    case "bimonthly":
+      while (dueDate < referenceDate || (dueDate.getMonth() % 2 !== referenceDate.getMonth() % 2)) {
+        dueDate.setMonth(dueDate.getMonth() + 1);
+      }
+      break;
+    case "quarterly":
+      while (dueDate < referenceDate || (dueDate.getMonth() % 3 !== referenceDate.getMonth() % 3)) {
+        dueDate.setMonth(dueDate.getMonth() + 1);
+      }
+      break;
+    case "semiannual":
+      while (dueDate < referenceDate || (dueDate.getMonth() % 6 !== referenceDate.getMonth() % 6)) {
+        dueDate.setMonth(dueDate.getMonth() + 1);
+      }
+      break;
+    case "annual":
+      if (dueDate < referenceDate) {
+        dueDate.setFullYear(dueDate.getFullYear() + 1);
+      }
+      break;
+  }
+
+  return adjustForWeekend(dueDate, installment.weekendRule);
+};
+
 
 export const formatDate = (date: string | Date): string => {
   const d = typeof date === "string" ? new Date(date) : date
@@ -122,7 +171,11 @@ export const formatCurrency = (value: number): string => {
 }
 
 export const isOverdue = (dueDate: string): boolean => {
-  return new Date(dueDate) < new Date()
+  const today = new Date();
+  today.setHours(0, 0, 0, 0); // Normalize today to start of day
+  const due = new Date(dueDate);
+  due.setHours(0, 0, 0, 0); // Normalize due date to start of day
+  return due < today;
 }
 
 export const isUpcomingThisWeek = (dueDate: string): boolean => {

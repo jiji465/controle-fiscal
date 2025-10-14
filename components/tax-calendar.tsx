@@ -3,11 +3,11 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, AlertCircle, Clock } from "lucide-react"
-import type { TaxWithDetails } from "@/lib/types" // Changed to TaxWithDetails
+import type { TaxDueDate } from "@/lib/types" // Changed to TaxDueDate
 import { formatDate, isOverdue } from "@/lib/date-utils"
 
 type TaxCalendarProps = {
-  taxes: TaxWithDetails[] // Expecting TaxWithDetails[]
+  taxes: TaxDueDate[] // Expecting TaxDueDate[]
 }
 
 export function TaxCalendar({ taxes }: TaxCalendarProps) {
@@ -23,7 +23,7 @@ export function TaxCalendar({ taxes }: TaxCalendarProps) {
       const isNextMonth = dueDate.getMonth() === (today.getMonth() + 1) % 12 &&
                           dueDate.getFullYear() === (dueDate.getMonth() === 0 ? today.getFullYear() + 1 : today.getFullYear());
 
-      if ((isCurrentMonth || isNextMonth) && dueDate >= today) {
+      if ((isCurrentMonth || isNextMonth) && (dueDate >= today || isOverdue(tax.calculatedDueDate))) { // Include overdue taxes
         const day = dueDate.getDate();
         if (!acc[day]) {
           acc[day] = [];
@@ -32,7 +32,7 @@ export function TaxCalendar({ taxes }: TaxCalendarProps) {
       }
       return acc;
     },
-    {} as Record<number, TaxWithDetails[]>,
+    {} as Record<number, TaxDueDate[]>,
   );
 
   // Prepare upcoming taxes for display

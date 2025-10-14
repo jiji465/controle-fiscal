@@ -2,23 +2,30 @@
 
 import { Button } from "@/components/ui/button"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Zap, CheckCircle2, PlayCircle, AlertTriangle, FileText } from "lucide-react"
-import type { ObligationWithDetails } from "@/lib/types"
-import { saveObligation } from "@/lib/storage"
+import { Zap, CheckCircle2, PlayCircle, AlertTriangle, FileText, DollarSign } from "lucide-react"
+import type { ObligationWithDetails, InstallmentWithDetails } from "@/lib/types"
+import { saveObligation, saveInstallment } from "@/lib/storage"
+import { isOverdue } from "@/lib/date-utils"
 
 type QuickActionsProps = {
   obligations: ObligationWithDetails[]
+  installments: InstallmentWithDetails[] // New prop for installments
   onUpdate: () => void
 }
 
-export function QuickActions({ obligations, onUpdate }: QuickActionsProps) {
+export function QuickActions({ obligations, installments, onUpdate }: QuickActionsProps) {
   const pendingObligations = obligations.filter((o) => o.status === "pending")
   const inProgressObligations = obligations.filter((o) => o.status === "in_progress")
   const overdueObligations = obligations.filter(
-    (o) => new Date(o.calculatedDueDate) < new Date() && o.status !== "completed",
+    (o) => isOverdue(o.calculatedDueDate) && o.status !== "completed",
   )
 
-  const handleBulkComplete = (obligationList: ObligationWithDetails[]) => {
+  const pendingInstallments = installments.filter((i) => i.status === "pending")
+  const overdueInstallments = installments.filter(
+    (i) => isOverdue(i.calculatedDueDate) && i.status !== "paid",
+  )
+
+  const handleBulkCompleteObligations = (obligationList: ObligationWithDetails[]) => {
     if (confirm(`Tem certeza que deseja marcar ${obligationList.length} obrigação(ões) como concluída(s)?`)) {
       obligationList.forEach((obligation) => {
         const updated = {
@@ -42,7 +49,7 @@ export function QuickActions({ obligations, onUpdate }: QuickActionsProps) {
     }
   }
 
-  const handleBulkStart = (obligationList: ObligationWithDetails[]) => {
+  const handleBulkStartObligations = (obligationList: ObligationWithDetails[]) => {
     if (confirm(`Tem certeza que deseja iniciar ${obligationList.length} obrigação(ões)?`)) {
       obligationList.forEach((obligation) => {
         const updated = {
@@ -64,42 +71,75 @@ export function QuickActions({ obligations, onUpdate }: QuickActionsProps) {
     }
   }
 
+  const handleBulkPayInstallments = (installmentList: InstallmentWithDetails[]) => {
+    if (confirm(`Tem certeza que deseja marcar ${installmentList.length} parcelamento(s) como pago(s)?`)) {
+      installmentList.forEach((installment) => {
+        const updated = {
+          ...installment,
+          status: "paid" as const,
+          paidAt: new Date().toISOString(),
+          paidBy: "Usuário (ação em lote)",
+        }
+        saveInstallment(updated)
+      })
+      onUpdate()
+    }
+  }
+
   const quickActions = [
     {
-      title: "Concluir Pendentes",
+      title: "Concluir Obrigações Pendentes",
       description: `${pendingObligations.length} obrigações pendentes`,
       icon: CheckCircle2,
       color: "text-green-600",
       bgColor: "bg-green-50 dark:bg-green-950/30",
-      action: () => handleBulkComplete(pendingObligations),
+      action: () => handleBulkCompleteObligations(pendingObligations),
       disabled: pendingObligations.length === 0,
     },
     {
-      title: "Iniciar Pendentes",
+      title: "Iniciar Obrigações Pendentes",
       description: `${pendingObligations.length} obrigações para iniciar`,
       icon: PlayCircle,
       color: "text-blue-600",
       bgColor: "bg-blue-50 dark:bg-blue-950/30",
-      action: () => handleBulkStart(pendingObligations),
+      action: () => handleBulkStartObligations(pendingObligations),
       disabled: pendingObligations.length === 0,
     },
     {
-      title: "Concluir Em Andamento",
+      title: "Concluir Obrigações Em Andamento",
       description: `${inProgressObligations.length} obrigações em andamento`,
       icon: FileText,
       color: "text-purple-600",
       bgColor: "bg-purple-50 dark:bg-purple-950/30",
-      action: () => handleBulkComplete(inProgressObligations),
+      action: () => handleBulkCompleteObligations(inProgressObligations),
       disabled: inProgressObligations.length === 0,
     },
     {
-      title: "Resolver Atrasadas",
+      title: "Pagar Parcelamentos Pendentes",
+      description: `${pendingInstallments.length} parcelamentos pendentes`,
+      icon: DollarSign,
+      color: "text-green-600",
+      bgColor: "bg-green-50 dark:bg-green-950/30",
+      action: () => handleBulkPayInstallments(pendingInstallments),
+      disabled: pendingInstallments.length === 0,
+    },
+    {
+      title: "Resolver Obrigações Atrasadas",
       description: `${overdueObligations.length} obrigações atrasadas`,
       icon: AlertTriangle,
       color: "text-red-600",
       bgColor: "bg-red-50 dark:bg-red-950/30",
-      action: () => handleBulkComplete(overdueObligations),
+      action: () => handleBulkCompleteObligations(overdueObligations),
       disabled: overdueObligations.length === 0,
+    },
+    {
+      title: "Resolver Parcelamentos Atrasados",
+      description: `${overdueInstallments.length} parcelamentos atrasados`,
+      icon: AlertTriangle,
+      color: "text-red-600",
+      bgColor: "bg-red-50 dark:bg-red-950/30",
+      action: () => handleBulkPayInstallments(overdueInstallments),
+      disabled: overdueInstallments.length === 0,
     },
   ]
 

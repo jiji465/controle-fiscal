@@ -5,23 +5,27 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { LayoutDashboard, Users, FileText, Calendar, Receipt, Menu, X, BarChart3, Bell } from "lucide-react"
+import { LayoutDashboard, Users, FileText, Calendar, Receipt, Menu, X, BarChart3, Bell, DollarSign } from "lucide-react"
 import { cn } from "@/lib/utils"
-import { getObligationsWithDetails } from "@/lib/dashboard-utils"
+import { getObligationsWithDetails, getTaxesDueDates, getInstallmentsWithDetails } from "@/lib/dashboard-utils"
 import { isOverdue } from "@/lib/date-utils"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover" // Import Popover components
-import { ScrollArea } from "@/components/ui/scroll-area" // Import ScrollArea
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import type { Notification } from "@/lib/types"
-import { getNotifications, markNotificationAsRead } from "@/lib/storage" // Assuming these functions exist
+import { getNotifications, markNotificationAsRead } from "@/lib/storage"
 
 export function Navigation() {
   const pathname = usePathname()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [alertCounts, setAlertCounts] = useState({
-    overdue: 0,
-    pending: 0,
-    thisWeek: 0,
+    overdueObligations: 0,
+    pendingObligations: 0,
+    upcomingThisWeek: 0,
+    overdueInstallments: 0,
+    pendingInstallments: 0,
+    overdueTaxes: 0,
+    pendingTaxes: 0,
   })
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const unreadNotificationsCount = notifications.filter(n => !n.read).length;
@@ -32,18 +36,44 @@ export function Navigation() {
 
   useEffect(() => {
     const obligations = getObligationsWithDetails()
-    const overdue = obligations.filter((o) => isOverdue(o.calculatedDueDate) && o.status !== "completed").length
-    const pending = obligations.filter((o) => o.status === "pending").length
+    const installments = getInstallmentsWithDetails()
+    const taxesDueDates = getTaxesDueDates(1); // Check current month for overdue/pending
+
+    const overdueObligations = obligations.filter((o) => isOverdue(o.calculatedDueDate) && o.status !== "completed").length
+    const pendingObligations = obligations.filter((o) => o.status === "pending").length
+
+    const overdueInstallments = installments.filter((i) => isOverdue(i.calculatedDueDate) && i.status !== "paid").length
+    const pendingInstallments = installments.filter((i) => i.status === "pending").length
+
+    const overdueTaxes = taxesDueDates.filter((t) => isOverdue(t.calculatedDueDate) && t.status !== "completed").length;
+    const pendingTaxes = taxesDueDates.filter((t) => t.status === "pending").length;
+
 
     const today = new Date()
     const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
-    const thisWeek = obligations.filter((o) => {
+    const upcomingObligations = obligations.filter((o) => {
       const dueDate = new Date(o.calculatedDueDate)
       return dueDate >= today && dueDate <= nextWeek && o.status !== "completed"
     }).length
+    const upcomingInstallments = installments.filter((i) => {
+      const dueDate = new Date(i.calculatedDueDate)
+      return dueDate >= today && dueDate <= nextWeek && i.status !== "paid"
+    }).length
+    const upcomingTaxes = taxesDueDates.filter((t) => {
+      const dueDate = new Date(t.calculatedDueDate)
+      return dueDate >= today && dueDate <= nextWeek && t.status !== "overdue" // Taxes don't have 'completed' status
+    }).length
 
-    setAlertCounts({ overdue, pending, thisWeek })
-    loadNotifications(); // Load notifications on data update
+    setAlertCounts({
+      overdueObligations,
+      pendingObligations,
+      upcomingThisWeek: upcomingObligations + upcomingInstallments + upcomingTaxes,
+      overdueInstallments,
+      pendingInstallments,
+      overdueTaxes,
+      pendingTaxes,
+    })
+    loadNotifications();
   }, [pathname])
 
   const handleMarkAsRead = (id: string) => {
@@ -56,7 +86,7 @@ export function Navigation() {
       href: "/",
       label: "Dashboard",
       icon: LayoutDashboard,
-      badge: alertCounts.overdue > 0 ? alertCounts.overdue : null,
+      badge: alertCounts.overdueObligations + alertCounts.overdueInstallments + alertCounts.overdueTaxes > 0 ? alertCounts.overdueObligations + alertCounts.overdueInstallments + alertCounts.overdueTaxes : null,
       badgeVariant: "destructive" as const,
     },
     { href: "/clientes", label: "Clientes", icon: Users },
@@ -65,20 +95,27 @@ export function Navigation() {
       href: "/obrigacoes",
       label: "Obrigações",
       icon: FileText,
-      badge: alertCounts.pending > 0 ? alertCounts.pending : null,
+      badge: alertCounts.pendingObligations > 0 ? alertCounts.pendingObligations : null,
+      badgeVariant: "secondary" as const,
+    },
+    {
+      href: "/parcelamentos",
+      label: "Parcelamentos",
+      icon: DollarSign,
+      badge: alertCounts.pendingInstallments > 0 ? alertCounts.pendingInstallments : null,
       badgeVariant: "secondary" as const,
     },
     {
       href: "/calendario",
       label: "Calendário",
       icon: Calendar,
-      badge: alertCounts.thisWeek > 0 ? alertCounts.thisWeek : null,
+      badge: alertCounts.upcomingThisWeek > 0 ? alertCounts.upcomingThisWeek : null,
       badgeVariant: "default" as const,
     },
     { href: "/relatorios", label: "Relatórios", icon: BarChart3 },
   ]
 
-  const totalAlerts = alertCounts.overdue + alertCounts.thisWeek
+  const totalAlerts = alertCounts.overdueObligations + alertCounts.overdueInstallments + alertCounts.overdueTaxes + alertCounts.upcomingThisWeek
 
   return (
     <nav className="border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 sticky top-0 z-50 shadow-sm">

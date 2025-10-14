@@ -1,13 +1,46 @@
-import type { DashboardStats, ObligationWithDetails, TaxWithDetails, Tax, Client } from "./types"
-import { getClients, getTaxes, getObligations } from "./storage"
-import { calculateDueDate, isOverdue, isUpcomingThisWeek, calculateTaxDueDate } from "./date-utils"
+import type { DashboardStats, ObligationWithDetails, TaxDueDate, Tax, Client, Installment, InstallmentWithDetails, FiscalEventStatus, FiscalEventType } from "./types"
+import { getClients, getTaxes, getObligations, getInstallments } from "./storage"
+import { calculateDueDate, isOverdue, isUpcomingThisWeek, calculateTaxDueDate, calculateInstallmentDueDate } from "./date-utils"
+
+// Helper to create a FiscalEventBase from common properties
+const createFiscalEventBase = (
+  id: string,
+  name: string,
+  calculatedDueDate: string,
+  client: Client,
+  status: FiscalEventStatus,
+  type: FiscalEventType,
+  createdAt: string,
+  description?: string,
+  amount?: number,
+  notes?: string,
+  tags?: string[],
+  completedAt?: string,
+  completedBy?: string,
+  paidAt?: string,
+  paidBy?: string,
+) => ({
+  id,
+  name,
+  calculatedDueDate,
+  client,
+  status,
+  type,
+  createdAt,
+  description,
+  amount,
+  notes,
+  tags,
+  completedAt,
+  completedBy,
+  paidAt,
+  paidBy,
+});
 
 export const getObligationsWithDetails = (): ObligationWithDetails[] => {
   const obligations = getObligations()
   const clients = getClients()
-  const taxes = getTaxes()
 
-  // Define um cliente padrão para casos onde o cliente não é encontrado
   const unknownClient: Client = {
     id: "unknown",
     name: "Cliente Desconhecido",
@@ -20,43 +53,158 @@ export const getObligationsWithDetails = (): ObligationWithDetails[] => {
 
   return obligations.map((obligation) => {
     const client = clients.find((c) => c.id === obligation.clientId) || unknownClient;
-    const tax = obligation.taxId ? taxes.find((t) => t.id === obligation.taxId) : undefined
+    const taxes = getTaxes(); // Fetch taxes here to link
+    const tax = obligation.taxId ? taxes.find((t) => t.id === obligation.taxId) : undefined;
 
     const calculatedDueDate = calculateDueDate(
       obligation.dueDay,
       obligation.dueMonth,
       obligation.frequency,
       obligation.weekendRule,
-    ).toISOString()
+    ).toISOString();
 
     return {
       ...obligation,
       client,
       tax,
       calculatedDueDate,
-    }
+      ...createFiscalEventBase(
+        obligation.id,
+        obligation.name,
+        calculatedDueDate,
+        client,
+        obligation.status,
+        "obligation",
+        obligation.createdAt,
+        obligation.description,
+        obligation.amount,
+        obligation.notes,
+        obligation.tags,
+        obligation.completedAt,
+        obligation.completedBy,
+      ),
+    } as ObligationWithDetails;
   })
 }
 
-export const getTaxesWithDetails = (): TaxWithDetails[] => {
+export const getTaxesDueDates = (monthsAhead: number = 3): TaxDueDate[] => {
   const taxes = getTaxes();
-  return taxes
-    .filter(tax => tax.dueDay !== undefined) // Only include taxes with a defined dueDay for calendar display
-    .map((tax) => ({
-      ...tax,
-      calculatedDueDate: calculateTaxDueDate(tax).toISOString(),
-    }));
+  const clients = getClients();
+  const today = new Date();
+  const taxDueDates: TaxDueDate[] = [];
+
+  const unknownClient: Client = {
+    id: "unknown",
+    name: "Cliente Desconhecido",
+    cnpj: "00.000.000/0000-00",
+    email: "",
+    phone: "",
+    status: "inactive",
+    createdAt: new Date().toISOString(),
+  };
+
+  taxes.forEach(tax => {
+    if (tax.dueDay === undefined) return; // Skip taxes without a due day
+
+    for (let i = 0; i < monthsAhead; i++) {
+      const referenceDate = new Date(today.getFullYear(), today.getMonth() + i, 1); // Start of current/future month
+      let calculatedDueDate = calculateTaxDueDate(tax, referenceDate);
+
+      // Ensure we don't generate past dates for the current month
+      if (i === 0 && calculatedDueDate < today && calculatedDueDate.getDate() !== today.getDate()) {
+        calculatedDueDate = calculateTaxDueDate(tax, new Date(today.getFullYear(), today.getMonth() + 1, 1));
+      }
+
+      const client = tax.clientId ? clients.find(c => c.id === tax.clientId) || unknownClient : unknownClient;
+      const status: FiscalEventStatus = isOverdue(calculatedDueDate.toISOString()) ? "overdue" : "pending";
+
+      taxDueDates.push({
+        ...tax,
+        client,
+        calculatedDueDate: calculatedDueDate.toISOString(),
+        ...createFiscalEventBase(
+          `${tax.id}-${calculatedDueDate.toISOString().split('T')[0]}`, // Unique ID for each instance
+          tax.name,
+          calculatedDueDate.toISOString(),
+          client,
+          status,
+          "tax",
+          tax.createdAt,
+          tax.description,
+          undefined, // Taxes don't have a specific amount per instance in this context
+          tax.notes,
+          tax.tags,
+        ),
+      } as TaxDueDate);
+    }
+  });
+
+  // Filter out duplicates and past dates
+  const uniqueTaxDueDates = Array.from(new Map(taxDueDates.map(item => [item.id, item])).values())
+    .filter(item => new Date(item.calculatedDueDate) >= today || isOverdue(item.calculatedDueDate)) // Keep current/future or overdue
+    .sort((a, b) => new Date(a.calculatedDueDate).getTime() - new Date(b.calculatedDueDate).getTime());
+
+  return uniqueTaxDueDates;
 };
+
+export const getInstallmentsWithDetails = (): InstallmentWithDetails[] => {
+  const installments = getInstallments();
+  const clients = getClients();
+
+  const unknownClient: Client = {
+    id: "unknown",
+    name: "Cliente Desconhecido",
+    cnpj: "00.000.000/0000-00",
+    email: "",
+    phone: "",
+    status: "inactive",
+    createdAt: new Date().toISOString(),
+  };
+
+  return installments.map((installment) => {
+    const client = clients.find((c) => c.id === installment.clientId) || unknownClient;
+    const calculatedDueDate = calculateInstallmentDueDate(installment).toISOString();
+
+    return {
+      ...installment,
+      client,
+      calculatedDueDate,
+      ...createFiscalEventBase(
+        installment.id,
+        installment.name,
+        calculatedDueDate,
+        client,
+        installment.status,
+        "installment",
+        installment.createdAt,
+        installment.description,
+        installment.amount,
+        installment.notes,
+        installment.tags,
+        undefined, // No completedAt for installments
+        undefined, // No completedBy for installments
+        installment.paidAt,
+        installment.paidBy,
+      ),
+    } as InstallmentWithDetails;
+  });
+};
+
 
 export const calculateDashboardStats = (): DashboardStats => {
   const clients = getClients()
   const obligations = getObligationsWithDetails()
-  // No need to include taxes in dashboard stats for now, as per existing logic.
+  const installments = getInstallmentsWithDetails();
+  const taxesDueDates = getTaxesDueDates(1); // Only current month for stats
 
   const activeClients = clients.filter((c) => c.status === "active").length
   const pendingObligations = obligations.filter((o) => o.status === "pending")
   const overdueObligations = pendingObligations.filter((o) => isOverdue(o.calculatedDueDate))
-  const upcomingThisWeek = pendingObligations.filter((o) => isUpcomingThisWeek(o.calculatedDueDate))
+  const upcomingObligationsThisWeek = pendingObligations.filter((o) => isUpcomingThisWeek(o.calculatedDueDate))
+
+  const pendingInstallments = installments.filter(i => i.status === "pending");
+  const overdueInstallments = pendingInstallments.filter(i => isOverdue(i.calculatedDueDate));
+  const upcomingInstallmentsThisWeek = pendingInstallments.filter(i => isUpcomingThisWeek(i.calculatedDueDate));
 
   const today = new Date()
   const completedThisMonth = obligations.filter((o) => {
@@ -76,6 +224,9 @@ export const calculateDashboardStats = (): DashboardStats => {
     pendingObligations: pendingObligations.length,
     completedThisMonth,
     overdueObligations: overdueObligations.length,
-    upcomingThisWeek: upcomingThisWeek.length,
+    upcomingThisWeek: upcomingObligationsThisWeek.length + upcomingInstallmentsThisWeek.length + taxesDueDates.filter(t => isUpcomingThisWeek(t.calculatedDueDate) && t.status !== "overdue").length,
+    totalInstallments: installments.length,
+    pendingInstallments: pendingInstallments.length,
+    overdueInstallments: overdueInstallments.length,
   }
 }

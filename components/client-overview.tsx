@@ -3,28 +3,37 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Building2 } from "lucide-react"
-import type { Client, ObligationWithDetails } from "@/lib/types"
+import type { Client, ObligationWithDetails, InstallmentWithDetails } from "@/lib/types" // Added InstallmentWithDetails
+import { isOverdue } from "@/lib/date-utils"
 
 type ClientOverviewProps = {
   clients: Client[]
   obligations: ObligationWithDetails[]
+  installments: InstallmentWithDetails[] // New prop for installments
 }
 
-export function ClientOverview({ clients, obligations }: ClientOverviewProps) {
+export function ClientOverview({ clients, obligations, installments }: ClientOverviewProps) {
   const clientsWithStats = clients
     .filter((c) => c.status === "active")
     .map((client) => {
       const clientObligations = obligations.filter((o) => o.clientId === client.id)
-      const pending = clientObligations.filter((o) => o.status === "pending").length
-      const overdue = clientObligations.filter(
-        (o) => o.status === "pending" && new Date(o.calculatedDueDate) < new Date(),
+      const clientInstallments = installments.filter((i) => i.clientId === client.id) // Filter client installments
+
+      const pendingObligations = clientObligations.filter((o) => o.status === "pending").length
+      const overdueObligations = clientObligations.filter(
+        (o) => o.status === "pending" && isOverdue(o.calculatedDueDate),
+      ).length
+
+      const pendingInstallments = clientInstallments.filter((i) => i.status === "pending").length
+      const overdueInstallments = clientInstallments.filter(
+        (i) => i.status === "pending" && isOverdue(i.calculatedDueDate),
       ).length
 
       return {
         ...client,
-        totalObligations: clientObligations.length,
-        pending,
-        overdue,
+        totalObligations: clientObligations.length + clientInstallments.length, // Include installments
+        pending: pendingObligations + pendingInstallments, // Include installments
+        overdue: overdueObligations + overdueInstallments, // Include installments
       }
     })
     .sort((a, b) => b.overdue - a.overdue || b.pending - a.pending)
@@ -36,7 +45,7 @@ export function ClientOverview({ clients, obligations }: ClientOverviewProps) {
         <div className="flex items-center justify-between">
           <div>
             <CardTitle>Visão por Cliente</CardTitle>
-            <CardDescription>Status das obrigações por cliente</CardDescription>
+            <CardDescription>Status das obrigações e parcelamentos por cliente</CardDescription>
           </div>
           <Building2 className="size-5 text-muted-foreground" />
         </div>

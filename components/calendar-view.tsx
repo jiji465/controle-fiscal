@@ -6,10 +6,11 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { ChevronLeft, ChevronRight, CalendarIcon, Filter, Building2, Receipt, DollarSign, User, FileText, Clock } from "lucide-react"
-import type { CalendarEvent, ObligationWithDetails, TaxWithDetails } from "@/lib/types"
+import { ChevronLeft, ChevronRight, CalendarIcon, Filter, Building2, Receipt, DollarSign, User, FileText, Clock, Hash } from "lucide-react"
+import type { CalendarEvent, ObligationWithDetails, TaxDueDate, InstallmentWithDetails, FiscalEventStatus } from "@/lib/types"
 import { formatDate, formatCurrency, isOverdue } from "@/lib/date-utils"
 import { Separator } from "@/components/ui/separator"
+import { getRecurrenceDescription } from "@/lib/recurrence-utils" // Import getRecurrenceDescription
 
 type CalendarViewProps = {
   events: CalendarEvent[]
@@ -20,6 +21,7 @@ export function CalendarView({ events }: CalendarViewProps) {
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const [filterClient, setFilterClient] = useState<string>("all")
   const [filterStatus, setFilterStatus] = useState<string>("all")
+  const [filterType, setFilterType] = useState<string>("all") // New filter for event type
   const [selectedEventDetails, setSelectedEventDetails] = useState<CalendarEvent | null>(null);
 
   const year = currentDate.getFullYear()
@@ -32,8 +34,7 @@ export function CalendarView({ events }: CalendarViewProps) {
 
   const uniqueClients = Array.from(new Set(
     events
-      .filter((event): event is ObligationWithDetails => 'clientId' in event && 'client' in event)
-      .map((o) => o.client.name)
+      .map((event) => event.client.name)
   )).sort()
 
   const previousMonth = () => {
@@ -49,17 +50,34 @@ export function CalendarView({ events }: CalendarViewProps) {
   }
 
   const getStatusInfo = (event: CalendarEvent) => {
-    if ('status' in event) { // It's an ObligationWithDetails
-      const isOverdueObligation = isOverdue(event.calculatedDueDate) && event.status !== "completed";
-      if (event.status === "completed") return { color: "bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30", text: "Concluída", badgeColor: "bg-green-600" };
-      if (event.status === "in_progress") return { color: "bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30", text: "Em Andamento", badgeColor: "bg-blue-600" };
-      if (isOverdueObligation) return { color: "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30", text: "Atrasada", badgeColor: "bg-red-600" };
-      return { color: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30", text: "Pendente", badgeColor: "bg-yellow-600" };
-    } else { // It's a TaxWithDetails
-      const isOverdueTax = isOverdue(event.calculatedDueDate);
-      if (isOverdueTax) return { color: "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30", text: "Atrasado", badgeColor: "bg-red-600" };
-      return { color: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30", text: "Vencimento", badgeColor: "bg-gray-600" };
+    const isEventOverdue = isOverdue(event.calculatedDueDate);
+
+    switch (event.type) {
+      case "obligation":
+        const obl = event as ObligationWithDetails;
+        if (obl.status === "completed") return { color: "bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30", text: "Concluída", badgeColor: "bg-green-600" };
+        if (obl.status === "in_progress") return { color: "bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30", text: "Em Andamento", badgeColor: "bg-blue-600" };
+        if (isEventOverdue) return { color: "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30", text: "Atrasada", badgeColor: "bg-red-600" };
+        return { color: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30", text: "Pendente", badgeColor: "bg-yellow-600" };
+      case "tax":
+        const tax = event as TaxDueDate;
+        if (isEventOverdue) return { color: "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30", text: "Imposto Atrasado", badgeColor: "bg-red-600" };
+        return { color: "bg-purple-500/20 text-purple-700 dark:text-purple-300 border-purple-500/30", text: "Vencimento Imposto", badgeColor: "bg-purple-600" };
+      case "installment":
+        const inst = event as InstallmentWithDetails;
+        if (inst.status === "paid") return { color: "bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30", text: "Parcelamento Pago", badgeColor: "bg-green-600" };
+        if (isEventOverdue) return { color: "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30", text: "Parcelamento Atrasado", badgeColor: "bg-red-600" };
+        return { color: "bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-500/30", text: "Parcelamento Pendente", badgeColor: "bg-orange-600" };
+      default:
+        return { color: "bg-gray-500/20 text-gray-700 dark:text-gray-300 border-gray-500/30", text: "Evento", badgeColor: "bg-gray-600" };
     }
+  };
+
+  const getEventStatusForFilter = (event: CalendarEvent): FiscalEventStatus => {
+    if (event.type === "obligation") return (event as ObligationWithDetails).status;
+    if (event.type === "installment") return (event as InstallmentWithDetails).status;
+    // For TaxDueDate, we derive status based on calculatedDueDate
+    return isOverdue(event.calculatedDueDate) ? "overdue" : "pending";
   };
 
   const getEventsForDay = (day: number) => {
@@ -68,12 +86,13 @@ export function CalendarView({ events }: CalendarViewProps) {
       const eventDate = new Date(event.calculatedDueDate).toISOString().split("T")[0]
       const matchesDate = eventDate === dateStr
 
-      const matchesClient = filterClient === "all" || ('client' in event && event.client.name === filterClient);
+      const matchesClient = filterClient === "all" || event.client.name === filterClient;
 
-      const eventStatus = 'status' in event ? event.status : (isOverdue(event.calculatedDueDate) ? "overdue" : "pending"); // Default status for taxes
-      const matchesStatus = filterStatus === "all" || eventStatus === filterStatus;
+      const matchesStatus = filterStatus === "all" || getEventStatusForFilter(event) === filterStatus;
 
-      return matchesDate && matchesClient && matchesStatus
+      const matchesType = filterType === "all" || event.type === filterType;
+
+      return matchesDate && matchesClient && matchesStatus && matchesType
     })
   }
 
@@ -119,7 +138,7 @@ export function CalendarView({ events }: CalendarViewProps) {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Calendário de Vencimentos</CardTitle>
-              <CardDescription>Visualize as obrigações e impostos por data com filtros personalizados</CardDescription>
+              <CardDescription>Visualize as obrigações, impostos e parcelamentos por data com filtros personalizados</CardDescription>
             </div>
             <CalendarIcon className="size-5 text-muted-foreground" />
           </div>
@@ -168,7 +187,19 @@ export function CalendarView({ events }: CalendarViewProps) {
                     <SelectItem value="in_progress">Em Andamento</SelectItem>
                     <SelectItem value="completed">Concluída</SelectItem>
                     <SelectItem value="overdue">Atrasada</SelectItem>
-                    <SelectItem value="tax_due">Vencimento Imposto</SelectItem> {/* Added for taxes */}
+                    <SelectItem value="paid">Pago</SelectItem>
+                  </SelectContent>
+                </Select>
+
+                <Select value={filterType} onValueChange={setFilterType}>
+                  <SelectTrigger className="w-[150px]">
+                    <SelectValue placeholder="Tipo" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">Todos os tipos</SelectItem>
+                    <SelectItem value="obligation">Obrigação</SelectItem>
+                    <SelectItem value="tax">Imposto</SelectItem>
+                    <SelectItem value="installment">Parcelamento</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -205,7 +236,7 @@ export function CalendarView({ events }: CalendarViewProps) {
                         <div
                           key={event.id}
                           className={`text-[10px] px-1 py-0.5 rounded truncate border ${getStatusInfo(event).color}`}
-                          title={`${event.name} - ${'client' in event ? event.client.name : 'Imposto'}`}
+                          title={`${event.name} - ${event.client.name}`}
                         >
                           {event.name}
                         </div>
@@ -234,19 +265,27 @@ export function CalendarView({ events }: CalendarViewProps) {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="size-4 bg-yellow-500/20 border border-yellow-500/30 rounded" />
-                  <span className="text-muted-foreground">Pendente</span>
+                  <span className="text-muted-foreground">Obrigação Pendente</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="size-4 bg-blue-500/20 border border-blue-500/30 rounded" />
-                  <span className="text-muted-foreground">Em Andamento</span>
+                  <span className="text-muted-foreground">Obrigação Em Andamento</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="size-4 bg-green-500/20 border border-green-500/30 rounded" />
-                  <span className="text-muted-foreground">Concluída</span>
+                  <span className="text-muted-foreground">Obrigação Concluída / Parcelamento Pago</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="size-4 bg-red-500/20 border border-red-500/30 rounded" />
-                  <span className="text-muted-foreground">Atrasada</span>
+                  <span className="text-muted-foreground">Atrasada (Obrigação/Imposto/Parcelamento)</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="size-4 bg-purple-500/20 border border-purple-500/30 rounded" />
+                  <span className="text-muted-foreground">Vencimento Imposto</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="size-4 bg-orange-500/20 border border-orange-500/30 rounded" />
+                  <span className="text-muted-foreground">Parcelamento Pendente</span>
                 </div>
               </div>
             </div>
@@ -271,18 +310,19 @@ export function CalendarView({ events }: CalendarViewProps) {
                   <div className="flex items-start justify-between">
                     <div>
                       <h4 className="font-semibold">{event.name}</h4>
-                      {'client' in event && <p className="text-sm text-muted-foreground">{event.client.name}</p>}
-                      {'federalTaxCode' in event && <p className="text-sm text-muted-foreground">Imposto</p>}
+                      <p className="text-sm text-muted-foreground">{event.client.name}</p>
+                      {event.type === "tax" && (event as TaxDueDate).federalTaxCode && <p className="text-xs text-muted-foreground">Código: {(event as TaxDueDate).federalTaxCode}</p>}
+                      {event.type === "installment" && <p className="text-xs text-muted-foreground">Parcela {(event as InstallmentWithDetails).installmentNumber}/{(event as InstallmentWithDetails).totalInstallments}</p>}
                     </div>
                     <Badge className={getStatusInfo(event).badgeColor}>
                       {getStatusInfo(event).text}
                     </Badge>
                   </div>
-                  {'tax' in event && event.tax && <p className="text-sm">Imposto: {event.tax.name}</p>}
-                  {'description' in event && event.description && <p className="text-sm text-muted-foreground">{event.description}</p>}
+                  {event.description && <p className="text-sm text-muted-foreground">{event.description}</p>}
                   <div className="flex gap-4 text-xs text-muted-foreground">
                     <span>Vencimento: {formatDate(event.calculatedDueDate)}</span>
-                    {'realizationDate' in event && event.realizationDate && <span>Realizada: {formatDate(event.realizationDate)}</span>}
+                    {event.type === "obligation" && (event as ObligationWithDetails).realizationDate && <span>Realizada: {formatDate((event as ObligationWithDetails).realizationDate!)}</span>}
+                    {event.type === "installment" && (event as InstallmentWithDetails).paidAt && <span>Pago em: {formatDate((event as InstallmentWithDetails).paidAt!)}</span>}
                   </div>
                 </div>
               ))
@@ -299,7 +339,7 @@ export function CalendarView({ events }: CalendarViewProps) {
                 <div className="flex items-start justify-between">
                   <div>
                     <DialogTitle className="text-2xl">{selectedEventDetails.name}</DialogTitle>
-                    {'description' in selectedEventDetails && selectedEventDetails.description && (
+                    {selectedEventDetails.description && (
                       <DialogDescription className="text-sm text-muted-foreground mt-1">
                         {selectedEventDetails.description}
                       </DialogDescription>
@@ -313,34 +353,59 @@ export function CalendarView({ events }: CalendarViewProps) {
 
               <div className="space-y-6 py-4">
                 <div className="grid gap-4">
-                  {'client' in selectedEventDetails && (
-                    <div className="flex items-center gap-3">
-                      <Building2 className="size-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">Cliente</p>
-                        <p className="text-sm text-muted-foreground">{selectedEventDetails.client.name}</p>
-                      </div>
+                  <div className="flex items-center gap-3">
+                    <Building2 className="size-5 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">Cliente</p>
+                      <p className="text-sm text-muted-foreground">{selectedEventDetails.client.name}</p>
                     </div>
-                  )}
+                  </div>
 
-                  {'tax' in selectedEventDetails && selectedEventDetails.tax && (
+                  {selectedEventDetails.type === "obligation" && (selectedEventDetails as ObligationWithDetails).tax && (
                     <div className="flex items-center gap-3">
                       <Receipt className="size-5 text-muted-foreground" />
                       <div>
                         <p className="text-sm font-medium">Imposto</p>
-                        <p className="text-sm text-muted-foreground">{selectedEventDetails.tax.name}</p>
+                        <p className="text-sm text-muted-foreground">{(selectedEventDetails as ObligationWithDetails).tax!.name}</p>
                       </div>
                     </div>
                   )}
-                  {'federalTaxCode' in selectedEventDetails && (
+                  {selectedEventDetails.type === "tax" && (
                     <div className="flex items-center gap-3">
                       <Receipt className="size-5 text-muted-foreground" />
                       <div>
                         <p className="text-sm font-medium">Imposto</p>
-                        <p className="text-sm text-muted-foreground">{selectedEventDetails.name}</p>
-                        {selectedEventDetails.federalTaxCode && <p className="text-xs text-muted-foreground">Código: {selectedEventDetails.federalTaxCode}</p>}
+                        <p className="text-sm text-muted-foreground">{(selectedEventDetails as TaxDueDate).name}</p>
+                        {(selectedEventDetails as TaxDueDate).federalTaxCode && <p className="text-xs text-muted-foreground">Código: {(selectedEventDetails as TaxDueDate).federalTaxCode}</p>}
                       </div>
                     </div>
+                  )}
+                  {selectedEventDetails.type === "installment" && (
+                    <>
+                      <div className="flex items-center gap-3">
+                        <Hash className="size-5 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium">Parcela</p>
+                          <p className="text-sm text-muted-foreground">
+                            {(selectedEventDetails as InstallmentWithDetails).installmentNumber} de {(selectedEventDetails as InstallmentWithDetails).totalInstallments}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <DollarSign className="size-5 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium">Valor da Parcela</p>
+                          <p className="text-sm text-muted-foreground">{formatCurrency((selectedEventDetails as InstallmentWithDetails).amount!)}</p>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <DollarSign className="size-5 text-muted-foreground" />
+                        <div>
+                          <p className="text-sm font-medium">Valor Original Total</p>
+                          <p className="text-sm text-muted-foreground">{formatCurrency((selectedEventDetails as InstallmentWithDetails).originalAmount!)}</p>
+                        </div>
+                      </div>
+                    </>
                   )}
 
                   <div className="flex items-center gap-3">
@@ -351,12 +416,12 @@ export function CalendarView({ events }: CalendarViewProps) {
                     </div>
                   </div>
 
-                  {'amount' in selectedEventDetails && selectedEventDetails.amount && (
+                  {selectedEventDetails.type === "obligation" && (selectedEventDetails as ObligationWithDetails).amount && (
                     <div className="flex items-center gap-3">
                       <DollarSign className="size-5 text-muted-foreground" />
                       <div>
                         <p className="text-sm font-medium">Valor</p>
-                        <p className="text-sm text-muted-foreground">{formatCurrency(selectedEventDetails.amount)}</p>
+                        <p className="text-sm text-muted-foreground">{formatCurrency((selectedEventDetails as ObligationWithDetails).amount)}</p>
                       </div>
                     </div>
                   )}
@@ -364,26 +429,38 @@ export function CalendarView({ events }: CalendarViewProps) {
                   <div className="flex items-center gap-3">
                     <Clock className="size-5 text-muted-foreground" />
                     <div>
-                      <p className="text-sm font-medium">Criada em</p>
+                      <p className="text-sm font-medium">Criado em</p>
                       <p className="text-sm text-muted-foreground">{formatDate(selectedEventDetails.createdAt)}</p>
                     </div>
                   </div>
 
-                  {'completedAt' in selectedEventDetails && selectedEventDetails.completedAt && (
+                  {selectedEventDetails.type === "obligation" && (selectedEventDetails as ObligationWithDetails).completedAt && (
                     <div className="flex items-center gap-3">
                       <User className="size-5 text-muted-foreground" />
                       <div>
                         <p className="text-sm font-medium">Concluída em</p>
                         <p className="text-sm text-muted-foreground">
-                          {formatDate(selectedEventDetails.completedAt)}
-                          {selectedEventDetails.completedBy && ` por ${selectedEventDetails.completedBy}`}
+                          {formatDate((selectedEventDetails as ObligationWithDetails).completedAt!)}
+                          {(selectedEventDetails as ObligationWithDetails).completedBy && ` por ${(selectedEventDetails as ObligationWithDetails).completedBy}`}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                  {selectedEventDetails.type === "installment" && (selectedEventDetails as InstallmentWithDetails).paidAt && (
+                    <div className="flex items-center gap-3">
+                      <User className="size-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Pago em</p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatDate((selectedEventDetails as InstallmentWithDetails).paidAt!)}
+                          {(selectedEventDetails as InstallmentWithDetails).paidBy && ` por ${(selectedEventDetails as InstallmentWithDetails).paidBy}`}
                         </p>
                       </div>
                     </div>
                   )}
                 </div>
 
-                {'notes' in selectedEventDetails && selectedEventDetails.notes && (
+                {selectedEventDetails.notes && (
                   <>
                     <Separator />
                     <div>
@@ -396,13 +473,13 @@ export function CalendarView({ events }: CalendarViewProps) {
                   </>
                 )}
 
-                {'history' in selectedEventDetails && selectedEventDetails.history && selectedEventDetails.history.length > 0 && (
+                {selectedEventDetails.type === "obligation" && (selectedEventDetails as ObligationWithDetails).history && (selectedEventDetails as ObligationWithDetails).history!.length > 0 && (
                   <>
                     <Separator />
                     <div>
                       <p className="text-sm font-medium mb-3">Histórico de Ações</p>
                       <div className="space-y-3">
-                        {selectedEventDetails.history.map((entry) => (
+                        {(selectedEventDetails as ObligationWithDetails).history!.map((entry) => (
                           <div key={entry.id} className="flex gap-3 text-sm">
                             <div className="size-2 rounded-full bg-primary mt-1.5 shrink-0" />
                             <div className="flex-1">

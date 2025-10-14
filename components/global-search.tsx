@@ -2,11 +2,10 @@
 
 import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
-import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Search, Building2, FileText, DollarSign, Calendar } from "lucide-react"
-import type { Client, Tax, ObligationWithDetails } from "@/lib/types"
+import type { Client, Tax, ObligationWithDetails, InstallmentWithDetails } from "@/lib/types"
 import { formatDate } from "@/lib/date-utils"
 
 type GlobalSearchProps = {
@@ -15,8 +14,10 @@ type GlobalSearchProps = {
   clients: Client[]
   taxes: Tax[]
   obligations: ObligationWithDetails[]
+  installments: InstallmentWithDetails[] // New prop for installments
   onSelectObligation?: (obligation: ObligationWithDetails) => void
   onSelectClient?: (client: Client) => void
+  onSelectInstallment?: (installment: InstallmentWithDetails) => void // New prop for selecting installment
 }
 
 export function GlobalSearch({
@@ -25,23 +26,27 @@ export function GlobalSearch({
   clients,
   taxes,
   obligations,
+  installments, // Destructure new prop
   onSelectObligation,
   onSelectClient,
+  onSelectInstallment, // Destructure new prop
 }: GlobalSearchProps) {
   const [query, setQuery] = useState("")
   const [results, setResults] = useState<{
     clients: Client[]
     obligations: ObligationWithDetails[]
     taxes: Tax[]
+    installments: InstallmentWithDetails[] // New state for installment results
   }>({
     clients: [],
     obligations: [],
     taxes: [],
+    installments: [], // Initialize new state
   })
 
   useEffect(() => {
     if (!query.trim()) {
-      setResults({ clients: [], obligations: [], taxes: [] })
+      setResults({ clients: [], obligations: [], taxes: [], installments: [] }) // Clear installments
       return
     }
 
@@ -69,14 +74,22 @@ export function GlobalSearch({
         t.federalTaxCode?.toLowerCase().includes(searchTerm),
     )
 
+    const matchedInstallments = installments.filter(
+      (i) =>
+        i.name.toLowerCase().includes(searchTerm) ||
+        i.client.name.toLowerCase().includes(searchTerm) ||
+        i.description?.toLowerCase().includes(searchTerm),
+    )
+
     setResults({
       clients: matchedClients.slice(0, 5),
       obligations: matchedObligations.slice(0, 10),
       taxes: matchedTaxes.slice(0, 5),
+      installments: matchedInstallments.slice(0, 10), // Add installment results
     })
-  }, [query, clients, obligations, taxes])
+  }, [query, clients, obligations, taxes, installments]) // Add installments to dependencies
 
-  const totalResults = results.clients.length + results.obligations.length + results.taxes.length
+  const totalResults = results.clients.length + results.obligations.length + results.taxes.length + results.installments.length // Include installments
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -84,14 +97,14 @@ export function GlobalSearch({
         <DialogHeader>
           <DialogTitle>Busca Global</DialogTitle>
           <DialogDescription>
-            Realize uma busca global para encontrar clientes, obrigações e impostos.
+            Realize uma busca global para encontrar clientes, obrigações, impostos e parcelamentos.
           </DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="relative">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 size-4 text-muted-foreground" />
             <Input
-              placeholder="Buscar clientes, obrigações, impostos..."
+              placeholder="Buscar clientes, obrigações, impostos, parcelamentos..."
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               className="pl-9"
@@ -189,11 +202,64 @@ export function GlobalSearch({
                 </div>
               )}
 
-              {results.taxes.length > 0 && (
+              {results.installments.length > 0 && (
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                     <DollarSign className="size-4" />
-                    Impostos ({results.taxes.length})
+                    Parcelamentos ({results.installments.length})
+                  </div>
+                  <div className="space-y-1">
+                    {results.installments.map((installment) => (
+                      <button
+                        key={installment.id}
+                        onClick={() => {
+                          onSelectInstallment?.(installment)
+                          onOpenChange(false)
+                        }}
+                        className="w-full text-left p-3 rounded-lg hover:bg-muted/50 border transition-colors"
+                      >
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <div className="font-medium">{installment.name}</div>
+                            <div className="text-sm text-muted-foreground">{installment.client.name}</div>
+                            <div className="text-xs text-muted-foreground line-clamp-1 mt-1">
+                              Parcela {installment.installmentNumber} de {installment.totalInstallments}
+                            </div>
+                          </div>
+                          <div className="flex flex-col items-end gap-1 flex-shrink-0">
+                            <Badge
+                              variant={
+                                installment.status === "paid"
+                                  ? "default"
+                                  : installment.status === "overdue"
+                                    ? "destructive"
+                                    : "secondary"
+                              }
+                              className="text-xs"
+                            >
+                              {installment.status === "paid"
+                                ? "Pago"
+                                : installment.status === "overdue"
+                                  ? "Atrasado"
+                                  : "Pendente"}
+                            </Badge>
+                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                              <Calendar className="size-3" />
+                              {formatDate(installment.calculatedDueDate)}
+                            </div>
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {results.taxes.length > 0 && (
+                <div className="space-y-2">
+                  <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
+                    <Receipt className="size-4" />
+                    Impostos (Templates) ({results.taxes.length})
                   </div>
                   <div className="space-y-1">
                     {results.taxes.map((tax) => (

@@ -5,7 +5,7 @@ export type Client = {
   email: string
   phone: string
   status: "active" | "inactive"
-  taxRegime?: "Simples Nacional" | "Lucro Presumido" | "Lucro Real" | "Outro" // Added taxRegime
+  taxRegime?: "Simples Nacional" | "Lucro Presumido" | "Lucro Real" | "Outro"
   createdAt: string
 }
 
@@ -14,13 +14,13 @@ export type Tax = {
   name: string
   description: string
   federalTaxCode?: string
-  clientId?: string; // Added optional clientId to link tax to a specific client
-  dueDay?: number // Dia do vencimento do imposto (1-31)
-  recurrence: RecurrenceType // Moved from Obligation, now part of Tax template
-  recurrenceInterval?: number // Moved from Obligation
-  recurrenceEndDate?: string // Moved from Obligation
-  autoGenerate: boolean // Moved from Obligation
-  weekendRule: WeekendRule // Moved from Obligation
+  clientId?: string;
+  dueDay?: number
+  recurrence: RecurrenceType
+  recurrenceInterval?: number
+  recurrenceEndDate?: string
+  autoGenerate: boolean
+  weekendRule: WeekendRule
   notes?: string
   tags?: string[]
   createdAt: string
@@ -49,6 +49,29 @@ export type Certificate = {
 
 export type ObligationCategory = "sped" | "tax_guide" | "certificate" | "declaration" | "other"
 
+// --- New Unified Fiscal Event Types ---
+export type FiscalEventType = "obligation" | "tax" | "installment";
+export type FiscalEventStatus = "pending" | "in_progress" | "completed" | "overdue" | "paid";
+
+export interface FiscalEventBase {
+  id: string;
+  name: string;
+  calculatedDueDate: string; // All events must have a calculated due date
+  client: Client; // All events must be linked to a client
+  status: FiscalEventStatus; // All events have a status
+  type: FiscalEventType; // Discriminator for union types
+  createdAt: string;
+  description?: string;
+  amount?: number;
+  notes?: string;
+  tags?: string[];
+  // Specific fields for different types, made optional in base
+  completedAt?: string; // For obligations
+  completedBy?: string; // For obligations
+  paidAt?: string; // For installments
+  paidBy?: string; // For installments
+}
+
 export type Obligation = {
   id: string
   name: string
@@ -58,12 +81,12 @@ export type Obligation = {
   taxId?: string
   dueDay: number
   dueMonth?: number
-  frequency: "monthly" | "quarterly" | "annual" | "custom" // This is now derived from Tax recurrence, but kept for flexibility if an obligation is not linked to a Tax
-  recurrence: RecurrenceType // This is now derived from Tax recurrence, but kept for flexibility if an obligation is not linked to a Tax
-  recurrenceInterval?: number // This is now derived from Tax recurrence, but kept for flexibility if an obligation is not linked to a Tax
-  recurrenceEndDate?: string // This is now derived from Tax recurrence, but kept for flexibility if an obligation is not linked to a Tax
-  autoGenerate: boolean // This is now derived from Tax recurrence, but kept for flexibility if an obligation is not linked to a Tax
-  weekendRule: WeekendRule // This is now derived from Tax recurrence, but kept for flexibility if an obligation is not linked to a Tax
+  frequency: "monthly" | "quarterly" | "annual" | "custom"
+  recurrence: RecurrenceType
+  recurrenceInterval?: number
+  recurrenceEndDate?: string
+  autoGenerate: boolean
+  weekendRule: WeekendRule
   status: "pending" | "in_progress" | "completed" | "overdue"
   priority: Priority
   assignedTo?: string
@@ -81,6 +104,48 @@ export type Obligation = {
   tags?: string[]
 }
 
+export type ObligationWithDetails = Obligation & {
+  client: Client;
+  tax?: Tax;
+} & FiscalEventBase; // Extend FiscalEventBase
+
+export type TaxDueDate = Tax & {
+  client: Client;
+} & FiscalEventBase; // Extend FiscalEventBase
+
+export type Installment = {
+  id: string;
+  name: string; // Name of the installment (e.g., "Parcela 1 de IPTU")
+  description?: string;
+  clientId: string;
+  originalAmount: number; // Total original amount of the installment plan
+  installmentNumber: number; // e.g., 1
+  totalInstallments: number; // e.g., 12
+  amount: number; // Amount for this specific installment payment
+  dueDay: number;
+  dueMonth?: number; // For annual or specific month installments
+  recurrence: RecurrenceType; // How often installments occur (e.g., monthly)
+  recurrenceInterval?: number;
+  recurrenceEndDate?: string; // When the installment plan ends
+  autoGenerate: boolean; // Whether to auto-generate future installments
+  weekendRule: WeekendRule;
+  status: "pending" | "paid" | "overdue"; // Specific status for installments
+  notes?: string;
+  tags?: string[];
+  createdAt: string;
+  paidAt?: string;
+  paidBy?: string;
+  parentInstallmentId?: string; // If it's part of a larger installment plan
+  generatedFor?: string; // e.g., "2023-01"
+};
+
+export type InstallmentWithDetails = Installment & {
+  client: Client;
+} & FiscalEventBase; // Extend FiscalEventBase
+
+// Update CalendarEvent to be the union of these detailed types
+export type CalendarEvent = ObligationWithDetails | TaxDueDate | InstallmentWithDetails;
+
 export type ObligationHistory = {
   id: string
   action: "created" | "updated" | "completed" | "status_changed" | "comment_added"
@@ -88,18 +153,6 @@ export type ObligationHistory = {
   timestamp: string
   user?: string
 }
-
-export type ObligationWithDetails = Obligation & {
-  client: Client
-  tax?: Tax
-  calculatedDueDate: string
-}
-
-export type TaxWithDetails = Tax & {
-  calculatedDueDate: string;
-};
-
-export type CalendarEvent = ObligationWithDetails | TaxWithDetails;
 
 export type DashboardStats = {
   totalClients: number
@@ -109,6 +162,9 @@ export type DashboardStats = {
   completedThisMonth: number
   overdueObligations: number
   upcomingThisWeek: number
+  totalInstallments: number; // New stat
+  pendingInstallments: number; // New stat
+  overdueInstallments: number; // New stat
 }
 
 export const defaultDashboardStats: DashboardStats = {
@@ -119,6 +175,9 @@ export const defaultDashboardStats: DashboardStats = {
   completedThisMonth: 0,
   overdueObligations: 0,
   upcomingThisWeek: 0,
+  totalInstallments: 0,
+  pendingInstallments: 0,
+  overdueInstallments: 0,
 };
 
 export type SavedFilter = {
