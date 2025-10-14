@@ -3,9 +3,9 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Calendar, Clock, User, FileText, DollarSign, Building2, Receipt } from "lucide-react"
+import { Calendar, Clock, User, FileText, Building2, Receipt } from "lucide-react"
 import type { TaxDueDate } from "@/lib/types"
-import { formatDate, formatCurrency } from "@/lib/date-utils"
+import { formatDate } from "@/lib/date-utils"
 import { getRecurrenceDescription } from "@/lib/recurrence-utils"
 
 type TaxDetailsProps = {
@@ -85,16 +85,6 @@ export function TaxDetails({ tax, open, onOpenChange }: TaxDetailsProps) {
                 <p className="text-sm text-muted-foreground font-mono">{formatDate(tax.calculatedDueDate)}</p>
               </div>
             </div>
-
-            {tax.amount && ( // Tax templates don't have amount, but TaxDueDate could if we add it
-              <div className="flex items-center gap-3">
-                <DollarSign className="size-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">Valor</p>
-                  <p className="text-sm text-muted-foreground">{formatCurrency(tax.amount)}</p>
-                </div>
-              </div>
-            )}
 
             <div className="flex items-center gap-3">
               <Clock className="size-5 text-muted-foreground" />

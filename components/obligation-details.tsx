@@ -3,9 +3,9 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Calendar, Clock, User, FileText, DollarSign, Building2, Receipt, Paperclip } from "lucide-react" // Added Paperclip icon
+import { Calendar, Clock, User, FileText, Building2, Receipt, Paperclip } from "lucide-react" // Added Paperclip icon
 import type { ObligationWithDetails } from "@/lib/types"
-import { formatDate, formatCurrency } from "@/lib/date-utils"
+import { formatDate } from "@/lib/date-utils"
 
 type ObligationDetailsProps = {
   obligation: ObligationWithDetails
@@ -85,16 +85,6 @@ export function ObligationDetails({ obligation, open, onOpenChange }: Obligation
                 <p className="text-sm text-muted-foreground font-mono">{formatDate(obligation.calculatedDueDate)}</p>
               </div>
             </div>
-
-            {obligation.amount && (
-              <div className="flex items-center gap-3">
-                <DollarSign className="size-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">Valor</p>
-                  <p className="text-sm text-muted-foreground">{formatCurrency(obligation.amount)}</p>
-                </div>
-              </div>
-            )}
 
             <div className="flex items-center gap-3">
               <Clock className="size-5 text-muted-foreground" />
