@@ -1,4 +1,4 @@
-import type { Obligation, RecurrenceType } from "./types"
+import type { Obligation, RecurrenceType, Tax } from "./types"
 import { adjustForWeekend } from "./date-utils"
 
 /**
@@ -35,7 +35,7 @@ export function calculateNextDueDate(obligation: Obligation, fromDate: Date = ne
 
   // Se tem mês específico, ajusta
   if (obligation.dueMonth) {
-    nextDate.setMonth(obligation.dueMonth - 1)
+    nextDate.setMonth(nextDate.getMonth() + 1) // Adjust month to be 0-indexed
   }
 
   return nextDate
@@ -100,17 +100,17 @@ export function shouldGenerateOccurrences(obligation: Obligation): boolean {
 /**
  * Obtém descrição legível da recorrência
  */
-export function getRecurrenceDescription(obligation: Obligation): string {
+export function getRecurrenceDescription(entity: Obligation | Tax): string {
   const descriptions: Record<RecurrenceType, string> = {
     monthly: "Mensal",
     bimonthly: "Bimestral",
     quarterly: "Trimestral",
     semiannual: "Semestral",
     annual: "Anual",
-    custom: obligation.recurrenceInterval
-      ? `A cada ${obligation.recurrenceInterval} ${obligation.recurrenceInterval === 1 ? "mês" : "meses"}`
+    custom: entity.recurrenceInterval
+      ? `A cada ${entity.recurrenceInterval} ${entity.recurrenceInterval === 1 ? "mês" : "meses"}`
       : "Personalizado",
   }
 
-  return descriptions[obligation.recurrence]
+  return descriptions[entity.recurrence]
 }

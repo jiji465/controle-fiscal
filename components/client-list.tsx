@@ -10,6 +10,7 @@ import { ClientForm } from "./client-form"
 import { MoreVertical, Pencil, Trash2, Search, Plus } from "lucide-react"
 import type { Client } from "@/lib/types"
 import { saveClient, deleteClient } from "@/lib/storage"
+import { toast } from "@/hooks/use-toast" // Import toast
 
 type ClientListProps = {
   clients: Client[]
@@ -29,12 +30,21 @@ export function ClientList({ clients, onUpdate }: ClientListProps) {
     saveClient(client)
     onUpdate()
     setEditingClient(undefined)
+    toast({
+      title: "Cliente salvo!",
+      description: `O cliente "${client.name}" foi salvo com sucesso.`,
+    });
   }
 
   const handleDelete = (id: string) => {
     if (confirm("Tem certeza que deseja excluir este cliente?")) {
       deleteClient(id)
       onUpdate()
+      toast({
+        title: "Cliente excluído!",
+        description: "O cliente foi removido com sucesso.",
+        variant: "destructive",
+      });
     }
   }
 
@@ -72,6 +82,7 @@ export function ClientList({ clients, onUpdate }: ClientListProps) {
             <TableRow>
               <TableHead>Nome / Razão Social</TableHead>
               <TableHead>CNPJ</TableHead>
+              <TableHead>Regime Tributário</TableHead> {/* New column */}
               <TableHead>E-mail</TableHead>
               <TableHead>Telefone</TableHead>
               <TableHead>Status</TableHead>
@@ -81,7 +92,7 @@ export function ClientList({ clients, onUpdate }: ClientListProps) {
           <TableBody>
             {filteredClients.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-8"> {/* Updated colspan */}
                   Nenhum cliente encontrado
                 </TableCell>
               </TableRow>
@@ -90,6 +101,7 @@ export function ClientList({ clients, onUpdate }: ClientListProps) {
                 <TableRow key={client.id}>
                   <TableCell className="font-medium">{client.name}</TableCell>
                   <TableCell className="font-mono text-sm">{client.cnpj}</TableCell>
+                  <TableCell>{client.taxRegime || "Não informado"}</TableCell> {/* Display tax regime */}
                   <TableCell>{client.email}</TableCell>
                   <TableCell>{client.phone}</TableCell>
                   <TableCell>

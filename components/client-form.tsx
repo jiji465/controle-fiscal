@@ -16,6 +16,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import type { Client } from "@/lib/types"
+import { toast } from "@/hooks/use-toast" // Import toast
 
 type ClientFormProps = {
   client?: Client
@@ -32,6 +33,7 @@ export function ClientForm({ client, open, onOpenChange, onSave }: ClientFormPro
       email: "",
       phone: "",
       status: "active",
+      taxRegime: "Simples Nacional", // Default tax regime
     },
   )
 
@@ -44,10 +46,15 @@ export function ClientForm({ client, open, onOpenChange, onSave }: ClientFormPro
       email: formData.email || "",
       phone: formData.phone || "",
       status: formData.status as "active" | "inactive",
+      taxRegime: formData.taxRegime as "Simples Nacional" | "Lucro Presumido" | "Lucro Real" | "Outro", // Save tax regime
       createdAt: client?.createdAt || new Date().toISOString(),
     }
     onSave(clientData)
     onOpenChange(false)
+    toast({
+      title: "Cliente salvo!",
+      description: `O cliente "${clientData.name}" foi salvo com sucesso.`,
+    });
   }
 
   return (
@@ -108,6 +115,23 @@ export function ClientForm({ client, open, onOpenChange, onSave }: ClientFormPro
                 <SelectContent>
                   <SelectItem value="active">Ativo</SelectItem>
                   <SelectItem value="inactive">Inativo</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="taxRegime">Regime Tributário</Label>
+              <Select
+                value={formData.taxRegime}
+                onValueChange={(value) => setFormData({ ...formData, taxRegime: value as "Simples Nacional" | "Lucro Presumido" | "Lucro Real" | "Outro" })}
+              >
+                <SelectTrigger id="taxRegime">
+                  <SelectValue placeholder="Selecione o regime" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="Simples Nacional">Simples Nacional</SelectItem>
+                  <SelectItem value="Lucro Presumido">Lucro Presumido</SelectItem>
+                  <SelectItem value="Lucro Real">Lucro Real</SelectItem>
+                  <SelectItem value="Outro">Outro</SelectItem>
                 </SelectContent>
               </Select>
             </div>

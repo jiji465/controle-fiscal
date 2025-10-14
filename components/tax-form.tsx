@@ -19,6 +19,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import type { Tax } from "@/lib/types"
+import { toast } from "@/hooks/use-toast" // Import toast
 
 type TaxFormProps = {
   tax?: Tax
@@ -34,14 +35,10 @@ export function TaxForm({ tax, open, onOpenChange, onSave }: TaxFormProps) {
       description: "",
       federalTaxCode: "",
       dueDay: undefined,
-      status: "pending",
-      priority: "medium",
       recurrence: "monthly",
       recurrenceInterval: 1,
       autoGenerate: false,
       weekendRule: "postpone",
-      assignedTo: "",
-      protocol: "",
       notes: "",
       tags: [],
     },
@@ -57,23 +54,21 @@ export function TaxForm({ tax, open, onOpenChange, onSave }: TaxFormProps) {
       description: formData.description!,
       federalTaxCode: formData.federalTaxCode,
       dueDay: formData.dueDay ? Number(formData.dueDay) : undefined,
-      status: formData.status || "pending",
-      priority: formData.priority || "medium",
       recurrence: formData.recurrence as any,
       recurrenceInterval: formData.recurrenceInterval,
       recurrenceEndDate: formData.recurrenceEndDate,
       autoGenerate: formData.autoGenerate || false,
       weekendRule: formData.weekendRule as "postpone" | "anticipate" | "keep",
-      assignedTo: formData.assignedTo,
-      protocol: formData.protocol,
       notes: formData.notes,
       tags: formData.tags || [],
-      completedAt: formData.completedAt,
-      completedBy: formData.completedBy,
       createdAt: tax?.createdAt || new Date().toISOString(),
     }
     onSave(taxData)
     onOpenChange(false)
+    toast({
+      title: "Imposto salvo!",
+      description: `O imposto "${taxData.name}" foi salvo com sucesso.`,
+    });
   }
 
   const addTag = () => {
@@ -85,19 +80,6 @@ export function TaxForm({ tax, open, onOpenChange, onSave }: TaxFormProps) {
 
   const removeTag = (tag: string) => {
     setFormData({ ...formData, tags: formData.tags?.filter((t) => t !== tag) })
-  }
-
-  const getPriorityIcon = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return <AlertCircle className="size-4 text-red-600" />
-      case "high":
-        return <AlertTriangle className="size-4 text-orange-600" />
-      case "medium":
-        return <Flag className="size-4 text-yellow-600" />
-      default:
-        return <Flag className="size-4 text-blue-600" />
-    }
   }
 
   return (
@@ -144,71 +126,6 @@ export function TaxForm({ tax, open, onOpenChange, onSave }: TaxFormProps) {
                   value={formData.federalTaxCode}
                   onChange={(e) => setFormData({ ...formData, federalTaxCode: e.target.value })}
                   placeholder="Ex: 1234"
-                />
-              </div>
-            </div>
-
-            {/* Gestão e Controle */}
-            <div className="space-y-4 border-t pt-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Gestão e Controle</h3>
-
-              <div className="grid sm:grid-cols-3 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="priority" className="flex items-center gap-2">
-                    Prioridade *{getPriorityIcon(formData.priority || "medium")}
-                  </Label>
-                  <Select
-                    value={formData.priority}
-                    onValueChange={(value) => setFormData({ ...formData, priority: value as any })}
-                  >
-                    <SelectTrigger id="priority">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Baixa</SelectItem>
-                      <SelectItem value="medium">Média</SelectItem>
-                      <SelectItem value="high">Alta</SelectItem>
-                      <SelectItem value="urgent">Urgente</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="status">Status *</Label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(value) => setFormData({ ...formData, status: value as any })}
-                  >
-                    <SelectTrigger id="status">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">Pendente</SelectItem>
-                      <SelectItem value="in_progress">Em Andamento</SelectItem>
-                      <SelectItem value="completed">Concluído</SelectItem>
-                      <SelectItem value="overdue">Atrasado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="assignedTo">Responsável</Label>
-                  <Input
-                    id="assignedTo"
-                    value={formData.assignedTo || ""}
-                    onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-                    placeholder="Nome do responsável"
-                  />
-                </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="protocol">Protocolo/Processo</Label>
-                <Input
-                  id="protocol"
-                  value={formData.protocol || ""}
-                  onChange={(e) => setFormData({ ...formData, protocol: e.target.value })}
-                  placeholder="Número do protocolo"
                 />
               </div>
             </div>

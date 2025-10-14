@@ -5,6 +5,7 @@ export type Client = {
   email: string
   phone: string
   status: "active" | "inactive"
+  taxRegime?: "Simples Nacional" | "Lucro Presumido" | "Lucro Real" | "Outro" // Added taxRegime
   createdAt: string
 }
 
@@ -14,15 +15,12 @@ export type Tax = {
   description: string
   federalTaxCode?: string
   dueDay?: number // Dia do vencimento do imposto (1-31)
-  status: "pending" | "in_progress" | "completed" | "overdue"
-  priority: Priority
-  assignedTo?: string
-  protocol?: string
-  realizationDate?: string
+  recurrence: RecurrenceType // Moved from Obligation, now part of Tax template
+  recurrenceInterval?: number // Moved from Obligation
+  recurrenceEndDate?: string // Moved from Obligation
+  autoGenerate: boolean // Moved from Obligation
+  weekendRule: WeekendRule // Moved from Obligation
   notes?: string
-  completedAt?: string
-  completedBy?: string
-  history?: ObligationHistory[]
   tags?: string[]
   createdAt: string
 }
@@ -54,18 +52,18 @@ export type Obligation = {
   id: string
   name: string
   description?: string
-  category: ObligationCategory // Nova categoria para organização
+  category: ObligationCategory
   clientId: string
   taxId?: string
   dueDay: number
   dueMonth?: number
-  frequency: "monthly" | "quarterly" | "annual" | "custom"
-  recurrence: RecurrenceType
-  recurrenceInterval?: number
-  recurrenceEndDate?: string
-  autoGenerate: boolean
-  weekendRule: WeekendRule
-  status: "pending" | "in_progress" | "completed" | "overdue" // Adicionado status "in_progress"
+  frequency: "monthly" | "quarterly" | "annual" | "custom" // This is now derived from Tax recurrence, but kept for flexibility if an obligation is not linked to a Tax
+  recurrence: RecurrenceType // This is now derived from Tax recurrence, but kept for flexibility if an obligation is not linked to a Tax
+  recurrenceInterval?: number // This is now derived from Tax recurrence, but kept for flexibility if an obligation is not linked to a Tax
+  recurrenceEndDate?: string // This is now derived from Tax recurrence, but kept for flexibility if an obligation is not linked to a Tax
+  autoGenerate: boolean // This is now derived from Tax recurrence, but kept for flexibility if an obligation is not linked to a Tax
+  weekendRule: WeekendRule // This is now derived from Tax recurrence, but kept for flexibility if an obligation is not linked to a Tax
+  status: "pending" | "in_progress" | "completed" | "overdue"
   priority: Priority
   assignedTo?: string
   protocol?: string
@@ -73,12 +71,12 @@ export type Obligation = {
   amount?: number
   notes?: string
   createdAt: string
-  completedAt?: string // Data de quando foi concluída
-  completedBy?: string // Quem concluiu (usuário/contador)
-  attachments?: string[] // URLs de anexos/documentos - Adicionado
+  completedAt?: string
+  completedBy?: string
+  attachments?: string[]
   history?: ObligationHistory[]
-  parentObligationId?: string // ID da obrigação original que gerou esta
-  generatedFor?: string // Período para qual foi gerada (ex: "2025-01")
+  parentObligationId?: string
+  generatedFor?: string
   tags?: string[]
 }
 

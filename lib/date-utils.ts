@@ -68,20 +68,45 @@ export const calculateTaxDueDate = (
   }
 
   let dueDate: Date;
-  // Assuming taxes are generally monthly for calendar display if no specific recurrence is defined.
-  // The Tax type doesn't have 'frequency' or 'dueMonth' like Obligation.
-  // So, we'll calculate based on current month and tax.dueDay.
+  // For Tax templates, we calculate the next upcoming due date based on its recurrence and dueDay.
+  // This is a simplified calculation for display purposes in the calendar.
   dueDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), tax.dueDay);
 
-  // If the calculated date is in the past, move it to the next month.
-  // This ensures we always show upcoming or current month's due date.
-  if (dueDate < referenceDate && dueDate.getDate() !== referenceDate.getDate()) {
-    dueDate.setMonth(dueDate.getMonth() + 1);
+  // Adjust based on recurrence type to find the next relevant date
+  switch (tax.recurrence) {
+    case "monthly":
+    case "custom": // Assuming custom is also monthly-based for simplicity here
+      if (dueDate < referenceDate && dueDate.getDate() !== referenceDate.getDate()) {
+        dueDate.setMonth(dueDate.getMonth() + (tax.recurrenceInterval || 1));
+      }
+      break;
+    case "bimonthly":
+      // Find the next bimonthly occurrence
+      while (dueDate < referenceDate || (dueDate.getMonth() % 2 !== referenceDate.getMonth() % 2)) {
+        dueDate.setMonth(dueDate.getMonth() + 1);
+      }
+      break;
+    case "quarterly":
+      // Find the next quarterly occurrence
+      while (dueDate < referenceDate || (dueDate.getMonth() % 3 !== referenceDate.getMonth() % 3)) {
+        dueDate.setMonth(dueDate.getMonth() + 1);
+      }
+      break;
+    case "semiannual":
+      // Find the next semiannual occurrence
+      while (dueDate < referenceDate || (dueDate.getMonth() % 6 !== referenceDate.getMonth() % 6)) {
+        dueDate.setMonth(dueDate.getMonth() + 1);
+      }
+      break;
+    case "annual":
+      // Find the next annual occurrence
+      if (dueDate < referenceDate) {
+        dueDate.setFullYear(dueDate.getFullYear() + 1);
+      }
+      break;
   }
 
-  // Default weekend rule for taxes if not specified in Tax type
-  const defaultWeekendRule: WeekendRule = "postpone";
-  return adjustForWeekend(dueDate, defaultWeekendRule);
+  return adjustForWeekend(dueDate, tax.weekendRule);
 };
 
 export const formatDate = (date: string | Date): string => {

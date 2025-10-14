@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react" // Import useEffect
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
-import { X, AlertCircle, AlertTriangle, Flag, Paperclip } from "lucide-react" // Added Paperclip icon
+import { X, AlertCircle, AlertTriangle, Flag, Paperclip } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -20,6 +20,8 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import type { Obligation, Client, Tax } from "@/lib/types"
+import { toast } from "@/hooks/use-toast" // Import toast
+import { getRecurrenceDescription } from "@/lib/recurrence-utils" // Import getRecurrenceDescription
 
 type ObligationFormProps = {
   obligation?: Obligation
@@ -38,11 +40,11 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
       clientId: "",
       taxId: "",
       dueDay: 10,
-      frequency: "monthly",
-      recurrence: "monthly",
-      recurrenceInterval: 1,
-      autoGenerate: false,
-      weekendRule: "postpone",
+      frequency: "monthly", // Default, will be overridden by tax if selected
+      recurrence: "monthly", // Default, will be overridden by tax if selected
+      recurrenceInterval: 1, // Default, will be overridden by tax if selected
+      autoGenerate: false, // Default, will be overridden by tax if selected
+      weekendRule: "postpone", // Default, will be overridden by tax if selected
       status: "pending",
       priority: "medium",
       assignedTo: "",
@@ -50,12 +52,34 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
       amount: 0,
       notes: "",
       tags: [],
-      attachments: [], // Initialize attachments
+      attachments: [],
     },
   )
 
   const [newTag, setNewTag] = useState("")
-  const [newAttachmentUrl, setNewAttachmentUrl] = useState("") // State for new attachment URL
+  const [newAttachmentUrl, setNewAttachmentUrl] = useState("")
+
+  // Effect to update form data when a tax is selected
+  useEffect(() => {
+    if (formData.taxId) {
+      const selectedTax = taxes.find(t => t.id === formData.taxId);
+      if (selectedTax) {
+        setFormData(prev => ({
+          ...prev,
+          dueDay: selectedTax.dueDay || prev.dueDay,
+          recurrence: selectedTax.recurrence,
+          recurrenceInterval: selectedTax.recurrenceInterval,
+          recurrenceEndDate: selectedTax.recurrenceEndDate,
+          autoGenerate: selectedTax.autoGenerate,
+          weekendRule: selectedTax.weekendRule,
+          notes: selectedTax.notes || prev.notes,
+          tags: selectedTax.tags || prev.tags,
+          // Keep obligation-specific fields like status, priority, assignedTo, protocol
+        }));
+      }
+    }
+  }, [formData.taxId, taxes]);
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -72,12 +96,12 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
       id: obligation?.id || crypto.randomUUID(),
       name: formData.name!,
       description: formData.description,
-      category: formData.category || "other", // Default category
+      category: formData.category || "other",
       clientId: formData.clientId!,
       taxId: formData.taxId || undefined,
       dueDay: Number(formData.dueDay!),
       dueMonth: formData.dueMonth ? Number(formData.dueMonth) : undefined,
-      frequency: formData.frequency as "monthly" | "quarterly" | "annual" | "custom",
+      frequency: formData.frequency as "monthly" | "quarterly" | "annual" | "custom", // This field is still needed for calculateDueDate
       recurrence: formData.recurrence as any,
       recurrenceInterval: formData.recurrenceInterval,
       recurrenceEndDate: formData.recurrenceEndDate,
@@ -93,7 +117,7 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
       createdAt: obligation?.createdAt || new Date().toISOString(),
       completedAt: obligation?.completedAt,
       completedBy: obligation?.completedBy,
-      attachments: formData.attachments || [], // Save attachments
+      attachments: formData.attachments || [],
       history: [...history, newHistoryEntry],
       parentObligationId: obligation?.parentObligationId,
       generatedFor: obligation?.generatedFor,
@@ -101,6 +125,10 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
     }
     onSave(obligationData)
     onOpenChange(false)
+    toast({
+      title: "Obrigação salva!",
+      description: `A obrigação "${obligationData.name}" foi salva com sucesso.`,
+    });
   }
 
   const addTag = () => {
@@ -305,6 +333,7 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
                   <Select
                     value={formData.recurrence}
                     onValueChange={(value) => setFormData({ ...formData, recurrence: value as any })}
+                    disabled={!!formData.taxId} // Disable if tax is selected
                   >
                     <SelectTrigger id="recurrence">
                       <SelectValue />
@@ -329,6 +358,7 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
                       min="1"
                       value={formData.recurrenceInterval || 1}
                       onChange={(e) => setFormData({ ...formData, recurrenceInterval: Number(e.target.value) })}
+                      disabled={!!formData.taxId} // Disable if tax is selected
                     />
                   </div>
                 )}
@@ -343,6 +373,7 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
                   id="autoGenerate"
                   checked={formData.autoGenerate}
                   onCheckedChange={(checked) => setFormData({ ...formData, autoGenerate: checked })}
+                  disabled={!!formData.taxId} // Disable if tax is selected
                 />
               </div>
 
@@ -354,6 +385,7 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
                     type="date"
                     value={formData.recurrenceEndDate || ""}
                     onChange={(e) => setFormData({ ...formData, recurrenceEndDate: e.target.value })}
+                    disabled={!!formData.taxId} // Disable if tax is selected
                   />
                   <p className="text-xs text-muted-foreground">Deixe em branco para recorrência indefinida</p>
                 </div>
@@ -375,6 +407,7 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
                     value={formData.dueDay}
                     onChange={(e) => setFormData({ ...formData, dueDay: Number(e.target.value) })}
                     required
+                    disabled={!!formData.taxId} // Disable if tax is selected
                   />
                 </div>
 
@@ -390,6 +423,7 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
                       setFormData({ ...formData, dueMonth: e.target.value ? Number(e.target.value) : undefined })
                     }
                     placeholder="1-12"
+                    disabled={!!formData.taxId} // Disable if tax is selected
                   />
                 </div>
 
@@ -398,6 +432,7 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
                   <Select
                     value={formData.weekendRule}
                     onValueChange={(value) => setFormData({ ...formData, weekendRule: value as any })}
+                    disabled={!!formData.taxId} // Disable if tax is selected
                   >
                     <SelectTrigger id="weekendRule">
                       <SelectValue />

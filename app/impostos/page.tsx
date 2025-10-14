@@ -23,6 +23,7 @@ import {
   Trash2,
 } from "lucide-react"
 import type { Tax, Client, Obligation } from "@/lib/types"
+import { toast } from "@/hooks/use-toast" // Import toast
 
 export default function ImpostosPage() {
   const [taxes, setTaxes] = useState<Tax[]>([])
@@ -30,7 +31,7 @@ export default function ImpostosPage() {
   const [obligations, setObligations] = useState<Obligation[]>([])
   const [editingTax, setEditingTax] = useState<Tax | undefined>()
   const [isFormOpen, setIsFormOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState("all")
+  const [activeTab, setActiveTab] = useState("all") // Keep tabs for future filtering by recurrence/dueDay
   const [searchOpen, setSearchOpen] = useState(false)
 
   const updateData = () => {
@@ -60,12 +61,21 @@ export default function ImpostosPage() {
     updateData()
     setEditingTax(undefined)
     setIsFormOpen(false)
+    toast({
+      title: "Imposto salvo!",
+      description: `O imposto "${tax.name}" foi salvo com sucesso.`,
+    });
   }
 
   const handleDelete = (id: string) => {
     if (confirm("Tem certeza que deseja excluir este imposto?")) {
       deleteTax(id)
       updateData()
+      toast({
+        title: "Imposto excluído!",
+        description: "O imposto foi removido com sucesso.",
+        variant: "destructive",
+      });
     }
   }
 
@@ -79,76 +89,16 @@ export default function ImpostosPage() {
     setIsFormOpen(true)
   }
 
-  const handleStartTax = (tax: Tax) => {
-    const updatedTax = { ...tax, status: "in_progress" as const }
-    saveTax(updatedTax)
-    updateData()
-  }
+  // Removed handleStartTax and handleCompleteTax as they are for Obligations, not Tax templates.
 
-  const handleCompleteTax = (tax: Tax) => {
-    const updatedTax = {
-      ...tax,
-      status: "completed" as const,
-      completedAt: new Date().toISOString(),
-    }
-    saveTax(updatedTax)
-    updateData()
-  }
-  // </CHANGE>
-
-  const pendingTaxes = taxes.filter((t) => t.status === "pending")
-  const inProgressTaxes = taxes.filter((t) => t.status === "in_progress")
-  const completedTaxes = taxes.filter((t) => t.status === "completed")
-  const overdueTaxes = taxes.filter((t) => t.status === "overdue")
-
+  // For now, getFilteredTaxes will just return all taxes, as status is no longer on Tax type.
+  // We can re-introduce filtering by recurrence or dueDay if needed in the future.
   const getFilteredTaxes = () => {
-    switch (activeTab) {
-      case "pending":
-        return pendingTaxes
-      case "in_progress":
-        return inProgressTaxes
-      case "completed":
-        return completedTaxes
-      case "overdue":
-        return overdueTaxes
-      default:
-        return taxes
-    }
+    return taxes
   }
-  // </CHANGE>
 
-  const getStatusBadge = (status: Tax["status"], completedAt?: string) => {
-    switch (status) {
-      case "completed":
-        return (
-          <Badge variant="secondary" className="bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300">
-            <CheckCircle2 className="size-3 mr-1" />
-            Concluída {completedAt && `em ${new Date(completedAt).toLocaleDateString("pt-BR")}`}
-          </Badge>
-        )
-      case "in_progress":
-        return (
-          <Badge variant="secondary" className="bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300">
-            <PlayCircle className="size-3 mr-1" />
-            Em Andamento
-          </Badge>
-        )
-      case "overdue":
-        return (
-          <Badge variant="secondary" className="bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300">
-            <AlertTriangle className="size-3 mr-1" />
-            Atrasada
-          </Badge>
-        )
-      default:
-        return (
-          <Badge variant="secondary" className="bg-yellow-100 text-yellow-700 dark:bg-yellow-950 dark:text-yellow-300">
-            <Clock className="size-3 mr-1" />
-            Pendente
-          </Badge>
-        )
-    }
-  }
+  // Removed getStatusBadge as status is no longer on Tax type.
+  // Taxes are templates, their "status" is managed by the Obligations that use them.
 
   return (
     <div className="min-h-screen bg-background">
@@ -175,57 +125,61 @@ export default function ImpostosPage() {
             </div>
           </div>
 
+          {/* Tabs are kept but will display all taxes for now, as status is removed from Tax type */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-5 h-auto">
+            <TabsList className="grid w-full grid-cols-1 h-auto md:grid-cols-5"> {/* Adjusted grid-cols */}
               <TabsTrigger value="all" className="flex flex-col gap-1 py-3">
-                <span className="text-sm font-medium">Todos</span>
+                <span className="text-sm font-medium">Todos os Impostos</span>
                 <Badge variant="secondary" className="text-xs">
                   {taxes.length}
                 </Badge>
               </TabsTrigger>
+              {/* Other tabs (pending, in_progress, completed, overdue) are not directly applicable to Tax templates,
+                  but can be re-purposed for filtering by recurrence type or due day if desired.
+                  For now, they will show the same list as 'all'. */}
               <TabsTrigger value="pending" className="flex flex-col gap-1 py-3">
                 <div className="flex items-center gap-1.5">
                   <Clock className="size-3.5" />
-                  <span className="text-sm font-medium">Pendentes</span>
+                  <span className="text-sm font-medium">Mensais</span>
                 </div>
                 <Badge variant="secondary" className="text-xs">
-                  {pendingTaxes.length}
+                  {taxes.filter(t => t.recurrence === "monthly").length}
                 </Badge>
               </TabsTrigger>
               <TabsTrigger value="in_progress" className="flex flex-col gap-1 py-3">
                 <div className="flex items-center gap-1.5">
                   <PlayCircle className="size-3.5" />
-                  <span className="text-sm font-medium">Em Andamento</span>
+                  <span className="text-sm font-medium">Anuais</span>
                 </div>
                 <Badge
                   variant="secondary"
                   className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
                 >
-                  {inProgressTaxes.length}
+                  {taxes.filter(t => t.recurrence === "annual").length}
                 </Badge>
               </TabsTrigger>
               <TabsTrigger value="completed" className="flex flex-col gap-1 py-3">
                 <div className="flex items-center gap-1.5">
                   <CheckCircle2 className="size-3.5" />
-                  <span className="text-sm font-medium">Concluídos</span>
+                  <span className="text-sm font-medium">Personalizados</span>
                 </div>
                 <Badge
                   variant="secondary"
                   className="text-xs bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300"
                 >
-                  {completedTaxes.length}
+                  {taxes.filter(t => t.recurrence === "custom").length}
                 </Badge>
               </TabsTrigger>
               <TabsTrigger value="overdue" className="flex flex-col gap-1 py-3">
                 <div className="flex items-center gap-1.5">
                   <AlertTriangle className="size-3.5" />
-                  <span className="text-sm font-medium">Atrasados</span>
+                  <span className="text-sm font-medium">Outros</span>
                 </div>
                 <Badge
                   variant="secondary"
                   className="text-xs bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
                 >
-                  {overdueTaxes.length}
+                  {taxes.filter(t => t.recurrence !== "monthly" && t.recurrence !== "annual" && t.recurrence !== "custom").length}
                 </Badge>
               </TabsTrigger>
             </TabsList>
@@ -238,16 +192,15 @@ export default function ImpostosPage() {
                       <TableRow>
                         <TableHead>Nome</TableHead>
                         <TableHead>Descrição</TableHead>
-                        <TableHead>Vencimento</TableHead>
-                        <TableHead>Status</TableHead>
-                        <TableHead>Ações Rápidas</TableHead>
+                        <TableHead>Vencimento Padrão</TableHead>
+                        <TableHead>Recorrência</TableHead>
                         <TableHead className="w-[50px]"></TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       {getFilteredTaxes().length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
                             Nenhum imposto encontrado
                           </TableCell>
                         </TableRow>
@@ -257,22 +210,8 @@ export default function ImpostosPage() {
                             <TableCell className="font-medium">{tax.name}</TableCell>
                             <TableCell className="max-w-xs truncate">{tax.description}</TableCell>
                             <TableCell>{tax.dueDay ? `Dia ${tax.dueDay}` : "-"}</TableCell>
-                            <TableCell>{getStatusBadge(tax.status, tax.completedAt)}</TableCell>
                             <TableCell>
-                              <div className="flex gap-2">
-                                {tax.status === "pending" && (
-                                  <Button size="sm" variant="outline" onClick={() => handleStartTax(tax)}>
-                                    <PlayCircle className="size-3 mr-1" />
-                                    Iniciar
-                                  </Button>
-                                )}
-                                {tax.status === "in_progress" && (
-                                  <Button size="sm" variant="outline" onClick={() => handleCompleteTax(tax)}>
-                                    <CheckCircle2 className="size-3 mr-1" />
-                                    Concluir
-                                  </Button>
-                                )}
-                              </div>
+                              <Badge variant="secondary">{tax.recurrence}</Badge>
                             </TableCell>
                             <TableCell>
                               <DropdownMenu>
