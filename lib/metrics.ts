@@ -63,30 +63,6 @@ export function calculateProductivityMetrics(obligations: ObligationWithDetails[
     count: obligations.filter((o) => o.priority === priority).length,
   }))
 
-  // New: Obligations by Status for charts
-  const obligationsByStatus = Object.entries(
-    obligations.reduce(
-      (acc, o) => {
-        acc[o.status] = (acc[o.status] || 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>
-    )
-  ).map(([status, count]) => ({ status, count }));
-
-  // New: Obligations by Client for charts
-  const obligationsByClient = Object.entries(
-    obligations.reduce(
-      (acc, o) => {
-        const clientName = o.client.name;
-        acc[clientName] = (acc[clientName] || 0) + 1;
-        return acc;
-      },
-      {} as Record<string, number>
-    )
-  ).map(([clientName, count]) => ({ clientName, count }));
-
-
   return {
     totalCompleted: completed.length,
     averageCompletionTime: Math.round(averageCompletionTime * 10) / 10,
@@ -94,7 +70,5 @@ export function calculateProductivityMetrics(obligations: ObligationWithDetails[
     byResponsible,
     byMonth: byMonth.slice(-6), // Last 6 months
     byPriority,
-    obligationsByStatus, // Added for charts
-    obligationsByClient, // Added for charts
   }
 }

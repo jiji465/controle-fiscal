@@ -151,8 +151,6 @@ export type ProductivityMetrics = {
   byResponsible: { name: string; completed: number; onTime: number }[]
   byMonth: { month: string; completed: number; overdue: number }[]
   byPriority: { priority: Priority; count: number }[]
-  obligationsByStatus: { status: string; count: number }[]; // Added for charts
-  obligationsByClient: { clientName: string; count: number }[]; // Added for charts
 }
 
 export type Notification = {
