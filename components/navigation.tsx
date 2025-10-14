@@ -42,7 +42,7 @@ export function Navigation() {
     const overdueObligations = obligations.filter((o) => isOverdue(o.calculatedDueDate) && o.status !== "completed").length
     const pendingObligations = obligations.filter((o) => o.status === "pending").length
 
-    const overdueInstallments = installments.filter((i) => isOverdue(i.calculatedDueDate) && i.status !== "paid").length
+    const overdueInstallments = installments.filter((i) => isOverdue(i.calculatedDueDate) && i.status !== "completed").length
     const pendingInstallments = installments.filter((i) => i.status === "pending").length
 
     const overdueTaxes = taxesDueDates.filter((t) => isOverdue(t.calculatedDueDate) && t.status !== "completed").length;
@@ -57,7 +57,7 @@ export function Navigation() {
     }).length
     const upcomingInstallments = installments.filter((i) => {
       const dueDate = new Date(i.calculatedDueDate)
-      return dueDate >= today && dueDate <= nextWeek && i.status !== "paid"
+      return dueDate >= today && dueDate <= nextWeek && i.status !== "completed"
     }).length
     const upcomingTaxes = taxesDueDates.filter((t) => {
       const dueDate = new Date(t.calculatedDueDate)

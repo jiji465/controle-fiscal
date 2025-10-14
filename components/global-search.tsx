@@ -230,7 +230,7 @@ export function GlobalSearch({
                           <div className="flex flex-col items-end gap-1 flex-shrink-0">
                             <Badge
                               variant={
-                                installment.status === "paid"
+                                installment.status === "completed"
                                   ? "default"
                                   : installment.status === "overdue"
                                     ? "destructive"
@@ -238,8 +238,8 @@ export function GlobalSearch({
                               }
                               className="text-xs"
                             >
-                              {installment.status === "paid"
-                                ? "Pago"
+                              {installment.status === "completed"
+                                ? "Concluído"
                                 : installment.status === "overdue"
                                   ? "Atrasado"
                                   : "Pendente"}

@@ -66,7 +66,7 @@ export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate, onEdit
     } else if (sortBy === "client") {
       comparison = a.client.name.localeCompare(b.client.name)
     } else if (sortBy === "status") {
-      const statusOrder: Record<FiscalEventStatus, number> = { overdue: 0, pending: 1, in_progress: 2, completed: 3, paid: 3 }
+      const statusOrder: Record<FiscalEventStatus, number> = { overdue: 0, pending: 1, in_progress: 2, completed: 3 }
       comparison = statusOrder[a.status] - statusOrder[b.status]
     }
 

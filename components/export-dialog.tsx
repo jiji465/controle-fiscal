@@ -65,7 +65,7 @@ export function ExportDialog({ open, onOpenChange, obligations, clients }: Expor
   }
 
   const exportToCSV = (data: ObligationWithDetails[]) => {
-    const headers = ["Nome", "Cliente", "Status", "Prioridade", "Vencimento", "Responsável", "Valor"]
+    const headers = ["Nome", "Cliente", "Status", "Prioridade", "Vencimento", "Responsável"]
     const rows = data.map((o) => [
       o.name,
       o.client.name,
@@ -73,7 +73,6 @@ export function ExportDialog({ open, onOpenChange, obligations, clients }: Expor
       o.priority,
       new Date(o.calculatedDueDate).toLocaleDateString("pt-BR"),
       o.assignedTo || "-",
-      o.amount ? `R$ ${o.amount.toFixed(2)}` : "-",
     ])
 
     const csvContent = [headers, ...rows].map((row) => row.join(",")).join("\n")
@@ -96,7 +95,6 @@ export function ExportDialog({ open, onOpenChange, obligations, clients }: Expor
             <th>Prioridade</th>
             <th>Vencimento</th>
             <th>Responsável</th>
-            <th>Valor</th>
           </tr>
         </thead>
         <tbody>
@@ -110,7 +108,6 @@ export function ExportDialog({ open, onOpenChange, obligations, clients }: Expor
               <td>${o.priority}</td>
               <td>${new Date(o.calculatedDueDate).toLocaleDateString("pt-BR")}</td>
               <td>${o.assignedTo || "-"}</td>
-              <td>${o.amount ? `R$ ${o.amount.toFixed(2)}` : "-"}</td>
             </tr>
           `,
             )
