@@ -16,6 +16,7 @@ export type Tax = {
   federalTaxCode?: string
   clientId?: string;
   dueDay?: number
+  dueMonth?: number // Added dueMonth to Tax type
   recurrence: RecurrenceType
   recurrenceInterval?: number
   recurrenceEndDate?: string

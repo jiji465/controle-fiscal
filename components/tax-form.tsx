@@ -37,6 +37,7 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
       federalTaxCode: "",
       clientId: undefined, // Initialize clientId
       dueDay: undefined,
+      dueMonth: undefined, // Initialize dueMonth
       recurrence: "monthly",
       recurrenceInterval: 1,
       autoGenerate: false,
@@ -57,6 +58,7 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
       federalTaxCode: formData.federalTaxCode,
       clientId: formData.clientId === "none" ? undefined : formData.clientId, // Save clientId, or undefined if 'none'
       dueDay: formData.dueDay ? Number(formData.dueDay) : undefined,
+      dueMonth: formData.dueMonth ? Number(formData.dueMonth) : undefined, // Save dueMonth
       recurrence: formData.recurrence as any,
       recurrenceInterval: formData.recurrenceInterval,
       recurrenceEndDate: formData.recurrenceEndDate,
@@ -225,7 +227,7 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
             <div className="space-y-4 border-t pt-4">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Vencimentos</h3>
 
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="grid sm:grid-cols-3 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="dueDay">Dia do Vencimento (Opcional)</Label>
                   <Input
@@ -242,6 +244,22 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
                   <p className="text-xs text-muted-foreground">
                     Dia padrão de vencimento (pode ser sobrescrito na obrigação)
                   </p>
+                </div>
+
+                <div className="grid gap-2">
+                  <Label htmlFor="dueMonth">Mês Específico (Opcional)</Label>
+                  <Input
+                    id="dueMonth"
+                    type="number"
+                    min="1"
+                    max="12"
+                    value={formData.dueMonth || ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, dueMonth: e.target.value ? Number(e.target.value) : undefined })
+                    }
+                    placeholder="1-12"
+                  />
+                  <p className="text-xs text-muted-foreground">Para impostos anuais ou específicos</p>
                 </div>
 
                 <div className="grid gap-2">
