@@ -9,24 +9,24 @@ import { ClientOverview } from "@/components/client-overview"
 import { TaxCalendar } from "@/components/tax-calendar"
 import { QuickActions } from "@/components/quick-actions"
 import { getClients, getTaxes } from "@/lib/storage"
-import { getObligationsWithDetails, calculateDashboardStats } from "@/lib/dashboard-utils"
+import { getObligationsWithDetails, calculateDashboardStats, getTaxesWithDetails } from "@/lib/dashboard-utils"
 import { TrendingUp, CalendarIcon, AlertCircle } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import type { Client, Tax, ObligationWithDetails, DashboardStats } from "@/lib/types"
+import type { Client, Tax, ObligationWithDetails, DashboardStats, TaxWithDetails } from "@/lib/types"
 import { defaultDashboardStats } from "@/lib/types"
 
 export default function DashboardPage() {
   const [stats, setStats] = useState<DashboardStats>(defaultDashboardStats)
   const [obligations, setObligations] = useState<ObligationWithDetails[]>([])
   const [clients, setClients] = useState<Client[]>([])
-  const [taxes, setTaxes] = useState<Tax[]>([])
+  const [taxes, setTaxes] = useState<TaxWithDetails[]>([]) // Changed to TaxWithDetails[]
 
   const updateData = () => {
     setStats(calculateDashboardStats())
     setObligations(getObligationsWithDetails())
     setClients(getClients())
-    setTaxes(getTaxes())
+    setTaxes(getTaxesWithDetails()) // Using getTaxesWithDetails
   }
 
   useEffect(() => {

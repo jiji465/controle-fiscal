@@ -3,49 +3,52 @@
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Calendar, AlertCircle, Clock } from "lucide-react"
-import type { Tax } from "@/lib/types"
+import type { TaxWithDetails } from "@/lib/types" // Changed to TaxWithDetails
 import { formatDate, isOverdue } from "@/lib/date-utils"
 
 type TaxCalendarProps = {
-  taxes: Tax[]
+  taxes: TaxWithDetails[] // Expecting TaxWithDetails[]
 }
 
 export function TaxCalendar({ taxes }: TaxCalendarProps) {
   const today = new Date()
-  const currentMonth = today.getMonth()
-  const currentYear = today.getFullYear()
+  today.setHours(0, 0, 0, 0) // Normalize today for comparison
 
-  // Agrupar impostos por dia de vencimento
-  const taxesByDay = taxes.reduce(
+  // Filter and group taxes by their calculated due day
+  const taxesByCalculatedDay = taxes.reduce(
     (acc, tax) => {
-      if (tax.dueDay) {
-        if (!acc[tax.dueDay]) {
-          acc[tax.dueDay] = []
-        }
-        acc[tax.dueDay].push(tax)
-      }
-      return acc
-    },
-    {} as Record<number, Tax[]>,
-  )
+      const dueDate = new Date(tax.calculatedDueDate);
+      // Only consider taxes for the current month or the next month, and not in the past
+      const isCurrentMonth = dueDate.getMonth() === today.getMonth() && dueDate.getFullYear() === today.getFullYear();
+      const isNextMonth = dueDate.getMonth() === (today.getMonth() + 1) % 12 &&
+                          dueDate.getFullYear() === (dueDate.getMonth() === 0 ? today.getFullYear() + 1 : today.getFullYear());
 
-  // Calcular próximos vencimentos
-  const upcomingTaxes = Object.entries(taxesByDay)
-    .map(([day, taxList]) => {
-      const dueDate = new Date(currentYear, currentMonth, Number.parseInt(day))
-      if (dueDate < today) {
-        dueDate.setMonth(dueDate.getMonth() + 1)
+      if ((isCurrentMonth || isNextMonth) && dueDate >= today) {
+        const day = dueDate.getDate();
+        if (!acc[day]) {
+          acc[day] = [];
+        }
+        acc[day].push(tax);
       }
+      return acc;
+    },
+    {} as Record<number, TaxWithDetails[]>,
+  );
+
+  // Prepare upcoming taxes for display
+  const upcomingTaxes = Object.entries(taxesByCalculatedDay)
+    .map(([day, taxList]) => {
+      const firstTaxDueDate = new Date(taxList[0].calculatedDueDate); // Use the actual calculated date
       return {
         day: Number.parseInt(day),
-        date: dueDate,
+        date: firstTaxDueDate,
         taxes: taxList,
-        isOverdue: isOverdue(dueDate.toISOString()),
-        daysUntil: Math.ceil((dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)),
-      }
+        isOverdue: isOverdue(firstTaxDueDate.toISOString()),
+        daysUntil: Math.ceil((firstTaxDueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)),
+      };
     })
     .sort((a, b) => a.date.getTime() - b.date.getTime())
-    .slice(0, 10)
+    .slice(0, 10); // Limit to 10 upcoming entries
 
   const getUrgencyColor = (daysUntil: number, isOverdue: boolean) => {
     if (isOverdue) return "text-red-600 bg-red-50 dark:bg-red-950/30"
