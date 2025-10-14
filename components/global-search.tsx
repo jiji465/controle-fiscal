@@ -7,6 +7,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Search, Building2, FileText, DollarSign, Calendar } from "lucide-react"
 import type { Client, Tax, ObligationWithDetails, InstallmentWithDetails } from "@/lib/types"
 import { formatDate } from "@/lib/date-utils"
+import { Input } from "@/components/ui/input" // Adicionando a importação do Input
 
 type GlobalSearchProps = {
   open: boolean
