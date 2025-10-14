@@ -1,4 +1,4 @@
-import type { DashboardStats, ObligationWithDetails, TaxWithDetails, Tax } from "./types"
+import type { DashboardStats, ObligationWithDetails, TaxWithDetails, Tax, Client } from "./types"
 import { getClients, getTaxes, getObligations } from "./storage"
 import { calculateDueDate, isOverdue, isUpcomingThisWeek, calculateTaxDueDate } from "./date-utils"
 
@@ -7,8 +7,19 @@ export const getObligationsWithDetails = (): ObligationWithDetails[] => {
   const clients = getClients()
   const taxes = getTaxes()
 
+  // Define um cliente padrão para casos onde o cliente não é encontrado
+  const unknownClient: Client = {
+    id: "unknown",
+    name: "Cliente Desconhecido",
+    cnpj: "00.000.000/0000-00",
+    email: "",
+    phone: "",
+    status: "inactive",
+    createdAt: new Date().toISOString(),
+  };
+
   return obligations.map((obligation) => {
-    const client = clients.find((c) => c.id === obligation.clientId)!
+    const client = clients.find((c) => c.id === obligation.clientId) || unknownClient;
     const tax = obligation.taxId ? taxes.find((t) => t.id === obligation.taxId) : undefined
 
     const calculatedDueDate = calculateDueDate(
