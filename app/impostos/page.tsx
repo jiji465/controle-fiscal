@@ -22,12 +22,12 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react"
-import type { Tax } from "@/lib/types"
+import type { Tax, Client, Obligation } from "@/lib/types"
 
 export default function ImpostosPage() {
-  const [taxes, setTaxes] = useState(getTaxes())
-  const [clients, setClients] = useState(getClients())
-  const [obligations, setObligations] = useState(getObligations())
+  const [taxes, setTaxes] = useState<Tax[]>([])
+  const [clients, setClients] = useState<Client[]>([])
+  const [obligations, setObligations] = useState<Obligation[]>([])
   const [editingTax, setEditingTax] = useState<Tax | undefined>()
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("all")

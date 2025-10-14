@@ -12,11 +12,12 @@ import { getClients, getTaxes } from "@/lib/storage"
 import { getObligationsWithDetails } from "@/lib/dashboard-utils"
 import { isOverdue } from "@/lib/date-utils"
 import { CheckCircle2, Clock, PlayCircle, AlertTriangle, Search } from "lucide-react"
+import type { Client, Tax, ObligationWithDetails } from "@/lib/types"
 
 export default function ObligacoesPage() {
-  const [obligations, setObligations] = useState(getObligationsWithDetails())
-  const [clients, setClients] = useState(getClients())
-  const [taxes, setTaxes] = useState(getTaxes())
+  const [obligations, setObligations] = useState<ObligationWithDetails[]>([])
+  const [clients, setClients] = useState<Client[]>([])
+  const [taxes, setTaxes] = useState<Tax[]>([])
   const [activeTab, setActiveTab] = useState("all")
   const [searchOpen, setSearchOpen] = useState(false)
 

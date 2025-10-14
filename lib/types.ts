@@ -112,6 +112,16 @@ export type DashboardStats = {
   upcomingThisWeek: number
 }
 
+export const defaultDashboardStats: DashboardStats = {
+  totalClients: 0,
+  activeClients: 0,
+  totalObligations: 0,
+  pendingObligations: 0,
+  completedThisMonth: 0,
+  overdueObligations: 0,
+  upcomingThisWeek: 0,
+};
+
 export type SavedFilter = {
   id: string
   name: string

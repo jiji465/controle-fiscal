@@ -4,9 +4,10 @@ import { useEffect, useState } from "react"
 import { Navigation } from "@/components/navigation"
 import { ClientList } from "@/components/client-list"
 import { getClients } from "@/lib/storage"
+import type { Client } from "@/lib/types"
 
 export default function ClientesPage() {
-  const [clients, setClients] = useState(getClients())
+  const [clients, setClients] = useState<Client[]>([])
 
   const handleUpdate = () => {
     setClients(getClients())

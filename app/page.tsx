@@ -13,12 +13,14 @@ import { getObligationsWithDetails, calculateDashboardStats } from "@/lib/dashbo
 import { TrendingUp, CalendarIcon, AlertCircle } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
+import type { Client, Tax, ObligationWithDetails, DashboardStats } from "@/lib/types"
+import { defaultDashboardStats } from "@/lib/types"
 
 export default function DashboardPage() {
-  const [stats, setStats] = useState(calculateDashboardStats())
-  const [obligations, setObligations] = useState(getObligationsWithDetails())
-  const [clients, setClients] = useState(getClients())
-  const [taxes, setTaxes] = useState(getTaxes())
+  const [stats, setStats] = useState<DashboardStats>(defaultDashboardStats)
+  const [obligations, setObligations] = useState<ObligationWithDetails[]>([])
+  const [clients, setClients] = useState<Client[]>([])
+  const [taxes, setTaxes] = useState<Tax[]>([])
 
   const updateData = () => {
     setStats(calculateDashboardStats())
