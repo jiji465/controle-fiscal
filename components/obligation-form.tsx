@@ -24,6 +24,7 @@ import type { Obligation, Client, Tax } from "@/lib/types"
 import { toast } from "@/hooks/use-toast"
 import { getRecurrenceDescription } from "@/lib/recurrence-utils"
 import { format } from "date-fns"
+import { ptBR } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 
 type ObligationFormProps = {
@@ -60,6 +61,9 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
   const [newTag, setNewTag] = useState("")
   const [newAttachmentUrl, setNewAttachmentUrl] = useState("")
   const [isClientSelectDisabled, setIsClientSelectDisabled] = useState(false);
+  const [isDueDatePopoverOpen, setIsDueDatePopoverOpen] = useState(false);
+  const [isRealizationDatePopoverOpen, setIsRealizationDatePopoverOpen] = useState(false);
+  const [isEndDatePopoverOpen, setIsEndDatePopoverOpen] = useState(false);
 
   useEffect(() => {
     if (obligation) {
@@ -302,7 +306,7 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
 
                 <div className="grid gap-2">
                   <Label htmlFor="realizationDate">Data de Realização</Label>
-                  <Popover>
+                  <Popover open={isRealizationDatePopoverOpen} onOpenChange={setIsRealizationDatePopoverOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant={"outline"}
@@ -317,9 +321,13 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
                       <Calendar
+                        locale={ptBR}
                         mode="single"
                         selected={formData.realizationDate ? new Date(formData.realizationDate) : undefined}
-                        onSelect={(date) => setFormData({ ...formData, realizationDate: date?.toISOString().split("T")[0] })}
+                        onSelect={(date) => {
+                          setFormData({ ...formData, realizationDate: date?.toISOString().split("T")[0] });
+                          setIsRealizationDatePopoverOpen(false);
+                        }}
                         initialFocus
                       />
                     </PopoverContent>
@@ -407,7 +415,7 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
               {formData.autoGenerate && (
                 <div className="grid gap-2">
                   <Label htmlFor="recurrenceEndDate">Data Final (Opcional)</Label>
-                  <Popover>
+                  <Popover open={isEndDatePopoverOpen} onOpenChange={setIsEndDatePopoverOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant={"outline"}
@@ -422,9 +430,13 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
                       <Calendar
+                        locale={ptBR}
                         mode="single"
                         selected={formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate) : undefined}
-                        onSelect={(date) => setFormData({ ...formData, recurrenceEndDate: date?.toISOString().split("T")[0] })}
+                        onSelect={(date) => {
+                          setFormData({ ...formData, recurrenceEndDate: date?.toISOString().split("T")[0] });
+                          setIsEndDatePopoverOpen(false);
+                        }}
                         initialFocus
                       />
                     </PopoverContent>
@@ -440,7 +452,7 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label>Data de Vencimento Inicial *</Label>
-                  <Popover>
+                  <Popover open={isDueDatePopoverOpen} onOpenChange={setIsDueDatePopoverOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant={"outline"}
@@ -456,6 +468,7 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
                       <Calendar
+                        locale={ptBR}
                         mode="single"
                         selected={formData.dueDay ? new Date(new Date().getFullYear(), formData.dueMonth ? formData.dueMonth - 1 : new Date().getMonth(), formData.dueDay) : undefined}
                         onSelect={(date) => {
@@ -465,6 +478,7 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
                               dueDay: date.getDate(),
                               dueMonth: formData.recurrence === 'annual' ? date.getMonth() + 1 : undefined,
                             });
+                            setIsDueDatePopoverOpen(false);
                           }
                         }}
                         initialFocus

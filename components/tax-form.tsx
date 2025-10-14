@@ -23,6 +23,7 @@ import {
 import type { Tax, Client } from "@/lib/types"
 import { toast } from "@/hooks/use-toast"
 import { format } from "date-fns"
+import { ptBR } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 
 type TaxFormProps = {
@@ -51,6 +52,8 @@ const defaultFormData: Partial<Tax> = {
 export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormProps) {
   const [formData, setFormData] = useState<Partial<Tax>>(defaultFormData)
   const [newTag, setNewTag] = useState("")
+  const [isDueDatePopoverOpen, setIsDueDatePopoverOpen] = useState(false)
+  const [isEndDatePopoverOpen, setIsEndDatePopoverOpen] = useState(false)
 
   useEffect(() => {
     if (tax) {
@@ -223,7 +226,7 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
               {formData.autoGenerate && (
                 <div className="grid gap-2">
                   <Label htmlFor="recurrenceEndDate">Data Final (Opcional)</Label>
-                  <Popover>
+                  <Popover open={isEndDatePopoverOpen} onOpenChange={setIsEndDatePopoverOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant={"outline"}
@@ -238,9 +241,13 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
                       <Calendar
+                        locale={ptBR}
                         mode="single"
                         selected={formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate) : undefined}
-                        onSelect={(date) => setFormData({ ...formData, recurrenceEndDate: date?.toISOString().split("T")[0] })}
+                        onSelect={(date) => {
+                          setFormData({ ...formData, recurrenceEndDate: date?.toISOString().split("T")[0] });
+                          setIsEndDatePopoverOpen(false);
+                        }}
                         initialFocus
                       />
                     </PopoverContent>
@@ -256,7 +263,7 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label>Data de Vencimento Inicial *</Label>
-                  <Popover>
+                  <Popover open={isDueDatePopoverOpen} onOpenChange={setIsDueDatePopoverOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant={"outline"}
@@ -271,6 +278,7 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
                       <Calendar
+                        locale={ptBR}
                         mode="single"
                         selected={formData.dueDay ? new Date(new Date().getFullYear(), formData.dueMonth ? formData.dueMonth - 1 : new Date().getMonth(), formData.dueDay) : undefined}
                         onSelect={(date) => {
@@ -280,6 +288,7 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
                               dueDay: date.getDate(),
                               dueMonth: formData.recurrence === 'annual' ? date.getMonth() + 1 : undefined,
                             });
+                            setIsDueDatePopoverOpen(false);
                           }
                         }}
                         initialFocus

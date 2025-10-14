@@ -52,7 +52,7 @@ export type ObligationCategory = "sped" | "tax_guide" | "certificate" | "declara
 
 // --- New Unified Fiscal Event Types ---
 export type FiscalEventType = "obligation" | "tax" | "installment";
-export type FiscalEventStatus = "pending" | "in_progress" | "completed" | "overdue" | "paid";
+export type FiscalEventStatus = "pending" | "in_progress" | "completed" | "overdue";
 
 export interface FiscalEventBase {
   id: string;
@@ -68,8 +68,6 @@ export interface FiscalEventBase {
   // Specific fields for different types, made optional in base
   completedAt?: string; // For obligations
   completedBy?: string; // For obligations
-  paidAt?: string; // For installments
-  paidBy?: string; // For installments
 }
 
 export type Obligation = {
@@ -126,12 +124,12 @@ export type Installment = {
   recurrenceEndDate?: string; // When the installment plan ends
   autoGenerate: boolean; // Whether to auto-generate future installments
   weekendRule: WeekendRule;
-  status: "pending" | "paid" | "overdue"; // Specific status for installments
+  status: "pending" | "in_progress" | "completed" | "overdue";
   notes?: string;
   tags?: string[];
   createdAt: string;
-  paidAt?: string;
-  paidBy?: string;
+  completedAt?: string;
+  completedBy?: string;
   parentInstallmentId?: string; // If it's part of a larger installment plan
   generatedFor?: string; // e.g., "2023-01"
 };

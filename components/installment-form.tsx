@@ -23,6 +23,7 @@ import {
 import type { Installment, Client } from "@/lib/types"
 import { toast } from "@/hooks/use-toast"
 import { format } from "date-fns"
+import { ptBR } from "date-fns/locale"
 import { cn } from "@/lib/utils"
 
 type InstallmentFormProps = {
@@ -52,6 +53,8 @@ const defaultFormData: Partial<Installment> = {
 export function InstallmentForm({ installment, clients, open, onOpenChange, onSave }: InstallmentFormProps) {
   const [formData, setFormData] = useState<Partial<Installment>>(defaultFormData)
   const [newTag, setNewTag] = useState("")
+  const [isDueDatePopoverOpen, setIsDueDatePopoverOpen] = useState(false)
+  const [isEndDatePopoverOpen, setIsEndDatePopoverOpen] = useState(false)
 
   useEffect(() => {
     if (installment) {
@@ -77,12 +80,12 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
       recurrenceEndDate: formData.recurrenceEndDate,
       autoGenerate: formData.autoGenerate || false,
       weekendRule: formData.weekendRule as "postpone" | "anticipate" | "keep",
-      status: formData.status as "pending" | "paid" | "overdue",
+      status: formData.status as "pending" | "in_progress" | "completed" | "overdue",
       notes: formData.notes,
       tags: formData.tags || [],
       createdAt: installment?.createdAt || new Date().toISOString(),
-      paidAt: installment?.paidAt,
-      paidBy: installment?.paidBy,
+      completedAt: formData.status === 'completed' ? (formData.completedAt || new Date().toISOString()) : undefined,
+      completedBy: formData.status === 'completed' ? (formData.completedBy || 'Usuário') : undefined,
       parentInstallmentId: installment?.parentInstallmentId,
       generatedFor: installment?.generatedFor,
     }
@@ -248,7 +251,7 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
               {formData.autoGenerate && (
                 <div className="grid gap-2">
                   <Label htmlFor="recurrenceEndDate">Data Final (Opcional)</Label>
-                  <Popover>
+                  <Popover open={isEndDatePopoverOpen} onOpenChange={setIsEndDatePopoverOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant={"outline"}
@@ -263,9 +266,13 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
                       <Calendar
+                        locale={ptBR}
                         mode="single"
                         selected={formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate) : undefined}
-                        onSelect={(date) => setFormData({ ...formData, recurrenceEndDate: date?.toISOString().split("T")[0] })}
+                        onSelect={(date) => {
+                          setFormData({ ...formData, recurrenceEndDate: date?.toISOString().split("T")[0] });
+                          setIsEndDatePopoverOpen(false);
+                        }}
                         initialFocus
                       />
                     </PopoverContent>
@@ -282,7 +289,7 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label>Data de Vencimento Inicial *</Label>
-                  <Popover>
+                  <Popover open={isDueDatePopoverOpen} onOpenChange={setIsDueDatePopoverOpen}>
                     <PopoverTrigger asChild>
                       <Button
                         variant={"outline"}
@@ -297,6 +304,7 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
                     </PopoverTrigger>
                     <PopoverContent className="w-auto p-0">
                       <Calendar
+                        locale={ptBR}
                         mode="single"
                         onSelect={(date) => {
                           if (date) {
@@ -305,6 +313,7 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
                               dueDay: date.getDate(),
                               dueMonth: formData.recurrence === 'annual' ? date.getMonth() + 1 : undefined,
                             });
+                            setIsDueDatePopoverOpen(false);
                           }
                         }}
                         initialFocus
@@ -345,7 +354,8 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="pending">Pendente</SelectItem>
-                    <SelectItem value="paid">Pago</SelectItem>
+                    <SelectItem value="in_progress">Em Andamento</SelectItem>
+                    <SelectItem value="completed">Concluído</SelectItem>
                     <SelectItem value="overdue">Atrasado</SelectItem>
                   </SelectContent>
                 </Select>
