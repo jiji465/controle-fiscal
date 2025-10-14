@@ -201,23 +201,17 @@ export default function ImpostosPage() {
                     <TableBody>
                       {getFilteredTaxes().length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8"> {/* Updated colspan */}
+                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                             Nenhum imposto encontrado
                           </TableCell>
                         </TableRow>
                       ) : (
                         getFilteredTaxes().map((tax) => (
-                          <TableRow key={tax.id}>
-                            <TableCell className="font-medium">{tax.name}</TableCell>
-                            <TableCell>
+                          <TableRow key={tax.id}><TableCell className="font-medium">{tax.name}</TableCell><TableCell>
                               {tax.clientId ? clients.find(c => c.id === tax.clientId)?.name || "Cliente Desconhecido" : "Global"}
-                            </TableCell>
-                            <TableCell className="max-w-xs truncate">{tax.description}</TableCell>
-                            <TableCell>{tax.dueDay ? `Dia ${tax.dueDay}` : "-"}</TableCell>
-                            <TableCell>
+                            </TableCell><TableCell className="max-w-xs truncate">{tax.description}</TableCell><TableCell>{tax.dueDay ? `Dia ${tax.dueDay}` : "-"}</TableCell><TableCell>
                               <Badge variant="secondary">{tax.recurrence}</Badge>
-                            </TableCell>
-                            <TableCell>
+                            </TableCell><TableCell>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="icon">
@@ -235,8 +229,7 @@ export default function ImpostosPage() {
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
-                            </TableCell>
-                          </TableRow>
+                            </TableCell></TableRow>
                         ))
                       )}
                     </TableBody>
