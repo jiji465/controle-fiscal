@@ -4,7 +4,7 @@ import { useEffect, useState } from "react"
 import { Navigation } from "@/components/navigation"
 import { DashboardStatsCards } from "@/components/dashboard-stats"
 import { ProductivityStats } from "@/components/productivity-stats"
-import { UpcomingObligations } from "@/components/upcoming-obligations"
+import { UpcomingFiscalEvents } from "@/components/upcoming-fiscal-events" // Changed import name
 import { ClientOverview } from "@/components/client-overview"
 import { TaxCalendar } from "@/components/tax-calendar"
 import { QuickActions } from "@/components/quick-actions"
@@ -146,7 +146,7 @@ export default function DashboardPage() {
             </Card>
           )}
 
-          <QuickActions obligations={obligations} onUpdate={updateData} />
+          <QuickActions obligations={obligations} installments={installments} onUpdate={updateData} />
 
           <TaxCalendar taxes={taxesDueDates} />
 
@@ -159,8 +159,8 @@ export default function DashboardPage() {
           </div>
 
           <div className="grid gap-6 lg:grid-cols-2">
-            <UpcomingObligations obligations={obligations} />
-            <ClientOverview clients={clients} obligations={obligations} />
+            <UpcomingFiscalEvents obligations={obligations} installments={installments} taxesDueDates={taxesDueDates} />
+            <ClientOverview clients={clients} obligations={obligations} installments={installments} />
           </div>
         </div>
       </main>
