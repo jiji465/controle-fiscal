@@ -482,6 +482,9 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
                           }
                         }}
                         initialFocus
+                        captionLayout="dropdown-buttons"
+                        fromYear={new Date().getFullYear() - 10}
+                        toYear={new Date().getFullYear() + 10}
                       />
                     </PopoverContent>
                   </Popover>

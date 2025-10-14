@@ -318,6 +318,9 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
                           }
                         }}
                         initialFocus
+                        captionLayout="dropdown-buttons"
+                        fromYear={new Date().getFullYear() - 10}
+                        toYear={new Date().getFullYear() + 10}
                       />
                     </PopoverContent>
                   </Popover>

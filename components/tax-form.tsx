@@ -292,6 +292,9 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
                           }
                         }}
                         initialFocus
+                        captionLayout="dropdown-buttons"
+                        fromYear={new Date().getFullYear() - 10}
+                        toYear={new Date().getFullYear() + 10}
                       />
                     </PopoverContent>
                   </Popover>
