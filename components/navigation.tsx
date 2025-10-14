@@ -90,7 +90,13 @@ export function Navigation() {
       badgeVariant: "destructive" as const,
     },
     { href: "/clientes", label: "Clientes", icon: Users },
-    { href: "/impostos", label: "Impostos", icon: Receipt },
+    {
+      href: "/impostos",
+      label: "Impostos",
+      icon: Receipt,
+      badge: alertCounts.pendingTaxes > 0 ? alertCounts.pendingTaxes : null,
+      badgeVariant: "secondary" as const,
+    },
     {
       href: "/obrigacoes",
       label: "Obrigações",

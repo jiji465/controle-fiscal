@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,7 +9,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
-import { X, AlertCircle, AlertTriangle, Flag } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { X, CalendarIcon } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -18,36 +20,45 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import type { Tax, Client } from "@/lib/types" // Import Client type
-import { toast } from "@/hooks/use-toast" // Import toast
+import type { Tax, Client } from "@/lib/types"
+import { toast } from "@/hooks/use-toast"
+import { format } from "date-fns"
+import { cn } from "@/lib/utils"
 
 type TaxFormProps = {
   tax?: Tax
   open: boolean
   onOpenChange: (open: boolean) => void
   onSave: (tax: Tax) => void
-  clients: Client[] // Pass clients to the form
+  clients: Client[]
 }
 
-export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormProps) {
-  const [formData, setFormData] = useState<Partial<Tax>>(
-    tax || {
-      name: "",
-      description: "",
-      federalTaxCode: "",
-      clientId: undefined, // Initialize clientId
-      dueDay: 10,
-      dueMonth: undefined, // Initialize dueMonth
-      recurrence: "monthly",
-      recurrenceInterval: 1,
-      autoGenerate: false,
-      weekendRule: "postpone",
-      notes: "",
-      tags: [],
-    },
-  )
+const defaultFormData: Partial<Tax> = {
+  name: "",
+  description: "",
+  federalTaxCode: "",
+  clientId: undefined,
+  dueDay: 10,
+  dueMonth: undefined,
+  recurrence: "monthly",
+  recurrenceInterval: 1,
+  autoGenerate: false,
+  weekendRule: "postpone",
+  notes: "",
+  tags: [],
+};
 
+export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormProps) {
+  const [formData, setFormData] = useState<Partial<Tax>>(defaultFormData)
   const [newTag, setNewTag] = useState("")
+
+  useEffect(() => {
+    if (tax) {
+      setFormData(tax);
+    } else {
+      setFormData(defaultFormData);
+    }
+  }, [tax, open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -56,9 +67,9 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
       name: formData.name!,
       description: formData.description!,
       federalTaxCode: formData.federalTaxCode,
-      clientId: formData.clientId === "none" ? undefined : formData.clientId, // Save clientId, or undefined if 'none'
+      clientId: formData.clientId === "none" ? undefined : formData.clientId,
       dueDay: Number(formData.dueDay!),
-      dueMonth: formData.dueMonth ? Number(formData.dueMonth) : undefined, // Save dueMonth
+      dueMonth: formData.dueMonth ? Number(formData.dueMonth) : undefined,
       recurrence: formData.recurrence as any,
       recurrenceInterval: formData.recurrenceInterval,
       recurrenceEndDate: formData.recurrenceEndDate,
@@ -212,12 +223,28 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
               {formData.autoGenerate && (
                 <div className="grid gap-2">
                   <Label htmlFor="recurrenceEndDate">Data Final (Opcional)</Label>
-                  <Input
-                    id="recurrenceEndDate"
-                    type="date"
-                    value={formData.recurrenceEndDate || ""}
-                    onChange={(e) => setFormData({ ...formData, recurrenceEndDate: e.target.value })}
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !formData.recurrenceEndDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.recurrenceEndDate ? format(new Date(formData.recurrenceEndDate), "dd/MM/yyyy") : <span>Selecione a data</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate) : undefined}
+                        onSelect={(date) => setFormData({ ...formData, recurrenceEndDate: date?.toISOString().split("T")[0] })}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                   <p className="text-xs text-muted-foreground">Deixe em branco para recorrência indefinida</p>
                 </div>
               )}
@@ -237,7 +264,7 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
                     max="31"
                     value={formData.dueDay || ""}
                     onChange={(e) =>
-                      setFormData({ ...formData, dueDay: e.target.value ? Number(e.target.value) : undefined })
+                      setFormData({ ...formData, dueDay: e.target.value ? Number(e.target.value) : 10 })
                     }
                     placeholder="Ex: 15"
                     required

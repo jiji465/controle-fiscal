@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -9,7 +9,9 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
-import { X } from "lucide-react"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { Calendar } from "@/components/ui/calendar"
+import { X, CalendarIcon } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -20,6 +22,8 @@ import {
 } from "@/components/ui/dialog"
 import type { Installment, Client } from "@/lib/types"
 import { toast } from "@/hooks/use-toast"
+import { format } from "date-fns"
+import { cn } from "@/lib/utils"
 
 type InstallmentFormProps = {
   installment?: Installment
@@ -29,28 +33,35 @@ type InstallmentFormProps = {
   onSave: (installment: Installment) => void
 }
 
-export function InstallmentForm({ installment, clients, open, onOpenChange, onSave }: InstallmentFormProps) {
-  const [formData, setFormData] = useState<Partial<Installment>>(
-    installment || {
-      name: "",
-      description: "",
-      clientId: "",
-      originalAmount: 0,
-      installmentNumber: 1,
-      totalInstallments: 1,
-      amount: 0,
-      dueDay: 10,
-      recurrence: "monthly",
-      recurrenceInterval: 1,
-      autoGenerate: false,
-      weekendRule: "postpone",
-      status: "pending",
-      notes: "",
-      tags: [],
-    },
-  )
+const defaultFormData: Partial<Installment> = {
+  name: "",
+  description: "",
+  clientId: "",
+  originalAmount: 0,
+  installmentNumber: 1,
+  totalInstallments: 1,
+  amount: 0,
+  dueDay: 10,
+  recurrence: "monthly",
+  recurrenceInterval: 1,
+  autoGenerate: false,
+  weekendRule: "postpone",
+  status: "pending",
+  notes: "",
+  tags: [],
+};
 
+export function InstallmentForm({ installment, clients, open, onOpenChange, onSave }: InstallmentFormProps) {
+  const [formData, setFormData] = useState<Partial<Installment>>(defaultFormData)
   const [newTag, setNewTag] = useState("")
+
+  useEffect(() => {
+    if (installment) {
+      setFormData(installment);
+    } else {
+      setFormData(defaultFormData);
+    }
+  }, [installment, open]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -271,12 +282,28 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
               {formData.autoGenerate && (
                 <div className="grid gap-2">
                   <Label htmlFor="recurrenceEndDate">Data Final (Opcional)</Label>
-                  <Input
-                    id="recurrenceEndDate"
-                    type="date"
-                    value={formData.recurrenceEndDate || ""}
-                    onChange={(e) => setFormData({ ...formData, recurrenceEndDate: e.target.value })}
-                  />
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn(
+                          "w-full justify-start text-left font-normal",
+                          !formData.recurrenceEndDate && "text-muted-foreground"
+                        )}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {formData.recurrenceEndDate ? format(new Date(formData.recurrenceEndDate), "dd/MM/yyyy") : <span>Selecione a data</span>}
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate) : undefined}
+                        onSelect={(date) => setFormData({ ...formData, recurrenceEndDate: date?.toISOString().split("T")[0] })}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                   <p className="text-xs text-muted-foreground">Deixe em branco para recorrência indefinida</p>
                 </div>
               )}
