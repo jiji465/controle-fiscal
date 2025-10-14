@@ -11,7 +11,7 @@ import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { getTaxes, saveTax, deleteTax, getClients, getInstallments } from "@/lib/storage" // Import getInstallments
-import { getObligationsWithDetails } from "@/lib/dashboard-utils" // Import getObligationsWithDetails
+import { getObligationsWithDetails, getInstallmentsWithDetails } from "@/lib/dashboard-utils" // Import getObligationsWithDetails and getInstallmentsWithDetails
 import {
   CheckCircle2,
   Clock,
@@ -40,7 +40,7 @@ export default function ImpostosPage() {
     setTaxes(getTaxes())
     setClients(getClients())
     setObligations(getObligationsWithDetails()) // Use getObligationsWithDetails
-    setInstallments(getInstallments().map(i => ({ ...i, client: clients.find(c => c.id === i.clientId) || { id: "unknown", name: "Cliente Desconhecido", cnpj: "", email: "", phone: "", status: "inactive", createdAt: "" }, calculatedDueDate: "" }))) // Basic mapping for now
+    setInstallments(getInstallmentsWithDetails()) // Use the helper function
   }
 
   useEffect(() => {
@@ -258,7 +258,7 @@ export default function ImpostosPage() {
         clients={clients}
         taxes={taxes}
         obligations={obligations}
-        installments={installments} // Pass installments to GlobalSearch
+        installments={getInstallmentsWithDetails()} // Pass installments to GlobalSearch
       />
     </div>
   )
