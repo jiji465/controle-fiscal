@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { getTaxes, getClients, getInstallments } from "@/lib/storage"
+import { getTaxes, getClients, getInstallments, saveTax } from "@/lib/storage" // Import saveTax
 import { getObligationsWithDetails, getInstallmentsWithDetails, getTaxesDueDates } from "@/lib/dashboard-utils"
 import {
   CheckCircle2,
@@ -58,12 +58,11 @@ export default function ImpostosPage() {
   }, [])
 
   const handleSaveTaxTemplate = (tax: Tax) => {
-    // This is handled by TaxList now, but keeping for direct new tax creation
-    // if we decide to have a separate button for it.
-    // For now, the TaxList handles saving via its internal form.
+    saveTax(tax); // <--- Adicionado: Salva o imposto no localStorage
     updateData()
     setEditingTaxTemplate(undefined)
     setIsFormOpen(false)
+    // Toast message is already handled inside TaxForm
   }
 
   const handleNewTaxTemplate = () => {
