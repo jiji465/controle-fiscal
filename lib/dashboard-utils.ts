@@ -123,16 +123,21 @@ export const calculateDashboardStats = (): DashboardStats => {
   const taxesDueDates = getTaxesDueDates(1); // Only current month for stats
 
   const activeClients = clients.filter((c) => c.status === "active").length
-  const pendingObligations = obligations.filter((o) => o.status === "pending")
-  const overdueObligations = pendingObligations.filter((o) => isOverdue(o.calculatedDueDate))
-  const upcomingObligationsThisWeek = pendingObligations.filter((o) => isUpcomingThisWeek(o.calculatedDueDate))
 
-  const pendingInstallments = installments.filter(i => i.status === "pending");
-  const overdueInstallments = pendingInstallments.filter(i => isOverdue(i.calculatedDueDate));
-  const upcomingInstallmentsThisWeek = pendingInstallments.filter(i => isUpcomingThisWeek(i.calculatedDueDate));
+  const pendingObligations = obligations.filter((o) => o.status === "pending" && !isOverdue(o.calculatedDueDate))
+  const overdueObligations = obligations.filter(o => o.status === 'overdue' || (o.status === 'pending' && isOverdue(o.calculatedDueDate)))
+  const upcomingObligationsThisWeek = obligations.filter((o) => isUpcomingThisWeek(o.calculatedDueDate) && o.status !== 'completed')
+
+  const pendingInstallments = installments.filter(i => i.status === "pending" && !isOverdue(i.calculatedDueDate));
+  const overdueInstallments = installments.filter(i => i.status === 'overdue' || (i.status === 'pending' && isOverdue(i.calculatedDueDate)));
+  const upcomingInstallmentsThisWeek = installments.filter(i => isUpcomingThisWeek(i.calculatedDueDate) && i.status !== 'paid');
+
+  const pendingTaxes = taxesDueDates.filter(t => !isOverdue(t.calculatedDueDate));
+  const overdueTaxes = taxesDueDates.filter(t => isOverdue(t.calculatedDueDate));
+  const upcomingTaxesThisWeek = taxesDueDates.filter(t => isUpcomingThisWeek(t.calculatedDueDate) && !isOverdue(t.calculatedDueDate));
 
   const today = new Date()
-  const completedThisMonth = obligations.filter((o) => {
+  const completedObligationsThisMonth = obligations.filter((o) => {
     if (!o.completedAt) return false
     const completed = new Date(o.completedAt)
     return (
@@ -141,17 +146,23 @@ export const calculateDashboardStats = (): DashboardStats => {
       o.status === "completed"
     )
   }).length
+  const paidInstallmentsThisMonth = installments.filter((i) => {
+    if (!i.paidAt) return false
+    const paid = new Date(i.paidAt)
+    return (
+      paid.getMonth() === today.getMonth() &&
+      paid.getFullYear() === today.getFullYear() &&
+      i.status === "paid"
+    )
+  }).length
 
   return {
     totalClients: clients.length,
     activeClients,
-    totalObligations: obligations.length,
-    pendingObligations: pendingObligations.length,
-    completedThisMonth,
-    overdueObligations: overdueObligations.length,
-    upcomingThisWeek: upcomingObligationsThisWeek.length + upcomingInstallmentsThisWeek.length + taxesDueDates.filter(t => isUpcomingThisWeek(t.calculatedDueDate) && t.status !== "overdue").length,
-    totalInstallments: installments.length,
-    pendingInstallments: pendingInstallments.length,
-    overdueInstallments: overdueInstallments.length,
+    totalEvents: obligations.length + installments.length + taxesDueDates.length,
+    pendingEvents: pendingObligations.length + pendingInstallments.length + pendingTaxes.length,
+    completedThisMonth: completedObligationsThisMonth + paidInstallmentsThisMonth,
+    overdueEvents: overdueObligations.length + overdueInstallments.length + overdueTaxes.length,
+    upcomingThisWeek: upcomingObligationsThisWeek.length + upcomingInstallmentsThisWeek.length + upcomingTaxesThisWeek.length,
   }
 }

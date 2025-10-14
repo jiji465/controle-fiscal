@@ -154,27 +154,21 @@ export type ObligationHistory = {
 export type DashboardStats = {
   totalClients: number
   activeClients: number
-  totalObligations: number
-  pendingObligations: number
+  totalEvents: number
+  pendingEvents: number
   completedThisMonth: number
-  overdueObligations: number
+  overdueEvents: number
   upcomingThisWeek: number
-  totalInstallments: number; // New stat
-  pendingInstallments: number; // New stat
-  overdueInstallments: number; // New stat
 }
 
 export const defaultDashboardStats: DashboardStats = {
   totalClients: 0,
   activeClients: 0,
-  totalObligations: 0,
-  pendingObligations: 0,
+  totalEvents: 0,
+  pendingEvents: 0,
   completedThisMonth: 0,
-  overdueObligations: 0,
+  overdueEvents: 0,
   upcomingThisWeek: 0,
-  totalInstallments: 0,
-  pendingInstallments: 0,
-  overdueInstallments: 0,
 };
 
 export type SavedFilter = {

@@ -37,10 +37,8 @@ const defaultFormData: Partial<Installment> = {
   name: "",
   description: "",
   clientId: "",
-  originalAmount: 0,
   installmentNumber: 1,
   totalInstallments: 1,
-  amount: 0,
   dueDay: 10,
   recurrence: "monthly",
   recurrenceInterval: 1,
@@ -70,10 +68,8 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
       name: formData.name!,
       description: formData.description,
       clientId: formData.clientId!,
-      originalAmount: Number(formData.originalAmount!),
       installmentNumber: Number(formData.installmentNumber!),
       totalInstallments: Number(formData.totalInstallments!),
-      amount: parseFloat((Number(formData.originalAmount!) / Number(formData.totalInstallments!)).toFixed(2)),
       dueDay: Number(formData.dueDay!),
       dueMonth: formData.dueMonth ? Number(formData.dueMonth) : undefined,
       recurrence: formData.recurrence as any,
@@ -170,23 +166,9 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
             {/* Valores e Parcelas */}
             <div className="space-y-4 border-t pt-4">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Valores e Parcelas
+                Controle de Parcelas
               </h3>
-
-              <div className="grid sm:grid-cols-3 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="originalAmount">Valor Original Total</Label>
-                  <Input
-                    id="originalAmount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.originalAmount || ""}
-                    onChange={(e) => setFormData({ ...formData, originalAmount: Number(e.target.value) })}
-                    placeholder="0,00"
-                    required
-                  />
-                </div>
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="installmentNumber">Número da Parcela *</Label>
                   <Input
