@@ -7,7 +7,6 @@ import { Badge } from "@/components/ui/badge"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { TaxForm } from "./tax-form"
 import { TaxDetails } from "./tax-details"
 import {
   MoreVertical,
@@ -27,7 +26,7 @@ import {
   Receipt,
 } from "lucide-react"
 import type { TaxDueDate, Client, Tax } from "@/lib/types"
-import { saveTax, deleteTax } from "@/lib/storage" // saveTax/deleteTax operate on Tax templates
+import { deleteTax } from "@/lib/storage"
 import { formatDate, isOverdue } from "@/lib/date-utils"
 import { getRecurrenceDescription } from "@/lib/recurrence-utils"
 import { Checkbox } from "@/components/ui/checkbox"
@@ -36,26 +35,23 @@ import { toast } from "@/hooks/use-toast"
 type TaxListProps = {
   taxesDueDates: TaxDueDate[]
   clients: Client[]
-  taxTemplates: Tax[] // Pass original tax templates for editing
+  taxTemplates: Tax[]
   onUpdate: () => void
+  onEdit: (tax: Tax) => void // Changed to emit event
 }
 
-export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate }: TaxListProps) {
+export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate, onEdit }: TaxListProps) {
   const [search, setSearch] = useState("")
   const [clientFilter, setClientFilter] = useState<string>("all")
-  const [editingTaxTemplate, setEditingTaxTemplate] = useState<Tax | undefined>() // For editing the template
-  const [viewingTaxDetails, setViewingTaxDetails] = useState<TaxDueDate | undefined>() // For viewing generated due date details
-  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [viewingTaxDetails, setViewingTaxDetails] = useState<TaxDueDate | undefined>()
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
   const [sortBy, setSortBy] = useState<"dueDate" | "client" | "status">("dueDate")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
-  const [selectedTaxIds, setSelectedTaxIds] = useState<string[]>([]); // State for selected tax due dates
+  const [selectedTaxIds, setSelectedTaxIds] = useState<string[]>([]);
 
-  // Internal state to manage status of generated tax due dates (not persistent)
   const [localTaxDueDates, setLocalTaxDueDates] = useState<TaxDueDate[]>(taxesDueDates);
 
-  // Update local state when prop changes
   useState(() => {
     setLocalTaxDueDates(taxesDueDates);
   }, [taxesDueDates]);
@@ -80,27 +76,17 @@ export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate }: TaxL
     } else if (sortBy === "client") {
       comparison = a.client.name.localeCompare(b.client.name)
     } else if (sortBy === "status") {
-      const statusOrder = { overdue: 0, pending: 1, in_progress: 2, completed: 3 } // Mirroring obligation statuses
+      const statusOrder = { overdue: 0, pending: 1, in_progress: 2, completed: 3 }
       comparison = statusOrder[a.status] - statusOrder[b.status]
     }
 
     return sortOrder === "asc" ? comparison : -comparison
   })
 
-  const handleSaveTaxTemplate = (taxTemplate: Tax) => {
-    saveTax(taxTemplate) // Saves the template
-    onUpdate() // Triggers re-generation of TaxDueDates
-    setEditingTaxTemplate(undefined)
-    toast({
-      title: "Imposto salvo!",
-      description: `O template do imposto "${taxTemplate.name}" foi salvo com sucesso.`,
-    });
-  }
-
   const handleDeleteTaxTemplate = (id: string) => {
     if (confirm("⚠️ Tem certeza que deseja excluir este template de imposto?\n\nEsta ação não pode ser desfeita e removerá todas as ocorrências geradas por ele.")) {
-      deleteTax(id) // Deletes the template
-      onUpdate() // Triggers re-generation of TaxDueDates
+      deleteTax(id)
+      onUpdate()
       toast({
         title: "Imposto excluído!",
         description: "O template do imposto foi removido com sucesso.",
@@ -109,7 +95,6 @@ export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate }: TaxL
     }
   }
 
-  // These actions are for the *generated TaxDueDate instances* and are not persistent.
   const handleCompleteTax = (taxDueDate: TaxDueDate) => {
     setLocalTaxDueDates(prev => prev.map(t => t.id === taxDueDate.id ? { ...t, status: "completed" } : t));
     toast({
@@ -128,19 +113,9 @@ export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate }: TaxL
     });
   }
 
-  const handleEditTaxTemplate = (taxTemplate: Tax) => {
-    setEditingTaxTemplate(taxTemplate)
-    setIsFormOpen(true)
-  }
-
   const handleViewTaxDetails = (taxDueDate: TaxDueDate) => {
     setViewingTaxDetails(taxDueDate)
     setIsDetailsOpen(true)
-  }
-
-  const handleNewTaxTemplate = () => {
-    setEditingTaxTemplate(undefined)
-    setIsFormOpen(true)
   }
 
   const getRelativeDate = (dateString: string) => {
@@ -296,10 +271,7 @@ export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate }: TaxL
               </Badge>
             )}
           </Button>
-          <Button onClick={handleNewTaxTemplate}>
-            <Plus className="size-4 mr-2" />
-            Novo Imposto (Template)
-          </Button>
+          {/* New button is now handled by the parent page */}
         </div>
       </div>
 
@@ -337,7 +309,6 @@ export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate }: TaxL
             <PlayCircle className="size-4 mr-2" />
             Iniciar Selecionados
           </Button>
-          {/* Bulk delete for templates is not straightforward here, as these are generated instances */}
         </div>
       )}
 
@@ -441,8 +412,7 @@ export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate }: TaxL
                           <Eye className="size-4 mr-2" />
                           Ver detalhes
                         </DropdownMenuItem>
-                        {/* Edit action opens the template form */}
-                        <DropdownMenuItem onClick={() => handleEditTaxTemplate(taxTemplates.find(t => t.id === tax.id) || tax)}>
+                        <DropdownMenuItem onClick={() => onEdit(taxTemplates.find(t => t.id === tax.id) || tax)}>
                           <Pencil className="size-4 mr-2" />
                           Editar Template
                         </DropdownMenuItem>
@@ -458,14 +428,6 @@ export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate }: TaxL
           </TableBody>
         </Table>
       </div>
-
-      <TaxForm
-        tax={editingTaxTemplate}
-        clients={clients}
-        open={isFormOpen}
-        onOpenChange={setIsFormOpen}
-        onSave={handleSaveTaxTemplate}
-      />
 
       {viewingTaxDetails && (
         <TaxDetails tax={viewingTaxDetails} open={isDetailsOpen} onOpenChange={setIsDetailsOpen} />

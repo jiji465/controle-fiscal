@@ -2,14 +2,14 @@
 
 import { useEffect, useState } from "react"
 import { Navigation } from "@/components/navigation"
-import { TaxForm } from "@/components/tax-form" // Still used for creating/editing templates
-import { TaxList } from "@/components/tax-list" // New component for listing tax due dates
+import { TaxForm } from "@/components/tax-form"
+import { TaxList } from "@/components/tax-list"
 import { GlobalSearch } from "@/components/global-search"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { getTaxes, getClients, getInstallments, saveTax } from "@/lib/storage" // Import saveTax
+import { getTaxes, getClients, getInstallments, saveTax } from "@/lib/storage"
 import { getObligationsWithDetails, getInstallmentsWithDetails, getTaxesDueDates } from "@/lib/dashboard-utils"
 import {
   CheckCircle2,
@@ -23,22 +23,22 @@ import type { Tax, Client, ObligationWithDetails, InstallmentWithDetails, TaxDue
 import { isOverdue } from "@/lib/date-utils"
 
 export default function ImpostosPage() {
-  const [taxTemplates, setTaxTemplates] = useState<Tax[]>([]) // Original tax templates
-  const [taxesDueDates, setTaxesDueDates] = useState<TaxDueDate[]>([]) // Generated tax due dates
+  const [taxTemplates, setTaxTemplates] = useState<Tax[]>([])
+  const [taxesDueDates, setTaxesDueDates] = useState<TaxDueDate[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [obligations, setObligations] = useState<ObligationWithDetails[]>([])
   const [installments, setInstallments] = useState<InstallmentWithDetails[]>([])
-  const [editingTaxTemplate, setEditingTaxTemplate] = useState<Tax | undefined>() // For the TaxForm
+  const [editingTaxTemplate, setEditingTaxTemplate] = useState<Tax | undefined>()
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
   const [searchOpen, setSearchOpen] = useState(false)
 
   const updateData = () => {
-    setTaxTemplates(getTaxes()) // Load original templates
+    setTaxTemplates(getTaxes())
     setClients(getClients())
     setObligations(getObligationsWithDetails())
     setInstallments(getInstallmentsWithDetails())
-    setTaxesDueDates(getTaxesDueDates(6)) // Generate due dates for 6 months
+    setTaxesDueDates(getTaxesDueDates(6))
   }
 
   useEffect(() => {
@@ -58,15 +58,19 @@ export default function ImpostosPage() {
   }, [])
 
   const handleSaveTaxTemplate = (tax: Tax) => {
-    saveTax(tax); // <--- Adicionado: Salva o imposto no localStorage
+    saveTax(tax);
     updateData()
     setEditingTaxTemplate(undefined)
     setIsFormOpen(false)
-    // Toast message is already handled inside TaxForm
   }
 
   const handleNewTaxTemplate = () => {
     setEditingTaxTemplate(undefined)
+    setIsFormOpen(true)
+  }
+
+  const handleEditTaxTemplate = (tax: Tax) => {
+    setEditingTaxTemplate(tax)
     setIsFormOpen(true)
   }
 
@@ -175,8 +179,9 @@ export default function ImpostosPage() {
                 <TaxList
                   taxesDueDates={getFilteredTaxesDueDates()}
                   clients={clients}
-                  taxTemplates={taxTemplates} // Pass original templates for editing
+                  taxTemplates={taxTemplates}
                   onUpdate={updateData}
+                  onEdit={handleEditTaxTemplate}
                 />
               </Card>
             </TabsContent>
@@ -184,13 +189,18 @@ export default function ImpostosPage() {
         </div>
       </main>
 
-      {/* TaxForm for creating new templates or editing existing ones */}
-      <TaxForm tax={editingTaxTemplate} open={isFormOpen} onOpenChange={setIsFormOpen} onSave={handleSaveTaxTemplate} clients={clients} />
+      <TaxForm
+        tax={editingTaxTemplate}
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        onSave={handleSaveTaxTemplate}
+        clients={clients}
+      />
       <GlobalSearch
         open={searchOpen}
         onOpenChange={setSearchOpen}
         clients={clients}
-        taxes={taxTemplates} // Global search still uses tax templates
+        taxes={taxTemplates}
         obligations={obligations}
         installments={installments}
       />
