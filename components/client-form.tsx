@@ -2,7 +2,7 @@
 
 import type React from "react"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/dialog"
 import type { Client } from "@/lib/types"
 import { toast } from "@/hooks/use-toast" // Import toast
+import { createClient } from "@/lib/factory"
 
 type ClientFormProps = {
   client?: Client
@@ -26,34 +27,23 @@ type ClientFormProps = {
 }
 
 export function ClientForm({ client, open, onOpenChange, onSave }: ClientFormProps) {
-  const [formData, setFormData] = useState<Partial<Client>>(
-    client || {
-      name: "",
-      cnpj: "",
-      email: "",
-      phone: "",
-      status: "active",
-      taxRegime: "Simples Nacional", // Default tax regime
-    },
-  )
+  const [formData, setFormData] = useState<Client>(createClient())
+
+  useEffect(() => {
+    if (client) {
+      setFormData(client)
+    } else {
+      setFormData(createClient())
+    }
+  }, [client, open])
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
-    const clientData: Client = {
-      id: client?.id || crypto.randomUUID(),
-      name: formData.name!,
-      cnpj: formData.cnpj!,
-      email: formData.email || "",
-      phone: formData.phone || "",
-      status: formData.status as "active" | "inactive",
-      taxRegime: formData.taxRegime as "Simples Nacional" | "Lucro Presumido" | "Lucro Real" | "Outro", // Save tax regime
-      createdAt: client?.createdAt || new Date().toISOString(),
-    }
-    onSave(clientData)
+    onSave(formData)
     onOpenChange(false)
     toast({
       title: "Cliente salvo!",
-      description: `O cliente "${clientData.name}" foi salvo com sucesso.`,
+      description: `O cliente "${formData.name}" foi salvo com sucesso.`,
     });
   }
 

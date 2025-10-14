@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog"
 import type { Installment, Client } from "@/lib/types"
 import { toast } from "@/hooks/use-toast"
+import { createInstallment } from "@/lib/factory"
 
 type InstallmentFormProps = {
   installment?: Installment
@@ -29,24 +30,8 @@ type InstallmentFormProps = {
   onSave: (installment: Installment) => void
 }
 
-const defaultFormData: Partial<Installment> = {
-  name: "",
-  description: "",
-  clientId: "",
-  installmentNumber: 1,
-  totalInstallments: 1,
-  dueDay: 10,
-  recurrence: "monthly",
-  recurrenceInterval: 1,
-  autoGenerate: false,
-  weekendRule: "postpone",
-  status: "pending",
-  notes: "",
-  tags: [],
-};
-
 export function InstallmentForm({ installment, clients, open, onOpenChange, onSave }: InstallmentFormProps) {
-  const [formData, setFormData] = useState<Partial<Installment>>(defaultFormData)
+  const [formData, setFormData] = useState<Partial<Installment>>(createInstallment())
   const [newTag, setNewTag] = useState("")
   const [initialDueDate, setInitialDueDate] = useState("");
 
@@ -63,7 +48,7 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
         setInitialDueDate("");
       }
     } else {
-      setFormData(defaultFormData);
+      setFormData(createInstallment());
       setInitialDueDate("");
     }
   }, [installment, open]);
@@ -71,27 +56,10 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const installmentData: Installment = {
+      ...createInstallment(),
+      ...formData,
       id: installment?.id || crypto.randomUUID(),
-      name: formData.name!,
-      description: formData.description,
-      clientId: formData.clientId!,
-      installmentNumber: Number(formData.installmentNumber!),
-      totalInstallments: Number(formData.totalInstallments!),
-      dueDay: Number(formData.dueDay!),
-      dueMonth: formData.dueMonth ? Number(formData.dueMonth) : undefined,
-      recurrence: formData.recurrence as any,
-      recurrenceInterval: formData.recurrenceInterval,
-      recurrenceEndDate: formData.recurrenceEndDate,
-      autoGenerate: formData.autoGenerate || false,
-      weekendRule: formData.weekendRule as "postpone" | "anticipate" | "keep",
-      status: formData.status as "pending" | "in_progress" | "completed" | "overdue",
-      notes: formData.notes,
-      tags: formData.tags || [],
       createdAt: installment?.createdAt || new Date().toISOString(),
-      completedAt: formData.status === 'completed' ? (formData.completedAt || new Date().toISOString()) : undefined,
-      completedBy: formData.status === 'completed' ? (formData.completedBy || 'Usuário') : undefined,
-      parentInstallmentId: installment?.parentInstallmentId,
-      generatedFor: installment?.generatedFor,
     }
     onSave(installmentData)
     onOpenChange(false)
@@ -201,6 +169,28 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
               </div>
             </div>
 
+            {/* Gestão e Controle */}
+            <div className="space-y-4 border-t pt-4">
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Gestão e Controle</h3>
+              <div className="grid gap-2">
+                <Label htmlFor="status">Status *</Label>
+                <Select
+                  value={formData.status}
+                  onValueChange={(value) => setFormData({ ...formData, status: value as any })}
+                >
+                  <SelectTrigger id="status">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="pending">Pendente</SelectItem>
+                    <SelectItem value="in_progress">Em Andamento</SelectItem>
+                    <SelectItem value="completed">Concluído</SelectItem>
+                    <SelectItem value="overdue">Atrasado</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
             {/* Configuração de Recorrência */}
             <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
               <h3 className="text-sm font-semibold">Configuração de Recorrência</h3>
@@ -280,7 +270,7 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
 
             {/* Vencimentos e Status */}
             <div className="space-y-4 border-t pt-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Vencimentos e Status</h3>
+              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Vencimentos</h3>
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="grid gap-2">
@@ -322,24 +312,6 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
                     </SelectContent>
                   </Select>
                 </div>
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="status">Status *</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value) => setFormData({ ...formData, status: value as any })}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pendente</SelectItem>
-                    <SelectItem value="in_progress">Em Andamento</SelectItem>
-                    <SelectItem value="completed">Concluído</SelectItem>
-                    <SelectItem value="overdue">Atrasado</SelectItem>
-                  </SelectContent>
-                </Select>
               </div>
             </div>
 

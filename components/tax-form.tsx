@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog"
 import type { Tax, Client } from "@/lib/types"
 import { toast } from "@/hooks/use-toast"
+import { createTax } from "@/lib/factory"
 
 type TaxFormProps = {
   tax?: Tax
@@ -29,23 +30,8 @@ type TaxFormProps = {
   clients: Client[]
 }
 
-const defaultFormData: Partial<Tax> = {
-  name: "",
-  description: "",
-  federalTaxCode: "",
-  clientId: undefined,
-  dueDay: 10,
-  dueMonth: undefined,
-  recurrence: "monthly",
-  recurrenceInterval: 1,
-  autoGenerate: false,
-  weekendRule: "postpone",
-  notes: "",
-  tags: [],
-};
-
 export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormProps) {
-  const [formData, setFormData] = useState<Partial<Tax>>(defaultFormData)
+  const [formData, setFormData] = useState<Partial<Tax>>(createTax())
   const [newTag, setNewTag] = useState("")
   const [initialDueDate, setInitialDueDate] = useState("");
 
@@ -62,7 +48,7 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
         setInitialDueDate("");
       }
     } else {
-      setFormData(defaultFormData);
+      setFormData(createTax());
       setInitialDueDate("");
     }
   }, [tax, open]);
@@ -70,20 +56,9 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
     const taxData: Tax = {
+      ...createTax(),
+      ...formData,
       id: tax?.id || crypto.randomUUID(),
-      name: formData.name!,
-      description: formData.description!,
-      federalTaxCode: formData.federalTaxCode,
-      clientId: formData.clientId === "none" ? undefined : formData.clientId,
-      dueDay: Number(formData.dueDay!),
-      dueMonth: formData.dueMonth ? Number(formData.dueMonth) : undefined,
-      recurrence: formData.recurrence as any,
-      recurrenceInterval: formData.recurrenceInterval,
-      recurrenceEndDate: formData.recurrenceEndDate,
-      autoGenerate: formData.autoGenerate || false,
-      weekendRule: formData.weekendRule as "postpone" | "anticipate" | "keep",
-      notes: formData.notes,
-      tags: formData.tags || [],
       createdAt: tax?.createdAt || new Date().toISOString(),
     }
     onSave(taxData)

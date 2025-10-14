@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dialog"
 import type { Obligation, Client, Tax } from "@/lib/types"
 import { toast } from "@/hooks/use-toast"
+import { createObligation } from "@/lib/factory"
 
 type ObligationFormProps = {
   obligation?: Obligation
@@ -30,28 +31,8 @@ type ObligationFormProps = {
   onSave: (obligation: Obligation) => void
 }
 
-const defaultFormData: Partial<Obligation> = {
-  name: "",
-  description: "",
-  clientId: "",
-  taxId: "",
-  dueDay: 10,
-  frequency: "monthly",
-  recurrence: "monthly",
-  recurrenceInterval: 1,
-  autoGenerate: false,
-  weekendRule: "postpone",
-  status: "pending",
-  priority: "medium",
-  assignedTo: "",
-  protocol: "",
-  notes: "",
-  tags: [],
-  attachments: [],
-};
-
 export function ObligationForm({ obligation, clients, taxes, open, onOpenChange, onSave }: ObligationFormProps) {
-  const [formData, setFormData] = useState<Partial<Obligation>>(defaultFormData)
+  const [formData, setFormData] = useState<Partial<Obligation>>(createObligation())
   const [newTag, setNewTag] = useState("")
   const [newAttachmentUrl, setNewAttachmentUrl] = useState("")
   const [isClientSelectDisabled, setIsClientSelectDisabled] = useState(false);
@@ -70,7 +51,7 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
         setInitialDueDate("");
       }
     } else {
-      setFormData(defaultFormData);
+      setFormData(createObligation());
       setInitialDueDate("");
     }
   }, [obligation, open]);
@@ -110,34 +91,11 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
     }
 
     const obligationData: Obligation = {
+      ...createObligation(),
+      ...formData,
       id: obligation?.id || crypto.randomUUID(),
-      name: formData.name!,
-      description: formData.description,
-      category: formData.category || "other",
-      clientId: formData.clientId!,
-      taxId: formData.taxId || undefined,
-      dueDay: Number(formData.dueDay!),
-      dueMonth: formData.dueMonth ? Number(formData.dueMonth) : undefined,
-      frequency: formData.frequency as "monthly" | "quarterly" | "annual" | "custom",
-      recurrence: formData.recurrence as any,
-      recurrenceInterval: formData.recurrenceInterval,
-      recurrenceEndDate: formData.recurrenceEndDate,
-      autoGenerate: formData.autoGenerate || false,
-      weekendRule: formData.weekendRule as "postpone" | "anticipate" | "keep",
-      status: formData.status as "pending" | "in_progress" | "completed" | "overdue",
-      priority: formData.priority as "low" | "medium" | "high" | "urgent",
-      assignedTo: formData.assignedTo || undefined,
-      protocol: formData.protocol || undefined,
-      realizationDate: formData.realizationDate,
-      notes: formData.notes,
       createdAt: obligation?.createdAt || new Date().toISOString(),
-      completedAt: obligation?.completedAt,
-      completedBy: obligation?.completedBy,
-      attachments: formData.attachments || [],
       history: [...history, newHistoryEntry],
-      parentObligationId: obligation?.parentObligationId,
-      generatedFor: obligation?.generatedFor,
-      tags: formData.tags || [],
     }
     onSave(obligationData)
     onOpenChange(false)
