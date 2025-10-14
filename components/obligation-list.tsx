@@ -437,8 +437,7 @@ export function ObligationList({ obligations, clients, taxes, onUpdate }: Obliga
                       ? "bg-red-50/50 dark:bg-red-950/10"
                       : ""
                   }
-                >
-                  <TableCell>
+                ><TableCell>
                     <Checkbox
                       checked={selectedObligationIds.includes(obligation.id)}
                       onCheckedChange={(checked) => handleSelectObligation(obligation.id, checked as boolean)}
@@ -525,8 +524,7 @@ export function ObligationList({ obligations, clients, taxes, onUpdate }: Obliga
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </TableCell>
-                </TableRow>
+                  </TableCell></TableRow>
               ))
             )}
           </TableBody>

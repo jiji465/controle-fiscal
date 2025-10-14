@@ -82,7 +82,7 @@ export function ClientList({ clients, onUpdate }: ClientListProps) {
             <TableRow>
               <TableHead>Nome / Razão Social</TableHead>
               <TableHead>CNPJ</TableHead>
-              <TableHead>Regime Tributário</TableHead> {/* New column */}
+              <TableHead>Regime Tributário</TableHead>
               <TableHead>E-mail</TableHead>
               <TableHead>Telefone</TableHead>
               <TableHead>Status</TableHead>
@@ -92,16 +92,15 @@ export function ClientList({ clients, onUpdate }: ClientListProps) {
           <TableBody>
             {filteredClients.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground py-8"> {/* Updated colspan */}
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                   Nenhum cliente encontrado
                 </TableCell>
               </TableRow>
             ) : (
               filteredClients.map((client) => (
-                <TableRow key={client.id}>
-                  <TableCell className="font-medium">{client.name}</TableCell>
+                <TableRow key={client.id}><TableCell className="font-medium">{client.name}</TableCell>
                   <TableCell className="font-mono text-sm">{client.cnpj}</TableCell>
-                  <TableCell>{client.taxRegime || "Não informado"}</TableCell> {/* Display tax regime */}
+                  <TableCell>{client.taxRegime || "Não informado"}</TableCell>
                   <TableCell>{client.email}</TableCell>
                   <TableCell>{client.phone}</TableCell>
                   <TableCell>
@@ -127,8 +126,7 @@ export function ClientList({ clients, onUpdate }: ClientListProps) {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </TableCell>
-                </TableRow>
+                  </TableCell></TableRow>
               ))
             )}
           </TableBody>

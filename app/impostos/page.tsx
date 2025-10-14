@@ -127,7 +127,7 @@ export default function ImpostosPage() {
 
           {/* Tabs are kept but will display all taxes for now, as status is removed from Tax type */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-1 h-auto md:grid-cols-5"> {/* Adjusted grid-cols */}
+            <TabsList className="grid w-full grid-cols-1 h-auto md:grid-cols-5">
               <TabsTrigger value="all" className="flex flex-col gap-1 py-3">
                 <span className="text-sm font-medium">Todos os Impostos</span>
                 <Badge variant="secondary" className="text-xs">
@@ -206,8 +206,7 @@ export default function ImpostosPage() {
                         </TableRow>
                       ) : (
                         getFilteredTaxes().map((tax) => (
-                          <TableRow key={tax.id}>
-                            <TableCell className="font-medium">{tax.name}</TableCell>
+                          <TableRow key={tax.id}><TableCell className="font-medium">{tax.name}</TableCell>
                             <TableCell className="max-w-xs truncate">{tax.description}</TableCell>
                             <TableCell>{tax.dueDay ? `Dia ${tax.dueDay}` : "-"}</TableCell>
                             <TableCell>
@@ -231,8 +230,7 @@ export default function ImpostosPage() {
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
-                            </TableCell>
-                          </TableRow>
+                            </TableCell></TableRow>
                         ))
                       )}
                     </TableBody>
