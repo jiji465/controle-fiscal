@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ChevronLeft, ChevronRight, CalendarIcon, Filter, Building2, Receipt, DollarSign, User, FileText, Clock, Hash } from "lucide-react"
 import type { CalendarEvent, ObligationWithDetails, TaxDueDate, InstallmentWithDetails, FiscalEventStatus } from "@/lib/types"
-import { formatDate, formatCurrency, isOverdue } from "@/lib/date-utils"
+import { formatDate, isOverdue } from "@/lib/date-utils"
 import { Separator } from "@/components/ui/separator"
 import { getRecurrenceDescription } from "@/lib/recurrence-utils" // Import getRecurrenceDescription
 
@@ -391,20 +391,6 @@ export function CalendarView({ events }: CalendarViewProps) {
                           </p>
                         </div>
                       </div>
-                      <div className="flex items-center gap-3">
-                        <DollarSign className="size-5 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium">Valor da Parcela</p>
-                          <p className="text-sm text-muted-foreground">{formatCurrency((selectedEventDetails as InstallmentWithDetails).amount!)}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <DollarSign className="size-5 text-muted-foreground" />
-                        <div>
-                          <p className="text-sm font-medium">Valor Original Total</p>
-                          <p className="text-sm text-muted-foreground">{formatCurrency((selectedEventDetails as InstallmentWithDetails).originalAmount!)}</p>
-                        </div>
-                      </div>
                     </>
                   )}
 
@@ -415,16 +401,6 @@ export function CalendarView({ events }: CalendarViewProps) {
                       <p className="text-sm text-muted-foreground font-mono">{formatDate(selectedEventDetails.calculatedDueDate)}</p>
                     </div>
                   </div>
-
-                  {selectedEventDetails.type === "obligation" && (selectedEventDetails as ObligationWithDetails).amount !== undefined && (
-                    <div className="flex items-center gap-3">
-                      <DollarSign className="size-5 text-muted-foreground" />
-                      <div>
-                        <p className="text-sm font-medium">Valor</p>
-                        <p className="text-sm text-muted-foreground">{formatCurrency((selectedEventDetails as ObligationWithDetails).amount ?? 0)}</p>
-                      </div>
-                    </div>
-                  )}
 
                   <div className="flex items-center gap-3">
                     <Clock className="size-5 text-muted-foreground" />

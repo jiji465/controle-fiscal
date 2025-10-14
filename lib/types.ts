@@ -63,7 +63,6 @@ export interface FiscalEventBase {
   type: FiscalEventType; // Discriminator for union types
   createdAt: string;
   description?: string;
-  amount?: number;
   notes?: string;
   tags?: string[];
   // Specific fields for different types, made optional in base
@@ -93,7 +92,6 @@ export type Obligation = {
   assignedTo?: string
   protocol?: string
   realizationDate?: string
-  amount?: number
   notes?: string
   createdAt: string
   completedAt?: string
@@ -119,10 +117,8 @@ export type Installment = {
   name: string; // Name of the installment (e.g., "Parcela 1 de IPTU")
   description?: string;
   clientId: string;
-  originalAmount: number; // Total original amount of the installment plan
   installmentNumber: number; // e.g., 1
   totalInstallments: number; // e.g., 12
-  amount: number; // Amount for this specific installment payment
   dueDay: number;
   dueMonth?: number; // For annual or specific month installments
   recurrence: RecurrenceType; // How often installments occur (e.g., monthly)

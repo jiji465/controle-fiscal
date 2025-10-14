@@ -159,13 +159,6 @@ export const formatDate = (date: string | Date): string => {
   return d.toLocaleDateString("pt-BR")
 }
 
-export const formatCurrency = (value: number): string => {
-  return new Intl.NumberFormat("pt-BR", {
-    style: "currency",
-    currency: "BRL",
-  }).format(value)
-}
-
 export const isOverdue = (dueDate: string): boolean => {
   const today = new Date();
   today.setHours(0, 0, 0, 0); // Normalize today to start of day

@@ -7,7 +7,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CheckCircle2, Clock, AlertTriangle, Calendar, TrendingUp, Users, BarChart3, PieChart, LayoutDashboard, DollarSign } from "lucide-react"
 import type { ObligationWithDetails, InstallmentWithDetails, TaxDueDate, FiscalEventType } from "@/lib/types" // Import FiscalEventType
-import { formatDate, formatCurrency } from "@/lib/date-utils"
+import { formatDate } from "@/lib/date-utils"
 import { getRecurrenceDescription } from "@/lib/recurrence-utils"
 import { useState, useMemo } from "react"
 import { calculateProductivityMetrics } from "@/lib/metrics" // Import calculateProductivityMetrics
@@ -370,7 +370,6 @@ export function ReportsPanel({ obligations, installments, taxesDueDates }: Repor
                         )}
                       </div>
                       <div className="text-right">
-                        {event.amount && <div className="font-medium">{formatCurrency(event.amount)}</div>}
                         <Badge className="bg-green-600 mt-1">
                           <CheckCircle2 className="size-3 mr-1" />
                           {event.type === "obligation" ? "Concluída" : "Pago"}

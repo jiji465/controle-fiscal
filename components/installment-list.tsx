@@ -25,7 +25,7 @@ import {
 } from "lucide-react"
 import type { InstallmentWithDetails, Client, Installment } from "@/lib/types" // Import Installment
 import { saveInstallment, deleteInstallment } from "@/lib/storage"
-import { formatDate, formatCurrency, isOverdue } from "@/lib/date-utils"
+import { formatDate, isOverdue } from "@/lib/date-utils"
 import { getRecurrenceDescription } from "@/lib/recurrence-utils"
 import { toast } from "@/hooks/use-toast"
 
@@ -43,7 +43,7 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [isDetailsOpen, setIsDetailsOpen] = useState(false)
   const [showFilters, setShowFilters] = useState(false)
-  const [sortBy, setSortBy] = useState<"dueDate" | "client" | "status" | "amount">("dueDate")
+  const [sortBy, setSortBy] = useState<"dueDate" | "client" | "status">("dueDate")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
 
   const filteredInstallments = installments.filter((inst) => {
@@ -67,8 +67,6 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
     } else if (sortBy === "status") {
       const statusOrder = { overdue: 0, pending: 1, paid: 2 }
       comparison = statusOrder[a.status] - statusOrder[b.status]
-    } else if (sortBy === "amount") {
-      comparison = (a.amount || 0) - (b.amount || 0)
     }
 
     return sortOrder === "asc" ? comparison : -comparison
@@ -176,7 +174,7 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
     )
   }
 
-  const toggleSort = (field: "dueDate" | "client" | "status" | "amount") => {
+  const toggleSort = (field: "dueDate" | "client" | "status") => {
     if (sortBy === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc")
     } else {
@@ -267,12 +265,6 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
                 </Button>
               </TableHead>
               <TableHead>
-                <Button variant="ghost" size="sm" onClick={() => toggleSort("amount")} className="-ml-3">
-                  Valor
-                  <ArrowUpDown className="ml-2 size-3" />
-                </Button>
-              </TableHead>
-              <TableHead>
                 <Button variant="ghost" size="sm" onClick={() => toggleSort("status")} className="-ml-3">
                   Status
                   <ArrowUpDown className="ml-2 size-3" />
@@ -291,7 +283,7 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
           <TableBody>
             {sortedInstallments.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
                   Nenhum parcelamento encontrado
                 </TableCell>
               </TableRow>
@@ -316,11 +308,6 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
                     </div>
                   </TableCell><TableCell>
                     <div className="font-medium">{installment.client.name}</div>
-                  </TableCell><TableCell>
-                    <div className="flex items-center gap-1">
-                      <DollarSign className="size-3 text-muted-foreground" />
-                      {formatCurrency(installment.amount)}
-                    </div>
                   </TableCell><TableCell>{getStatusBadge(installment)}</TableCell><TableCell>
                     <div className="space-y-1">
                       <div className="font-mono text-sm font-medium">{formatDate(installment.calculatedDueDate)}</div>

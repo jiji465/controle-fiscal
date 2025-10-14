@@ -5,7 +5,7 @@ import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
 import { Calendar, Clock, User, FileText, DollarSign, Building2, Hash } from "lucide-react"
 import type { InstallmentWithDetails } from "@/lib/types"
-import { formatDate, formatCurrency } from "@/lib/date-utils"
+import { formatDate } from "@/lib/date-utils"
 import { getRecurrenceDescription } from "@/lib/recurrence-utils"
 
 type InstallmentDetailsProps = {
@@ -72,22 +72,6 @@ export function InstallmentDetails({ installment, open, onOpenChange }: Installm
                 <p className="text-sm text-muted-foreground">
                   {installment.installmentNumber} de {installment.totalInstallments}
                 </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <DollarSign className="size-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Valor da Parcela</p>
-                <p className="text-sm text-muted-foreground">{formatCurrency(installment.amount)}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <DollarSign className="size-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Valor Original Total</p>
-                <p className="text-sm text-muted-foreground">{formatCurrency(installment.originalAmount)}</p>
               </div>
             </div>
 
