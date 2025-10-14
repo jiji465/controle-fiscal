@@ -373,7 +373,7 @@ export function CalendarView({ events }: CalendarViewProps) {
                   )}
 
                   <div className="flex items-center gap-3">
-                    <Calendar className="size-5 text-muted-foreground" />
+                    <CalendarIcon className="size-5 text-muted-foreground" />
                     <div>
                       <p className="text-sm font-medium">Vencimento</p>
                       <p className="text-sm text-muted-foreground font-mono">{formatDate(selectedEventDetails.calculatedDueDate)}</p>
