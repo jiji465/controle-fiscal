@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
@@ -25,7 +25,7 @@ import {
   CheckSquare,
   Receipt,
 } from "lucide-react"
-import type { TaxDueDate, Client, Tax } from "@/lib/types"
+import type { TaxDueDate, Client, Tax, FiscalEventStatus } from "@/lib/types"
 import { deleteTax } from "@/lib/storage"
 import { formatDate, isOverdue } from "@/lib/date-utils"
 import { getRecurrenceDescription } from "@/lib/recurrence-utils"
@@ -52,7 +52,7 @@ export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate, onEdit
 
   const [localTaxDueDates, setLocalTaxDueDates] = useState<TaxDueDate[]>(taxesDueDates);
 
-  useState(() => {
+  useEffect(() => {
     setLocalTaxDueDates(taxesDueDates);
   }, [taxesDueDates]);
 
@@ -76,7 +76,7 @@ export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate, onEdit
     } else if (sortBy === "client") {
       comparison = a.client.name.localeCompare(b.client.name)
     } else if (sortBy === "status") {
-      const statusOrder = { overdue: 0, pending: 1, in_progress: 2, completed: 3 }
+      const statusOrder: Record<FiscalEventStatus, number> = { overdue: 0, pending: 1, in_progress: 2, completed: 3, paid: 3 }
       comparison = statusOrder[a.status] - statusOrder[b.status]
     }
 
