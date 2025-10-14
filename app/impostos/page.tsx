@@ -2,16 +2,15 @@
 
 import { useEffect, useState } from "react"
 import { Navigation } from "@/components/navigation"
-import { TaxForm } from "@/components/tax-form"
+import { TaxForm } from "@/components/tax-form" // Still used for creating/editing templates
+import { TaxList } from "@/components/tax-list" // New component for listing tax due dates
 import { GlobalSearch } from "@/components/global-search"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
-import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { getTaxes, saveTax, deleteTax, getClients, getInstallments } from "@/lib/storage" // Import getInstallments
-import { getObligationsWithDetails, getInstallmentsWithDetails } from "@/lib/dashboard-utils" // Import getObligationsWithDetails and getInstallmentsWithDetails
+import { getTaxes, getClients, getInstallments } from "@/lib/storage"
+import { getObligationsWithDetails, getInstallmentsWithDetails, getTaxesDueDates } from "@/lib/dashboard-utils"
 import {
   CheckCircle2,
   Clock,
@@ -19,28 +18,27 @@ import {
   AlertTriangle,
   Search,
   Plus,
-  MoreVertical,
-  Pencil,
-  Trash2,
 } from "lucide-react"
-import type { Tax, Client, ObligationWithDetails, InstallmentWithDetails } from "@/lib/types" // Updated type for obligations and added InstallmentWithDetails
-import { toast } from "@/hooks/use-toast" // Import toast
+import type { Tax, Client, ObligationWithDetails, InstallmentWithDetails, TaxDueDate } from "@/lib/types"
+import { isOverdue } from "@/lib/date-utils"
 
 export default function ImpostosPage() {
-  const [taxes, setTaxes] = useState<Tax[]>([])
+  const [taxTemplates, setTaxTemplates] = useState<Tax[]>([]) // Original tax templates
+  const [taxesDueDates, setTaxesDueDates] = useState<TaxDueDate[]>([]) // Generated tax due dates
   const [clients, setClients] = useState<Client[]>([])
-  const [obligations, setObligations] = useState<ObligationWithDetails[]>([]) // Changed to ObligationWithDetails[]
-  const [installments, setInstallments] = useState<InstallmentWithDetails[]>([]) // New state for installments
-  const [editingTax, setEditingTax] = useState<Tax | undefined>()
+  const [obligations, setObligations] = useState<ObligationWithDetails[]>([])
+  const [installments, setInstallments] = useState<InstallmentWithDetails[]>([])
+  const [editingTaxTemplate, setEditingTaxTemplate] = useState<Tax | undefined>() // For the TaxForm
   const [isFormOpen, setIsFormOpen] = useState(false)
-  const [activeTab, setActiveTab] = useState("all") // Keep tabs for future filtering by recurrence/dueDay
+  const [activeTab, setActiveTab] = useState("all")
   const [searchOpen, setSearchOpen] = useState(false)
 
   const updateData = () => {
-    setTaxes(getTaxes())
+    setTaxTemplates(getTaxes()) // Load original templates
     setClients(getClients())
-    setObligations(getObligationsWithDetails()) // Use getObligationsWithDetails
-    setInstallments(getInstallmentsWithDetails()) // Use the helper function
+    setObligations(getObligationsWithDetails())
+    setInstallments(getInstallmentsWithDetails())
+    setTaxesDueDates(getTaxesDueDates(6)) // Generate due dates for 6 months
   }
 
   useEffect(() => {
@@ -59,49 +57,39 @@ export default function ImpostosPage() {
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [])
 
-  const handleSave = (tax: Tax) => {
-    saveTax(tax)
+  const handleSaveTaxTemplate = (tax: Tax) => {
+    // This is handled by TaxList now, but keeping for direct new tax creation
+    // if we decide to have a separate button for it.
+    // For now, the TaxList handles saving via its internal form.
     updateData()
-    setEditingTax(undefined)
+    setEditingTaxTemplate(undefined)
     setIsFormOpen(false)
-    toast({
-      title: "Imposto salvo!",
-      description: `O imposto "${tax.name}" foi salvo com sucesso.`,
-    });
   }
 
-  const handleDelete = (id: string) => {
-    if (confirm("Tem certeza que deseja excluir este imposto?")) {
-      deleteTax(id)
-      updateData()
-      toast({
-        title: "Imposto excluído!",
-        description: "O imposto foi removido com sucesso.",
-        variant: "destructive",
-      });
+  const handleNewTaxTemplate = () => {
+    setEditingTaxTemplate(undefined)
+    setIsFormOpen(true)
+  }
+
+  const pendingTaxes = taxesDueDates.filter((t) => t.status === "pending")
+  const inProgressTaxes = taxesDueDates.filter((t) => t.status === "in_progress")
+  const processedTaxes = taxesDueDates.filter((t) => t.status === "completed")
+  const overdueTaxes = taxesDueDates.filter((t) => isOverdue(t.calculatedDueDate) && t.status !== "completed")
+
+  const getFilteredTaxesDueDates = () => {
+    switch (activeTab) {
+      case "pending":
+        return pendingTaxes
+      case "in_progress":
+        return inProgressTaxes
+      case "completed":
+        return processedTaxes
+      case "overdue":
+        return overdueTaxes
+      default:
+        return taxesDueDates
     }
   }
-
-  const handleEdit = (tax: Tax) => {
-    setEditingTax(tax)
-    setIsFormOpen(true)
-  }
-
-  const handleNew = () => {
-    setEditingTax(undefined)
-    setIsFormOpen(true)
-  }
-
-  // Removed handleStartTax and handleCompleteTax as they are for Obligations, not Tax templates.
-
-  // For now, getFilteredTaxes will just return all taxes, as status is no longer on Tax type.
-  // We can re-introduce filtering by recurrence or dueDay if needed in the future.
-  const getFilteredTaxes = () => {
-    return taxes
-  }
-
-  // Removed getStatusBadge as status is no longer on Tax type.
-  // Taxes are templates, their "status" is managed by the Obligations that use them.
 
   return (
     <div className="min-h-screen bg-background">
@@ -121,137 +109,91 @@ export default function ImpostosPage() {
                   <span className="text-xs">⌘</span>K
                 </kbd>
               </Button>
-              <Button onClick={handleNew}>
+              <Button onClick={handleNewTaxTemplate}>
                 <Plus className="size-4 mr-2" />
-                Novo Imposto
+                Novo Imposto (Template)
               </Button>
             </div>
           </div>
 
-          {/* Tabs are kept but will display all taxes for now, as status is removed from Tax type */}
           <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-1 h-auto md:grid-cols-5">
+            <TabsList className="grid w-full grid-cols-5 h-auto">
               <TabsTrigger value="all" className="flex flex-col gap-1 py-3">
-                <span className="text-sm font-medium">Todos os Impostos</span>
+                <span className="text-sm font-medium">Todos</span>
                 <Badge variant="secondary" className="text-xs">
-                  {taxes.length}
+                  {taxesDueDates.length}
                 </Badge>
               </TabsTrigger>
-              {/* Other tabs (pending, in_progress, completed, overdue) are not directly applicable to Tax templates,
-                  but can be re-purposed for filtering by recurrence type or due day if desired.
-                  For now, they will show the same list as 'all'. */}
               <TabsTrigger value="pending" className="flex flex-col gap-1 py-3">
                 <div className="flex items-center gap-1.5">
                   <Clock className="size-3.5" />
-                  <span className="text-sm font-medium">Mensais</span>
+                  <span className="text-sm font-medium">Pendentes</span>
                 </div>
                 <Badge variant="secondary" className="text-xs">
-                  {taxes.filter(t => t.recurrence === "monthly").length}
+                  {pendingTaxes.length}
                 </Badge>
               </TabsTrigger>
               <TabsTrigger value="in_progress" className="flex flex-col gap-1 py-3">
                 <div className="flex items-center gap-1.5">
                   <PlayCircle className="size-3.5" />
-                  <span className="text-sm font-medium">Anuais</span>
+                  <span className="text-sm font-medium">Em Processamento</span>
                 </div>
                 <Badge
                   variant="secondary"
                   className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
                 >
-                  {taxes.filter(t => t.recurrence === "annual").length}
+                  {inProgressTaxes.length}
                 </Badge>
               </TabsTrigger>
               <TabsTrigger value="completed" className="flex flex-col gap-1 py-3">
                 <div className="flex items-center gap-1.5">
                   <CheckCircle2 className="size-3.5" />
-                  <span className="text-sm font-medium">Personalizados</span>
+                  <span className="text-sm font-medium">Processados</span>
                 </div>
                 <Badge
                   variant="secondary"
                   className="text-xs bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300"
                 >
-                  {taxes.filter(t => t.recurrence === "custom").length}
+                  {processedTaxes.length}
                 </Badge>
               </TabsTrigger>
               <TabsTrigger value="overdue" className="flex flex-col gap-1 py-3">
                 <div className="flex items-center gap-1.5">
                   <AlertTriangle className="size-3.5" />
-                  <span className="text-sm font-medium">Outros</span>
+                  <span className="text-sm font-medium">Atrasados</span>
                 </div>
                 <Badge
                   variant="secondary"
                   className="text-xs bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
                 >
-                  {taxes.filter(t => t.recurrence !== "monthly" && t.recurrence !== "annual" && t.recurrence !== "custom").length}
+                  {overdueTaxes.length}
                 </Badge>
               </TabsTrigger>
             </TabsList>
 
             <TabsContent value={activeTab} className="mt-6">
               <Card className="p-6">
-                <div className="border rounded-lg">
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Nome</TableHead>
-                        <TableHead>Cliente</TableHead> {/* New column for client */}
-                        <TableHead>Descrição</TableHead>
-                        <TableHead>Vencimento Padrão</TableHead>
-                        <TableHead>Recorrência</TableHead>
-                        <TableHead className="w-[50px]"></TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {getFilteredTaxes().length === 0 ? (
-                        <TableRow>
-                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
-                            Nenhum imposto encontrado
-                          </TableCell>
-                        </TableRow>
-                      ) : (
-                        getFilteredTaxes().map((tax) => (
-                          <TableRow key={tax.id}><TableCell className="font-medium">{tax.name}</TableCell><TableCell>
-                              {tax.clientId ? clients.find(c => c.id === tax.clientId)?.name || "Cliente Desconhecido" : "Global"}
-                            </TableCell><TableCell className="max-w-xs truncate">{tax.description}</TableCell><TableCell>{tax.dueDay ? `Dia ${tax.dueDay}` : "-"}</TableCell><TableCell>
-                              <Badge variant="secondary">{tax.recurrence}</Badge>
-                            </TableCell><TableCell>
-                              <DropdownMenu>
-                                <DropdownMenuTrigger asChild>
-                                  <Button variant="ghost" size="icon">
-                                    <MoreVertical className="size-4" />
-                                  </Button>
-                                </DropdownMenuTrigger>
-                                <DropdownMenuContent align="end">
-                                  <DropdownMenuItem onClick={() => handleEdit(tax)}>
-                                    <Pencil className="size-4 mr-2" />
-                                    Editar
-                                  </DropdownMenuItem>
-                                  <DropdownMenuItem onClick={() => handleDelete(tax.id)} className="text-destructive">
-                                    <Trash2 className="size-4 mr-2" />
-                                    Excluir
-                                  </DropdownMenuItem>
-                                </DropdownMenuContent>
-                              </DropdownMenu>
-                            </TableCell></TableRow>
-                        ))
-                      )}
-                    </TableBody>
-                  </Table>
-                </div>
+                <TaxList
+                  taxesDueDates={getFilteredTaxesDueDates()}
+                  clients={clients}
+                  taxTemplates={taxTemplates} // Pass original templates for editing
+                  onUpdate={updateData}
+                />
               </Card>
             </TabsContent>
           </Tabs>
         </div>
       </main>
 
-      <TaxForm tax={editingTax} open={isFormOpen} onOpenChange={setIsFormOpen} onSave={handleSave} clients={clients} />
+      {/* TaxForm for creating new templates or editing existing ones */}
+      <TaxForm tax={editingTaxTemplate} open={isFormOpen} onOpenChange={setIsFormOpen} onSave={handleSaveTaxTemplate} clients={clients} />
       <GlobalSearch
         open={searchOpen}
         onOpenChange={setSearchOpen}
         clients={clients}
-        taxes={taxes}
+        taxes={taxTemplates} // Global search still uses tax templates
         obligations={obligations}
-        installments={installments} // Pass installments to GlobalSearch
+        installments={installments}
       />
     </div>
   )
