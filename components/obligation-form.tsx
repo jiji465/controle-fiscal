@@ -50,6 +50,7 @@ const defaultFormData: Partial<Obligation> = {
   priority: "medium",
   assignedTo: "",
   protocol: "",
+  amount: 0,
   notes: "",
   tags: [],
   attachments: [],
@@ -123,6 +124,7 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
       assignedTo: formData.assignedTo || undefined,
       protocol: formData.protocol || undefined,
       realizationDate: formData.realizationDate,
+      amount: formData.amount ? Number(formData.amount) : undefined,
       notes: formData.notes,
       createdAt: obligation?.createdAt || new Date().toISOString(),
       completedAt: obligation?.completedAt,
@@ -494,6 +496,21 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
                 Informações Adicionais
               </h3>
+
+              <div className="grid gap-2">
+                <Label htmlFor="amount">Valor (R$)</Label>
+                <Input
+                  id="amount"
+                  type="number"
+                  step="0.01"
+                  min="0"
+                  value={formData.amount || ""}
+                  onChange={(e) =>
+                    setFormData({ ...formData, amount: e.target.value ? Number(e.target.value) : undefined })
+                  }
+                  placeholder="0,00"
+                />
+              </div>
 
               <div className="grid gap-2">
                 <Label htmlFor="notes">Observações</Label>
