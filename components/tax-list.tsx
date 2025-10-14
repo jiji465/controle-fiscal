@@ -84,12 +84,12 @@ export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate, onEdit
   })
 
   const handleDeleteTaxTemplate = (id: string) => {
-    if (confirm("⚠️ Tem certeza que deseja excluir este template de imposto?\n\nEsta ação não pode ser desfeita e removerá todas as ocorrências geradas por ele.")) {
+    if (confirm("⚠️ Tem certeza que deseja excluir este imposto?\n\nEsta ação não pode ser desfeita e removerá todas as ocorrências geradas por ele.")) {
       deleteTax(id)
       onUpdate()
       toast({
         title: "Imposto excluído!",
-        description: "O template do imposto foi removido com sucesso.",
+        description: "O imposto foi removido com sucesso.",
         variant: "destructive",
       });
     }
@@ -414,11 +414,11 @@ export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate, onEdit
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => onEdit(taxTemplates.find(t => t.id === tax.id) || tax)}>
                           <Pencil className="size-4 mr-2" />
-                          Editar Template
+                          Editar Imposto
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleDeleteTaxTemplate(tax.id)} className="text-destructive">
                           <Trash2 className="size-4 mr-2" />
-                          Excluir Template
+                          Excluir Imposto
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>

@@ -73,7 +73,7 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
       originalAmount: Number(formData.originalAmount!),
       installmentNumber: Number(formData.installmentNumber!),
       totalInstallments: Number(formData.totalInstallments!),
-      amount: Number(formData.amount!),
+      amount: parseFloat((Number(formData.originalAmount!) / Number(formData.totalInstallments!)).toFixed(2)),
       dueDay: Number(formData.dueDay!),
       dueMonth: formData.dueMonth ? Number(formData.dueMonth) : undefined,
       recurrence: formData.recurrence as any,
@@ -173,7 +173,7 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
                 Valores e Parcelas
               </h3>
 
-              <div className="grid sm:grid-cols-2 gap-4">
+              <div className="grid sm:grid-cols-3 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="originalAmount">Valor Original Total</Label>
                   <Input
@@ -187,22 +187,6 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
                     required
                   />
                 </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="amount">Valor desta Parcela *</Label>
-                  <Input
-                    id="amount"
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={formData.amount || ""}
-                    onChange={(e) => setFormData({ ...formData, amount: Number(e.target.value) })}
-                    placeholder="0,00"
-                    required
-                  />
-                </div>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="installmentNumber">Número da Parcela *</Label>
                   <Input
@@ -313,33 +297,41 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
             <div className="space-y-4 border-t pt-4">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Vencimentos e Status</h3>
 
-              <div className="grid sm:grid-cols-3 gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="dueDay">Dia do Vencimento *</Label>
-                  <Input
-                    id="dueDay"
-                    type="number"
-                    min="1"
-                    max="31"
-                    value={formData.dueDay || ""}
-                    onChange={(e) => setFormData({ ...formData, dueDay: e.target.value ? Number(e.target.value) : undefined })}
-                    placeholder="Ex: 15"
-                    required
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="dueMonth">Mês Específico (Opcional)</Label>
-                  <Input
-                    id="dueMonth"
-                    type="number"
-                    min="1"
-                    max="12"
-                    value={formData.dueMonth || ""}
-                    onChange={(e) => setFormData({ ...formData, dueMonth: e.target.value ? Number(e.target.value) : undefined })}
-                    placeholder="1-12"
-                  />
-                  <p className="text-xs text-muted-foreground">Para parcelamentos anuais ou específicos</p>
+                  <Label>Data de Vencimento Inicial *</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn("w-full justify-start text-left font-normal")}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        <span>
+                          {formData.dueDay ? `Dia ${formData.dueDay}` : "Selecione uma data"}
+                          {formData.dueMonth ? ` de ${new Date(0, formData.dueMonth - 1).toLocaleString('default', { month: 'long' })}` : ""}
+                        </span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        onSelect={(date) => {
+                          if (date) {
+                            setFormData({
+                              ...formData,
+                              dueDay: date.getDate(),
+                              dueMonth: formData.recurrence === 'annual' ? date.getMonth() + 1 : undefined,
+                            });
+                          }
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
+                  <p className="text-xs text-muted-foreground">
+                    Selecione a data para o primeiro vencimento.
+                  </p>
                 </div>
 
                 <div className="grid gap-2">

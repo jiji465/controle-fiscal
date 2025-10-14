@@ -114,7 +114,7 @@ export default function ImpostosPage() {
               </Button>
               <Button onClick={handleNewTaxTemplate}>
                 <Plus className="size-4 mr-2" />
-                Novo Imposto (Template)
+                Novo Imposto
               </Button>
             </div>
           </div>

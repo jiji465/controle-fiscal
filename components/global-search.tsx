@@ -260,7 +260,7 @@ export function GlobalSearch({
                 <div className="space-y-2">
                   <div className="flex items-center gap-2 text-sm font-medium text-muted-foreground">
                     <Receipt className="size-4" />
-                    Impostos (Templates) ({results.taxes.length})
+                    Impostos ({results.taxes.length})
                   </div>
                   <div className="space-y-1">
                     {results.taxes.map((tax) => (
