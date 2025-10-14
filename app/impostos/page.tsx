@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { getTaxes, saveTax, deleteTax, getClients } from "@/lib/storage"
+import { getTaxes, saveTax, deleteTax, getClients, getInstallments } from "@/lib/storage" // Import getInstallments
 import { getObligationsWithDetails } from "@/lib/dashboard-utils" // Import getObligationsWithDetails
 import {
   CheckCircle2,
@@ -23,13 +23,14 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react"
-import type { Tax, Client, ObligationWithDetails } from "@/lib/types" // Updated type for obligations
+import type { Tax, Client, ObligationWithDetails, InstallmentWithDetails } from "@/lib/types" // Updated type for obligations and added InstallmentWithDetails
 import { toast } from "@/hooks/use-toast" // Import toast
 
 export default function ImpostosPage() {
   const [taxes, setTaxes] = useState<Tax[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [obligations, setObligations] = useState<ObligationWithDetails[]>([]) // Changed to ObligationWithDetails[]
+  const [installments, setInstallments] = useState<InstallmentWithDetails[]>([]) // New state for installments
   const [editingTax, setEditingTax] = useState<Tax | undefined>()
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("all") // Keep tabs for future filtering by recurrence/dueDay
@@ -39,6 +40,7 @@ export default function ImpostosPage() {
     setTaxes(getTaxes())
     setClients(getClients())
     setObligations(getObligationsWithDetails()) // Use getObligationsWithDetails
+    setInstallments(getInstallments().map(i => ({ ...i, client: clients.find(c => c.id === i.clientId) || { id: "unknown", name: "Cliente Desconhecido", cnpj: "", email: "", phone: "", status: "inactive", createdAt: "" }, calculatedDueDate: "" }))) // Basic mapping for now
   }
 
   useEffect(() => {
@@ -256,6 +258,7 @@ export default function ImpostosPage() {
         clients={clients}
         taxes={taxes}
         obligations={obligations}
+        installments={installments} // Pass installments to GlobalSearch
       />
     </div>
   )

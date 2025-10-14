@@ -1,4 +1,4 @@
-import type { Obligation, RecurrenceType, Tax } from "./types"
+import type { Obligation, RecurrenceType, Tax, Installment } from "./types"
 import { adjustForWeekend } from "./date-utils"
 
 /**
@@ -100,7 +100,7 @@ export function shouldGenerateOccurrences(obligation: Obligation): boolean {
 /**
  * Obtém descrição legível da recorrência
  */
-export function getRecurrenceDescription(entity: Obligation | Tax): string {
+export function getRecurrenceDescription(entity: Obligation | Tax | Installment): string {
   const descriptions: Record<RecurrenceType, string> = {
     monthly: "Mensal",
     bimonthly: "Bimestral",

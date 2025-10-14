@@ -6,7 +6,7 @@ import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { CheckCircle2, Clock, AlertTriangle, Calendar, TrendingUp, Users, BarChart3, PieChart, LayoutDashboard, DollarSign } from "lucide-react"
-import type { ObligationWithDetails, InstallmentWithDetails, TaxDueDate } from "@/lib/types"
+import type { ObligationWithDetails, InstallmentWithDetails, TaxDueDate, FiscalEventType } from "@/lib/types" // Import FiscalEventType
 import { formatDate, formatCurrency } from "@/lib/date-utils"
 import { getRecurrenceDescription } from "@/lib/recurrence-utils"
 import { useState, useMemo } from "react"
@@ -345,7 +345,7 @@ export function ReportsPanel({ obligations, installments, taxesDueDates }: Repor
         <TabsContent value="completed" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Eventos Finalizados/Pagos</CardTitle>
+              <CardTitle>Eventos Finalizados/Pagas</CardTitle>
               <CardDescription>Histórico de tarefas concluídas e parcelamentos pagos</CardDescription>
             </CardHeader>
             <CardContent>

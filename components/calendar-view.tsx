@@ -416,12 +416,12 @@ export function CalendarView({ events }: CalendarViewProps) {
                     </div>
                   </div>
 
-                  {selectedEventDetails.type === "obligation" && (selectedEventDetails as ObligationWithDetails).amount && (
+                  {selectedEventDetails.type === "obligation" && (selectedEventDetails as ObligationWithDetails).amount !== undefined && (
                     <div className="flex items-center gap-3">
                       <DollarSign className="size-5 text-muted-foreground" />
                       <div>
                         <p className="text-sm font-medium">Valor</p>
-                        <p className="text-sm text-muted-foreground">{formatCurrency((selectedEventDetails as ObligationWithDetails).amount)}</p>
+                        <p className="text-sm text-muted-foreground">{formatCurrency((selectedEventDetails as ObligationWithDetails).amount ?? 0)}</p>
                       </div>
                     </div>
                   )}

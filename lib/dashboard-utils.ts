@@ -2,41 +2,6 @@ import type { DashboardStats, ObligationWithDetails, TaxDueDate, Tax, Client, In
 import { getClients, getTaxes, getObligations, getInstallments } from "./storage"
 import { calculateDueDate, isOverdue, isUpcomingThisWeek, calculateTaxDueDate, calculateInstallmentDueDate } from "./date-utils"
 
-// Helper to create a FiscalEventBase from common properties
-const createFiscalEventBase = (
-  id: string,
-  name: string,
-  calculatedDueDate: string,
-  client: Client,
-  status: FiscalEventStatus,
-  type: FiscalEventType,
-  createdAt: string,
-  description?: string,
-  amount?: number,
-  notes?: string,
-  tags?: string[],
-  completedAt?: string,
-  completedBy?: string,
-  paidAt?: string,
-  paidBy?: string,
-) => ({
-  id,
-  name,
-  calculatedDueDate,
-  client,
-  status,
-  type,
-  createdAt,
-  description,
-  amount,
-  notes,
-  tags,
-  completedAt,
-  completedBy,
-  paidAt,
-  paidBy,
-});
-
 export const getObligationsWithDetails = (): ObligationWithDetails[] => {
   const obligations = getObligations()
   const clients = getClients()
@@ -68,21 +33,8 @@ export const getObligationsWithDetails = (): ObligationWithDetails[] => {
       client,
       tax,
       calculatedDueDate,
-      ...createFiscalEventBase(
-        obligation.id,
-        obligation.name,
-        calculatedDueDate,
-        client,
-        obligation.status,
-        "obligation",
-        obligation.createdAt,
-        obligation.description,
-        obligation.amount,
-        obligation.notes,
-        obligation.tags,
-        obligation.completedAt,
-        obligation.completedBy,
-      ),
+      type: "obligation", // Explicitly add the type from FiscalEventBase
+      status: obligation.status, // Ensure status is explicitly set from obligation
     } as ObligationWithDetails;
   })
 }
@@ -122,19 +74,9 @@ export const getTaxesDueDates = (monthsAhead: number = 3): TaxDueDate[] => {
         ...tax,
         client,
         calculatedDueDate: calculatedDueDate.toISOString(),
-        ...createFiscalEventBase(
-          `${tax.id}-${calculatedDueDate.toISOString().split('T')[0]}`, // Unique ID for each instance
-          tax.name,
-          calculatedDueDate.toISOString(),
-          client,
-          status,
-          "tax",
-          tax.createdAt,
-          tax.description,
-          undefined, // Taxes don't have a specific amount per instance in this context
-          tax.notes,
-          tax.tags,
-        ),
+        status, // Explicitly add the derived status
+        type: "tax", // Explicitly add the type from FiscalEventBase
+        // Taxes don't have amount, completedAt, completedBy, paidAt, paidBy in this context
       } as TaxDueDate);
     }
   });
@@ -169,23 +111,8 @@ export const getInstallmentsWithDetails = (): InstallmentWithDetails[] => {
       ...installment,
       client,
       calculatedDueDate,
-      ...createFiscalEventBase(
-        installment.id,
-        installment.name,
-        calculatedDueDate,
-        client,
-        installment.status,
-        "installment",
-        installment.createdAt,
-        installment.description,
-        installment.amount,
-        installment.notes,
-        installment.tags,
-        undefined, // No completedAt for installments
-        undefined, // No completedBy for installments
-        installment.paidAt,
-        installment.paidBy,
-      ),
+      type: "installment", // Explicitly add the type from FiscalEventBase
+      status: installment.status, // Ensure status is explicitly set from installment
     } as InstallmentWithDetails;
   });
 };

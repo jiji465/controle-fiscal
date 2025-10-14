@@ -23,7 +23,7 @@ import {
   Clock,
   DollarSign,
 } from "lucide-react"
-import type { InstallmentWithDetails, Client } from "@/lib/types"
+import type { InstallmentWithDetails, Client, Installment } from "@/lib/types" // Import Installment
 import { saveInstallment, deleteInstallment } from "@/lib/storage"
 import { formatDate, formatCurrency, isOverdue } from "@/lib/date-utils"
 import { getRecurrenceDescription } from "@/lib/recurrence-utils"

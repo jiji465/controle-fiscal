@@ -3,12 +3,15 @@
 import { useEffect, useState } from "react"
 import { Navigation } from "@/components/navigation"
 import { ReportsPanel } from "@/components/reports-panel"
-import type { ObligationWithDetails } from "@/lib/types"
-import { getObligations, getClients, getTaxes } from "@/lib/storage"
-import { calculateDueDate } from "@/lib/date-utils"
+import type { ObligationWithDetails, InstallmentWithDetails, TaxDueDate } from "@/lib/types"
+import { getObligations, getClients, getTaxes, getInstallments } from "@/lib/storage"
+import { calculateDueDate, calculateTaxDueDate, calculateInstallmentDueDate } from "@/lib/date-utils"
+import { getTaxesDueDates, getInstallmentsWithDetails } from "@/lib/dashboard-utils" // Import these for consistency
 
 export default function RelatoriosPage() {
   const [obligations, setObligations] = useState<ObligationWithDetails[]>([])
+  const [installments, setInstallments] = useState<InstallmentWithDetails[]>([]) // New state
+  const [taxesDueDates, setTaxesDueDates] = useState<TaxDueDate[]>([]) // New state
 
   useEffect(() => {
     loadData()
@@ -18,6 +21,7 @@ export default function RelatoriosPage() {
     const obligationsData = getObligations()
     const clientsData = getClients()
     const taxesData = getTaxes()
+    const installmentsData = getInstallments() // Fetch installments
 
     const obligationsWithDetails: ObligationWithDetails[] = obligationsData.map((obl) => {
       const client = clientsData.find((c) => c.id === obl.clientId)!
@@ -35,10 +39,17 @@ export default function RelatoriosPage() {
         client,
         tax,
         calculatedDueDate,
-      }
+        type: "obligation", // Explicitly add the type
+        status: obl.status, // Ensure status is explicitly set
+      } as ObligationWithDetails
     })
 
+    const allTaxesDueDates: TaxDueDate[] = getTaxesDueDates(6); // Generate for 6 months
+    const allInstallmentsWithDetails: InstallmentWithDetails[] = getInstallmentsWithDetails(); // Get installments with details
+
     setObligations(obligationsWithDetails)
+    setInstallments(allInstallmentsWithDetails); // Set installments state
+    setTaxesDueDates(allTaxesDueDates); // Set taxesDueDates state
   }
 
   return (
@@ -51,7 +62,7 @@ export default function RelatoriosPage() {
             <p className="text-lg text-muted-foreground">Análise detalhada de obrigações fiscais e produtividade</p>
           </div>
 
-          <ReportsPanel obligations={obligations} />
+          <ReportsPanel obligations={obligations} installments={installments} taxesDueDates={taxesDueDates} />
         </div>
       </main>
     </div>

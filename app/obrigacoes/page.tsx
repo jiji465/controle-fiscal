@@ -8,16 +8,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { getClients, getTaxes } from "@/lib/storage"
+import { getClients, getTaxes, getInstallments } from "@/lib/storage" // Import getInstallments
 import { getObligationsWithDetails } from "@/lib/dashboard-utils"
 import { isOverdue } from "@/lib/date-utils"
 import { CheckCircle2, Clock, PlayCircle, AlertTriangle, Search } from "lucide-react"
-import type { Client, Tax, ObligationWithDetails } from "@/lib/types"
+import type { Client, Tax, ObligationWithDetails, InstallmentWithDetails } from "@/lib/types" // Added InstallmentWithDetails
 
 export default function ObligacoesPage() {
   const [obligations, setObligations] = useState<ObligationWithDetails[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [taxes, setTaxes] = useState<Tax[]>([])
+  const [installments, setInstallments] = useState<InstallmentWithDetails[]>([]) // New state for installments
   const [activeTab, setActiveTab] = useState("all")
   const [searchOpen, setSearchOpen] = useState(false)
 
@@ -25,6 +26,7 @@ export default function ObligacoesPage() {
     setObligations(getObligationsWithDetails())
     setClients(getClients())
     setTaxes(getTaxes())
+    setInstallments(getInstallments().map(i => ({ ...i, client: clients.find(c => c.id === i.clientId) || { id: "unknown", name: "Cliente Desconhecido", cnpj: "", email: "", phone: "", status: "inactive", createdAt: "" }, calculatedDueDate: "" }))) // Basic mapping for now
   }
 
   useEffect(() => {
@@ -157,6 +159,7 @@ export default function ObligacoesPage() {
         clients={clients}
         taxes={taxes}
         obligations={obligations}
+        installments={installments} // Pass installments to GlobalSearch
       />
     </div>
   )

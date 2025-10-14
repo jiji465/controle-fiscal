@@ -4,7 +4,7 @@ import { useState, useEffect } from "react"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import { Search, Building2, FileText, DollarSign, Calendar } from "lucide-react"
+import { Search, Building2, FileText, DollarSign, Calendar, Receipt } from "lucide-react" // Adicionando a importação do Receipt
 import type { Client, Tax, ObligationWithDetails, InstallmentWithDetails } from "@/lib/types"
 import { formatDate } from "@/lib/date-utils"
 import { Input } from "@/components/ui/input" // Adicionando a importação do Input
