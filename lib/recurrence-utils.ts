@@ -2,71 +2,60 @@ import type { Obligation, RecurrenceType, Tax, Installment } from "./types"
 import { adjustForWeekend } from "./date-utils"
 
 /**
- * Calcula a próxima data de vencimento baseada na recorrência
+ * Calcula a próxima data de vencimento para um mês específico
  */
-export function calculateNextDueDate(obligation: Obligation, fromDate: Date = new Date()): Date {
-  const nextDate = new Date(fromDate)
+function calculateDueDateForMonth(entity: Obligation | Installment, targetDate: Date): Date {
+  const targetYear = targetDate.getFullYear()
+  const targetMonth = targetDate.getMonth()
 
-  switch (obligation.recurrence) {
-    case "monthly":
-      nextDate.setMonth(nextDate.getMonth() + (obligation.recurrenceInterval || 1))
-      break
-    case "bimonthly":
-      nextDate.setMonth(nextDate.getMonth() + 2)
-      break
-    case "quarterly":
-      nextDate.setMonth(nextDate.getMonth() + 3)
-      break
-    case "semiannual":
-      nextDate.setMonth(nextDate.getMonth() + 6)
-      break
-    case "annual":
-      nextDate.setFullYear(nextDate.getFullYear() + 1)
-      break
-    case "custom":
-      if (obligation.recurrenceInterval) {
-        nextDate.setMonth(nextDate.getMonth() + obligation.recurrenceInterval)
-      }
-      break
+  let dueMonth = targetMonth
+  if (entity.recurrence === "annual" && entity.dueMonth) {
+    dueMonth = entity.dueMonth - 1
   }
+  
+  const newDueDate = new Date(targetYear, dueMonth, entity.dueDay)
 
-  // Ajusta para o dia correto do mês
-  nextDate.setDate(obligation.dueDay)
-
-  // Se tem mês específico, ajusta
-  if (obligation.dueMonth) {
-    nextDate.setMonth(nextDate.getMonth() + 1) // Adjust month to be 0-indexed
-  }
-
-  return nextDate
+  return adjustForWeekend(newDueDate, entity.weekendRule)
 }
 
 /**
- * Gera próximas ocorrências de uma obrigação recorrente
+ * Gera a próxima ocorrência de uma obrigação ou parcelamento para um mês específico, se necessário.
  */
-export function generateNextOccurrences(obligation: Obligation, monthsAhead = 3): Omit<Obligation, "id">[] {
-  if (!obligation.autoGenerate) return []
+export function generateOccurrenceForMonth(
+  template: Obligation | Installment,
+  targetDate: Date,
+  existingItems: (Obligation | Installment)[],
+): Obligation | Installment | null {
+  // 1. Check if generation should happen
+  if (!template.autoGenerate) return null
+  const endDate = template.recurrenceEndDate ? new Date(template.recurrenceEndDate) : null
+  if (endDate && targetDate > endDate) return null
 
-  const occurrences: Omit<Obligation, "id">[] = []
-  let currentDate = new Date()
-  const endDate = obligation.recurrenceEndDate ? new Date(obligation.recurrenceEndDate) : null
+  // 2. Define the period key (e.g., "2024-07")
+  const periodKey = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, "0")}`
 
-  for (let i = 0; i < monthsAhead; i++) {
-    const nextDate = calculateNextDueDate(obligation, currentDate)
+  // 3. Check if an occurrence for this period already exists
+  const alreadyExists = existingItems.some(
+    (item) =>
+      (item.parentObligationId === template.id || (item as Installment).parentInstallmentId === template.id) &&
+      item.generatedFor === periodKey,
+  )
+  if (alreadyExists) return null
 
-    // Verifica se passou da data final
-    if (endDate && nextDate > endDate) break
-
-    const adjustedDate = adjustForWeekend(nextDate, obligation.weekendRule)
-    const periodKey = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, "0")}`
-
-    occurrences.push({
-      ...obligation,
+  // 4. Create the new occurrence
+  const newDueDate = calculateDueDateForMonth(template, targetDate)
+  
+  const newId = crypto.randomUUID();
+  
+  if ('priority' in template) { // It's an Obligation
+    const newObligation: Obligation = {
+      ...template,
+      id: newId,
       status: "pending",
       completedAt: undefined,
       completedBy: undefined,
       realizationDate: undefined,
-      parentObligationId: obligation.id,
+      parentObligationId: template.id,
       generatedFor: periodKey,
       createdAt: new Date().toISOString(),
       history: [
@@ -77,25 +66,24 @@ export function generateNextOccurrences(obligation: Obligation, monthsAhead = 3)
           timestamp: new Date().toISOString(),
         },
       ],
-    })
-
-    currentDate = nextDate
+    }
+    return newObligation;
+  } else { // It's an Installment
+    const newInstallment: Installment = {
+        ...template,
+        id: newId,
+        status: "pending",
+        completedAt: undefined,
+        completedBy: undefined,
+        parentInstallmentId: template.id,
+        generatedFor: periodKey,
+        createdAt: new Date().toISOString(),
+        installmentNumber: template.installmentNumber + (existingItems.filter(i => i.parentInstallmentId === template.id).length),
+    }
+    return newInstallment;
   }
-
-  return occurrences
 }
 
-/**
- * Verifica se uma obrigação deve gerar novas ocorrências
- */
-export function shouldGenerateOccurrences(obligation: Obligation): boolean {
-  if (!obligation.autoGenerate) return false
-
-  const endDate = obligation.recurrenceEndDate ? new Date(obligation.recurrenceEndDate) : null
-  if (endDate && new Date() > endDate) return false
-
-  return true
-}
 
 /**
  * Obtém descrição legível da recorrência

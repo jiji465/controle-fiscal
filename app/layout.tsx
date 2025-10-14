@@ -4,7 +4,8 @@ import { Geist, Geist_Mono } from "next/font/google"
 import { Analytics } from "@vercel/analytics/next"
 import { Suspense } from "react"
 import "./globals.css"
-import { Toaster } from "@/components/ui/toaster" // Import the Toaster component
+import { Toaster } from "@/components/ui/toaster"
+import { AppInitializer } from "@/components/app-initializer"
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -30,8 +31,10 @@ export default function RootLayout({
   return (
     <html lang="pt-BR" className={`${geistSans.variable} ${geistMono.variable}`}>
       <body className="font-sans antialiased">
-        <Suspense fallback={null}>{children}</Suspense>
-        <Toaster /> {/* Add the Toaster component here */}
+        <AppInitializer>
+          <Suspense fallback={null}>{children}</Suspense>
+        </AppInitializer>
+        <Toaster />
         <Analytics />
       </body>
     </html>

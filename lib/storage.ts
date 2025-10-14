@@ -6,9 +6,22 @@ const STORAGE_KEYS = {
   TAXES: "fiscal_taxes",
   OBLIGATIONS: "fiscal_obligations",
   NOTIFICATIONS: "fiscal_notifications",
-  INSTALLMENTS: "fiscal_installments", // New key for installments
+  INSTALLMENTS: "fiscal_installments",
   TAX_STATUSES: "fiscal_tax_statuses",
+  RECURRENCE_LAST_RUN: "fiscal_recurrence_last_run",
 }
+
+// Recurrence Generation Tracker
+export const getLastGenerationRun = (): string | null => {
+  if (typeof window === "undefined") return null
+  return localStorage.getItem(STORAGE_KEYS.RECURRENCE_LAST_RUN)
+}
+
+export const setLastGenerationRun = (date: string): void => {
+  if (typeof window === "undefined") return
+  localStorage.setItem(STORAGE_KEYS.RECURRENCE_LAST_RUN, date)
+}
+
 
 // Client Storage
 export const getClients = (): Client[] => {
@@ -80,8 +93,8 @@ export const getObligations = (): Obligation[] => {
   if (data) return JSON.parse(data);
 
   const sampleObligations = [
-    createObligation({ id: 'obl-1', name: 'EFD Contribuições', clientId: 'client-1', taxId: 'tax-2', dueDay: 15, status: 'pending', priority: 'high' }),
-    createObligation({ id: 'obl-2', name: 'DCTFWeb', clientId: 'client-2', dueDay: 15, status: 'in_progress', priority: 'urgent' }),
+    createObligation({ id: 'obl-1', name: 'EFD Contribuições', clientId: 'client-1', taxId: 'tax-2', dueDay: 15, status: 'pending', priority: 'high', autoGenerate: true }),
+    createObligation({ id: 'obl-2', name: 'DCTFWeb', clientId: 'client-2', dueDay: 15, status: 'in_progress', priority: 'urgent', autoGenerate: true }),
     createObligation({ id: 'obl-3', name: 'SPED Fiscal', clientId: 'client-1', taxId: 'tax-1', dueDay: 20, status: 'completed', completedAt: new Date().toISOString() }),
   ];
   localStorage.setItem(STORAGE_KEYS.OBLIGATIONS, JSON.stringify(sampleObligations));
@@ -124,7 +137,7 @@ export const getInstallments = (): Installment[] => {
   if (data) return JSON.parse(data);
 
   const sampleInstallments = [
-    createInstallment({ id: 'inst-1', name: 'Parcelamento REFIS', clientId: 'client-2', installmentNumber: 3, totalInstallments: 12, dueDay: 28, status: 'pending' }),
+    createInstallment({ id: 'inst-1', name: 'Parcelamento REFIS', clientId: 'client-2', installmentNumber: 3, totalInstallments: 12, dueDay: 28, status: 'pending', autoGenerate: true }),
     createInstallment({ id: 'inst-2', name: 'Parcelamento IPTU', clientId: 'client-1', installmentNumber: 1, totalInstallments: 10, dueDay: 10, status: 'completed', completedAt: new Date().toISOString() }),
   ];
   localStorage.setItem(STORAGE_KEYS.INSTALLMENTS, JSON.stringify(sampleInstallments));
