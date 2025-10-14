@@ -66,8 +66,8 @@ export interface FiscalEventBase {
   notes?: string;
   tags?: string[];
   // Specific fields for different types, made optional in base
-  completedAt?: string; // For obligations
-  completedBy?: string; // For obligations
+  completedAt?: string; // For obligations and installments
+  completedBy?: string; // For obligations and installments
 }
 
 export type Obligation = {
