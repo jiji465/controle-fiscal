@@ -210,17 +210,11 @@ export default function ImpostosPage() {
                         </TableRow>
                       ) : (
                         getFilteredTaxes().map((tax) => (
-                          <TableRow key={tax.id}>
-                            <TableCell className="font-medium">{tax.name}</TableCell>
-                            <TableCell>
+                          <TableRow key={tax.id}><TableCell className="font-medium">{tax.name}</TableCell><TableCell>
                               {tax.clientId ? clients.find(c => c.id === tax.clientId)?.name || "Cliente Desconhecido" : "Global"}
-                            </TableCell>
-                            <TableCell className="max-w-xs truncate">{tax.description}</TableCell>
-                            <TableCell>{tax.dueDay ? `Dia ${tax.dueDay}` : "-"}</TableCell>
-                            <TableCell>
+                            </TableCell><TableCell className="max-w-xs truncate">{tax.description}</TableCell><TableCell>{tax.dueDay ? `Dia ${tax.dueDay}` : "-"}</TableCell><TableCell>
                               <Badge variant="secondary">{tax.recurrence}</Badge>
-                            </TableCell>
-                            <TableCell>
+                            </TableCell><TableCell>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="icon">
@@ -238,8 +232,7 @@ export default function ImpostosPage() {
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
-                            </TableCell>
-                          </TableRow>
+                            </TableCell></TableRow>
                         ))
                       )}
                     </TableBody>
@@ -258,7 +251,7 @@ export default function ImpostosPage() {
         clients={clients}
         taxes={taxes}
         obligations={obligations}
-        installments={getInstallmentsWithDetails()} // Pass installments to GlobalSearch
+        installments={installments} // Pass installments to GlobalSearch
       />
     </div>
   )

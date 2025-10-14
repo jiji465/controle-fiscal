@@ -304,8 +304,7 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
                       ? "bg-red-50/50 dark:bg-red-950/10"
                       : ""
                   }
-                >
-                  <TableCell>
+                ><TableCell>
                     <div className="space-y-1">
                       <div className="font-medium">{installment.name}</div>
                       <div className="text-sm text-muted-foreground">
@@ -315,18 +314,14 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
                         <div className="text-sm text-muted-foreground line-clamp-1">{installment.description}</div>
                       )}
                     </div>
-                  </TableCell>
-                  <TableCell>
+                  </TableCell><TableCell>
                     <div className="font-medium">{installment.client.name}</div>
-                  </TableCell>
-                  <TableCell>
+                  </TableCell><TableCell>
                     <div className="flex items-center gap-1">
                       <DollarSign className="size-3 text-muted-foreground" />
                       {formatCurrency(installment.amount)}
                     </div>
-                  </TableCell>
-                  <TableCell>{getStatusBadge(installment)}</TableCell>
-                  <TableCell>
+                  </TableCell><TableCell>{getStatusBadge(installment)}</TableCell><TableCell>
                     <div className="space-y-1">
                       <div className="font-mono text-sm font-medium">{formatDate(installment.calculatedDueDate)}</div>
                       <div className="text-xs text-muted-foreground">
@@ -336,11 +331,9 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
                         {getRecurrenceDescription(installment)}
                       </Badge>
                     </div>
-                  </TableCell>
-                  <TableCell>
+                  </TableCell><TableCell>
                     <QuickActionButtons installment={installment} />
-                  </TableCell>
-                  <TableCell>
+                  </TableCell><TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon">
@@ -362,8 +355,7 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </TableCell>
-                </TableRow>
+                  </TableCell></TableRow>
               ))
             )}
           </TableBody>
