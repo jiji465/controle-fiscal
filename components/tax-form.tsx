@@ -36,7 +36,7 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
       description: "",
       federalTaxCode: "",
       clientId: undefined, // Initialize clientId
-      dueDay: undefined,
+      dueDay: 10,
       dueMonth: undefined, // Initialize dueMonth
       recurrence: "monthly",
       recurrenceInterval: 1,
@@ -57,7 +57,7 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
       description: formData.description!,
       federalTaxCode: formData.federalTaxCode,
       clientId: formData.clientId === "none" ? undefined : formData.clientId, // Save clientId, or undefined if 'none'
-      dueDay: formData.dueDay ? Number(formData.dueDay) : undefined,
+      dueDay: Number(formData.dueDay!),
       dueMonth: formData.dueMonth ? Number(formData.dueMonth) : undefined, // Save dueMonth
       recurrence: formData.recurrence as any,
       recurrenceInterval: formData.recurrenceInterval,
@@ -229,7 +229,7 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
 
               <div className="grid sm:grid-cols-3 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="dueDay">Dia do Vencimento (Opcional)</Label>
+                  <Label htmlFor="dueDay">Dia do Vencimento *</Label>
                   <Input
                     id="dueDay"
                     type="number"
@@ -240,6 +240,7 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
                       setFormData({ ...formData, dueDay: e.target.value ? Number(e.target.value) : undefined })
                     }
                     placeholder="Ex: 15"
+                    required
                   />
                   <p className="text-xs text-muted-foreground">
                     Dia padrão de vencimento (pode ser sobrescrito na obrigação)

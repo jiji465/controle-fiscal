@@ -56,8 +56,6 @@ export const getTaxesDueDates = (monthsAhead: number = 3): TaxDueDate[] => {
   };
 
   taxes.forEach(tax => {
-    if (tax.dueDay === undefined) return; // Skip taxes without a due day
-
     for (let i = 0; i < monthsAhead; i++) {
       const referenceDate = new Date(today.getFullYear(), today.getMonth() + i, 1); // Start of current/future month
       let calculatedDueDate = calculateTaxDueDate(tax, referenceDate);

@@ -62,10 +62,6 @@ export const calculateTaxDueDate = (
   tax: Tax,
   referenceDate: Date = new Date(),
 ): Date => {
-  if (tax.dueDay === undefined) {
-    return referenceDate; // Or throw an error, depending on desired behavior for invalid tax templates
-  }
-
   let dueDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), tax.dueDay);
 
   // Ensure the due date is in the future or current month/day
