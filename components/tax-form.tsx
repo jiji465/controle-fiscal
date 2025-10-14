@@ -9,9 +9,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { Calendar } from "@/components/ui/calendar"
-import { X, CalendarIcon } from "lucide-react"
+import { X } from "lucide-react"
 import {
   Dialog,
   DialogContent,
@@ -22,9 +20,6 @@ import {
 } from "@/components/ui/dialog"
 import type { Tax, Client } from "@/lib/types"
 import { toast } from "@/hooks/use-toast"
-import { format } from "date-fns"
-import { ptBR } from "date-fns/locale"
-import { cn } from "@/lib/utils"
 
 type TaxFormProps = {
   tax?: Tax
@@ -52,14 +47,23 @@ const defaultFormData: Partial<Tax> = {
 export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormProps) {
   const [formData, setFormData] = useState<Partial<Tax>>(defaultFormData)
   const [newTag, setNewTag] = useState("")
-  const [isDueDatePopoverOpen, setIsDueDatePopoverOpen] = useState(false)
-  const [isEndDatePopoverOpen, setIsEndDatePopoverOpen] = useState(false)
+  const [initialDueDate, setInitialDueDate] = useState("");
 
   useEffect(() => {
     if (tax) {
       setFormData(tax);
+      if (tax.dueDay) {
+        const year = new Date().getFullYear();
+        const month = tax.dueMonth ? tax.dueMonth - 1 : new Date().getMonth();
+        const day = tax.dueDay;
+        const date = new Date(year, month, day);
+        setInitialDueDate(date.toISOString().split('T')[0]);
+      } else {
+        setInitialDueDate("");
+      }
     } else {
       setFormData(defaultFormData);
+      setInitialDueDate("");
     }
   }, [tax, open]);
 
@@ -181,7 +185,19 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
                   <Label htmlFor="recurrence">Tipo de Recorrência *</Label>
                   <Select
                     value={formData.recurrence}
-                    onValueChange={(value) => setFormData({ ...formData, recurrence: value as any })}
+                    onValueChange={(value) => {
+                      const newRecurrence = value as any;
+                      let dueMonth = formData.dueMonth;
+                      if (initialDueDate) {
+                          const [, month] = initialDueDate.split('-').map(Number);
+                          dueMonth = newRecurrence === 'annual' ? month : undefined;
+                      }
+                      setFormData({ 
+                          ...formData, 
+                          recurrence: newRecurrence,
+                          dueMonth: dueMonth
+                      });
+                    }}
                   >
                     <SelectTrigger id="recurrence">
                       <SelectValue />
@@ -226,32 +242,12 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
               {formData.autoGenerate && (
                 <div className="grid gap-2">
                   <Label htmlFor="recurrenceEndDate">Data Final (Opcional)</Label>
-                  <Popover open={isEndDatePopoverOpen} onOpenChange={setIsEndDatePopoverOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={"outline"}
-                        className={cn(
-                          "w-full justify-start text-left font-normal",
-                          !formData.recurrenceEndDate && "text-muted-foreground"
-                        )}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        {formData.recurrenceEndDate ? format(new Date(formData.recurrenceEndDate), "dd/MM/yyyy") : <span>Selecione a data</span>}
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        locale={ptBR}
-                        mode="single"
-                        selected={formData.recurrenceEndDate ? new Date(formData.recurrenceEndDate) : undefined}
-                        onSelect={(date) => {
-                          setFormData({ ...formData, recurrenceEndDate: date?.toISOString().split("T")[0] });
-                          setIsEndDatePopoverOpen(false);
-                        }}
-                        initialFocus
-                      />
-                    </PopoverContent>
-                  </Popover>
+                  <Input
+                    id="recurrenceEndDate"
+                    type="date"
+                    value={formData.recurrenceEndDate || ""}
+                    onChange={(e) => setFormData({ ...formData, recurrenceEndDate: e.target.value })}
+                  />
                   <p className="text-xs text-muted-foreground">Deixe em branco para recorrência indefinida</p>
                 </div>
               )}
@@ -263,41 +259,22 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
               <div className="grid sm:grid-cols-2 gap-4">
                 <div className="grid gap-2">
                   <Label>Data de Vencimento Inicial *</Label>
-                  <Popover open={isDueDatePopoverOpen} onOpenChange={setIsDueDatePopoverOpen}>
-                    <PopoverTrigger asChild>
-                      <Button
-                        variant={"outline"}
-                        className={cn("w-full justify-start text-left font-normal", !formData.dueDay && "text-muted-foreground")}
-                      >
-                        <CalendarIcon className="mr-2 h-4 w-4" />
-                        <span>
-                          {formData.dueDay ? `Dia ${formData.dueDay}` : "Selecione uma data"}
-                          {formData.dueMonth ? ` de ${new Date(0, formData.dueMonth - 1).toLocaleString('default', { month: 'long' })}` : ""}
-                        </span>
-                      </Button>
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-0">
-                      <Calendar
-                        locale={ptBR}
-                        mode="single"
-                        selected={formData.dueDay ? new Date(new Date().getFullYear(), formData.dueMonth ? formData.dueMonth - 1 : new Date().getMonth(), formData.dueDay) : undefined}
-                        onSelect={(date) => {
-                          if (date) {
-                            setFormData({
-                              ...formData,
-                              dueDay: date.getDate(),
-                              dueMonth: formData.recurrence === 'annual' ? date.getMonth() + 1 : undefined,
-                            });
-                            setIsDueDatePopoverOpen(false);
+                  <Input
+                      type="date"
+                      value={initialDueDate}
+                      onChange={(e) => {
+                          const newDateValue = e.target.value;
+                          setInitialDueDate(newDateValue);
+                          if (newDateValue) {
+                              const [year, month, day] = newDateValue.split('-').map(Number);
+                              setFormData({
+                                  ...formData,
+                                  dueDay: day,
+                                  dueMonth: formData.recurrence === 'annual' ? month : undefined,
+                              });
                           }
-                        }}
-                        initialFocus
-                        captionLayout="dropdown-buttons"
-                        fromYear={new Date().getFullYear() - 10}
-                        toYear={new Date().getFullYear() + 10}
-                      />
-                    </PopoverContent>
-                  </Popover>
+                      }}
+                  />
                   <p className="text-xs text-muted-foreground">
                     Selecione a data para o primeiro vencimento. A recorrência definirá os próximos.
                   </p>
