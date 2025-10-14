@@ -98,17 +98,11 @@ export function ClientList({ clients, onUpdate }: ClientListProps) {
               </TableRow>
             ) : (
               filteredClients.map((client) => (
-                <TableRow key={client.id}><TableCell className="font-medium">{client.name}</TableCell>
-                  <TableCell className="font-mono text-sm">{client.cnpj}</TableCell>
-                  <TableCell>{client.taxRegime || "Não informado"}</TableCell>
-                  <TableCell>{client.email}</TableCell>
-                  <TableCell>{client.phone}</TableCell>
-                  <TableCell>
+                <TableRow key={client.id}><TableCell className="font-medium">{client.name}</TableCell><TableCell className="font-mono text-sm">{client.cnpj}</TableCell><TableCell>{client.taxRegime || "Não informado"}</TableCell><TableCell>{client.email}</TableCell><TableCell>{client.phone}</TableCell><TableCell>
                     <Badge variant={client.status === "active" ? "default" : "secondary"}>
                       {client.status === "active" ? "Ativo" : "Inativo"}
                     </Badge>
-                  </TableCell>
-                  <TableCell>
+                  </TableCell><TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon">
