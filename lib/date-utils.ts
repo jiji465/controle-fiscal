@@ -1,4 +1,4 @@
-import type { WeekendRule } from "./types"
+import type { WeekendRule, Tax } from "./types"
 
 export const isWeekend = (date: Date): boolean => {
   const day = date.getDay()
@@ -57,6 +57,32 @@ export const calculateDueDate = (
 
   return adjustForWeekend(dueDate, weekendRule)
 }
+
+export const calculateTaxDueDate = (
+  tax: Tax,
+  referenceDate: Date = new Date(),
+): Date => {
+  if (tax.dueDay === undefined) {
+    // If no dueDay, return the referenceDate. Taxes without a dueDay won't be displayed on the calendar.
+    return referenceDate;
+  }
+
+  let dueDate: Date;
+  // Assuming taxes are generally monthly for calendar display if no specific recurrence is defined.
+  // The Tax type doesn't have 'frequency' or 'dueMonth' like Obligation.
+  // So, we'll calculate based on current month and tax.dueDay.
+  dueDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), tax.dueDay);
+
+  // If the calculated date is in the past, move it to the next month.
+  // This ensures we always show upcoming or current month's due date.
+  if (dueDate < referenceDate && dueDate.getDate() !== referenceDate.getDate()) {
+    dueDate.setMonth(dueDate.getMonth() + 1);
+  }
+
+  // Default weekend rule for taxes if not specified in Tax type
+  const defaultWeekendRule: WeekendRule = "postpone";
+  return adjustForWeekend(dueDate, defaultWeekendRule);
+};
 
 export const formatDate = (date: string | Date): string => {
   const d = typeof date === "string" ? new Date(date) : date

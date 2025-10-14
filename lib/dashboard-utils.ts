@@ -1,6 +1,6 @@
-import type { DashboardStats, ObligationWithDetails } from "./types"
+import type { DashboardStats, ObligationWithDetails, TaxWithDetails, Tax } from "./types"
 import { getClients, getTaxes, getObligations } from "./storage"
-import { calculateDueDate, isOverdue, isUpcomingThisWeek } from "./date-utils"
+import { calculateDueDate, isOverdue, isUpcomingThisWeek, calculateTaxDueDate } from "./date-utils"
 
 export const getObligationsWithDetails = (): ObligationWithDetails[] => {
   const obligations = getObligations()
@@ -27,9 +27,20 @@ export const getObligationsWithDetails = (): ObligationWithDetails[] => {
   })
 }
 
+export const getTaxesWithDetails = (): TaxWithDetails[] => {
+  const taxes = getTaxes();
+  return taxes
+    .filter(tax => tax.dueDay !== undefined) // Only include taxes with a defined dueDay for calendar display
+    .map((tax) => ({
+      ...tax,
+      calculatedDueDate: calculateTaxDueDate(tax).toISOString(),
+    }));
+};
+
 export const calculateDashboardStats = (): DashboardStats => {
   const clients = getClients()
   const obligations = getObligationsWithDetails()
+  // No need to include taxes in dashboard stats for now, as per existing logic.
 
   const activeClients = clients.filter((c) => c.status === "active").length
   const pendingObligations = obligations.filter((o) => o.status === "pending")

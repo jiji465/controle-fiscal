@@ -3,13 +3,17 @@
 import { useEffect, useState } from "react"
 import { Navigation } from "@/components/navigation"
 import { CalendarView } from "@/components/calendar-view"
-import { getObligationsWithDetails } from "@/lib/dashboard-utils"
+import { getObligationsWithDetails, getTaxesWithDetails } from "@/lib/dashboard-utils"
+import type { CalendarEvent } from "@/lib/types"
 
 export default function CalendarioPage() {
-  const [obligations, setObligations] = useState(getObligationsWithDetails())
+  const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([])
 
   useEffect(() => {
-    setObligations(getObligationsWithDetails())
+    const obligations = getObligationsWithDetails()
+    const taxes = getTaxesWithDetails()
+    const combinedEvents: CalendarEvent[] = [...obligations, ...taxes];
+    setCalendarEvents(combinedEvents)
   }, [])
 
   return (
@@ -19,10 +23,10 @@ export default function CalendarioPage() {
         <div className="space-y-6">
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Calendário</h1>
-            <p className="text-muted-foreground mt-2">Visualize os vencimentos das obrigações no calendário</p>
+            <p className="text-muted-foreground mt-2">Visualize os vencimentos das obrigações e impostos no calendário</p>
           </div>
 
-          <CalendarView obligations={obligations} />
+          <CalendarView events={calendarEvents} />
         </div>
       </main>
     </div>

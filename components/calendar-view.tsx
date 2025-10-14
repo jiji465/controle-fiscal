@@ -6,19 +6,21 @@ import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
-import { ChevronLeft, ChevronRight, CalendarIcon, Filter } from "lucide-react"
-import type { ObligationWithDetails } from "@/lib/types"
-import { formatDate } from "@/lib/date-utils"
+import { ChevronLeft, ChevronRight, CalendarIcon, Filter, Building2, Receipt, DollarSign, User, FileText, Clock } from "lucide-react"
+import type { CalendarEvent, ObligationWithDetails, TaxWithDetails } from "@/lib/types"
+import { formatDate, formatCurrency } from "@/lib/date-utils"
+import { Separator } from "@/components/ui/separator"
 
 type CalendarViewProps = {
-  obligations: ObligationWithDetails[]
+  events: CalendarEvent[]
 }
 
-export function CalendarView({ obligations }: CalendarViewProps) {
+export function CalendarView({ events }: CalendarViewProps) {
   const [currentDate, setCurrentDate] = useState(new Date())
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const [filterClient, setFilterClient] = useState<string>("all")
   const [filterStatus, setFilterStatus] = useState<string>("all")
+  const [selectedEventDetails, setSelectedEventDetails] = useState<CalendarEvent | null>(null);
 
   const year = currentDate.getFullYear()
   const month = currentDate.getMonth()
@@ -28,7 +30,11 @@ export function CalendarView({ obligations }: CalendarViewProps) {
   const daysInMonth = lastDay.getDate()
   const startingDayOfWeek = firstDay.getDay()
 
-  const uniqueClients = Array.from(new Set(obligations.map((o) => o.client.name))).sort()
+  const uniqueClients = Array.from(new Set(
+    events
+      .filter((event): event is ObligationWithDetails => 'clientId' in event)
+      .map((o) => o.client.name)
+  )).sort()
 
   const previousMonth = () => {
     setCurrentDate(new Date(year, month - 1, 1))
@@ -42,13 +48,16 @@ export function CalendarView({ obligations }: CalendarViewProps) {
     setCurrentDate(new Date())
   }
 
-  const getObligationsForDay = (day: number) => {
+  const getEventsForDay = (day: number) => {
     const dateStr = new Date(year, month, day).toISOString().split("T")[0]
-    return obligations.filter((obl) => {
-      const oblDate = new Date(obl.calculatedDueDate).toISOString().split("T")[0]
-      const matchesDate = oblDate === dateStr
-      const matchesClient = filterClient === "all" || obl.client.name === filterClient
-      const matchesStatus = filterStatus === "all" || obl.status === filterStatus
+    return events.filter((event) => {
+      const eventDate = new Date(event.calculatedDueDate).toISOString().split("T")[0]
+      const matchesDate = eventDate === dateStr
+
+      const matchesClient = filterClient === "all" || !('clientId' in event) || event.client.name === filterClient;
+
+      const matchesStatus = filterStatus === "all" || event.status === filterStatus;
+
       return matchesDate && matchesClient && matchesStatus
     })
   }
@@ -78,7 +87,7 @@ export function CalendarView({ obligations }: CalendarViewProps) {
     calendarDays.push(day)
   }
 
-  const selectedDayObligations = selectedDay ? getObligationsForDay(selectedDay) : []
+  const selectedDayEvents = selectedDay ? getEventsForDay(selectedDay) : []
 
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -88,10 +97,18 @@ export function CalendarView({ obligations }: CalendarViewProps) {
         return "bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30"
       case "overdue":
         return "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30"
-      default:
+      default: // pending
         return "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30"
     }
   }
+
+  const handleDayClick = (day: number) => {
+    setSelectedDay(day);
+  };
+
+  const handleEventClick = (event: CalendarEvent) => {
+    setSelectedEventDetails(event);
+  };
 
   return (
     <>
@@ -100,7 +117,7 @@ export function CalendarView({ obligations }: CalendarViewProps) {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Calendário de Vencimentos</CardTitle>
-              <CardDescription>Visualize as obrigações por data com filtros personalizados</CardDescription>
+              <CardDescription>Visualize as obrigações e impostos por data com filtros personalizados</CardDescription>
             </div>
             <CalendarIcon className="size-5 text-muted-foreground" />
           </div>
@@ -166,7 +183,7 @@ export function CalendarView({ obligations }: CalendarViewProps) {
                   return <div key={`empty-${index}`} className="aspect-square" />
                 }
 
-                const dayObligations = getObligationsForDay(day)
+                const dayEvents = getEventsForDay(day)
                 const isToday =
                   day === new Date().getDate() && month === new Date().getMonth() && year === new Date().getFullYear()
                 const isWeekend = new Date(year, month, day).getDay() === 0 || new Date(year, month, day).getDay() === 6
@@ -174,25 +191,25 @@ export function CalendarView({ obligations }: CalendarViewProps) {
                 return (
                   <button
                     key={day}
-                    onClick={() => setSelectedDay(day)}
+                    onClick={() => handleDayClick(day)}
                     className={`aspect-square border rounded-lg p-1 flex flex-col hover:bg-accent transition-colors ${
                       isToday ? "border-primary bg-primary/5 ring-2 ring-primary/20" : ""
-                    } ${isWeekend ? "bg-muted/30" : ""} ${dayObligations.length > 0 ? "cursor-pointer" : ""}`}
+                    } ${isWeekend ? "bg-muted/30" : ""} ${dayEvents.length > 0 ? "cursor-pointer" : ""}`}
                   >
                     <div className={`text-sm font-medium ${isToday ? "text-primary font-bold" : ""}`}>{day}</div>
                     <div className="flex-1 flex flex-col gap-0.5 mt-1 overflow-hidden">
-                      {dayObligations.slice(0, 3).map((obl) => (
+                      {dayEvents.slice(0, 3).map((event) => (
                         <div
-                          key={obl.id}
-                          className={`text-[10px] px-1 py-0.5 rounded truncate border ${getStatusColor(obl.status)}`}
-                          title={`${obl.name} - ${obl.client.name}`}
+                          key={event.id}
+                          className={`text-[10px] px-1 py-0.5 rounded truncate border ${getStatusColor(event.status)}`}
+                          title={`${event.name} - ${'client' in event ? event.client.name : 'Imposto'}`}
                         >
-                          {obl.name}
+                          {event.name}
                         </div>
                       ))}
-                      {dayObligations.length > 3 && (
+                      {dayEvents.length > 3 && (
                         <div className="text-[10px] text-muted-foreground font-medium">
-                          +{dayObligations.length - 3} mais
+                          +{dayEvents.length - 3} mais
                         </div>
                       )}
                     </div>
@@ -238,51 +255,198 @@ export function CalendarView({ obligations }: CalendarViewProps) {
         <DialogContent className="max-w-2xl max-h-[80vh] overflow-y-auto">
           <DialogHeader>
             <DialogTitle>
-              Obrigações de {selectedDay} de {monthNames[month]} de {year}
+              Eventos de {selectedDay} de {monthNames[month]} de {year}
             </DialogTitle>
-            <DialogDescription>{selectedDayObligations.length} obrigação(ões) nesta data</DialogDescription>
+            <DialogDescription>{selectedDayEvents.length} evento(s) nesta data</DialogDescription>
           </DialogHeader>
           <div className="space-y-3 mt-4">
-            {selectedDayObligations.length === 0 ? (
-              <p className="text-center text-muted-foreground py-8">Nenhuma obrigação nesta data</p>
+            {selectedDayEvents.length === 0 ? (
+              <p className="text-center text-muted-foreground py-8">Nenhum evento nesta data</p>
             ) : (
-              selectedDayObligations.map((obl) => (
-                <div key={obl.id} className="border rounded-lg p-4 space-y-2">
+              selectedDayEvents.map((event) => (
+                <div key={event.id} className="border rounded-lg p-4 space-y-2 cursor-pointer hover:bg-muted/50" onClick={() => handleEventClick(event)}>
                   <div className="flex items-start justify-between">
                     <div>
-                      <h4 className="font-semibold">{obl.name}</h4>
-                      <p className="text-sm text-muted-foreground">{obl.client.name}</p>
+                      <h4 className="font-semibold">{event.name}</h4>
+                      {'client' in event && <p className="text-sm text-muted-foreground">{event.client.name}</p>}
+                      {'federalTaxCode' in event && <p className="text-sm text-muted-foreground">Imposto</p>}
                     </div>
                     <Badge
                       className={
-                        obl.status === "completed"
+                        event.status === "completed"
                           ? "bg-green-600"
-                          : obl.status === "in_progress"
+                          : event.status === "in_progress"
                             ? "bg-blue-600"
-                            : obl.status === "overdue"
+                            : event.status === "overdue"
                               ? "bg-red-600"
                               : "bg-yellow-600"
                       }
                     >
-                      {obl.status === "completed"
+                      {event.status === "completed"
                         ? "Concluída"
-                        : obl.status === "in_progress"
+                        : event.status === "in_progress"
                           ? "Em Andamento"
-                          : obl.status === "overdue"
+                          : event.status === "overdue"
                             ? "Atrasada"
                             : "Pendente"}
                     </Badge>
                   </div>
-                  {obl.tax && <p className="text-sm">Imposto: {obl.tax.name}</p>}
-                  {obl.description && <p className="text-sm text-muted-foreground">{obl.description}</p>}
+                  {'tax' in event && event.tax && <p className="text-sm">Imposto: {event.tax.name}</p>}
+                  {'description' in event && event.description && <p className="text-sm text-muted-foreground">{event.description}</p>}
                   <div className="flex gap-4 text-xs text-muted-foreground">
-                    <span>Vencimento: {formatDate(obl.calculatedDueDate)}</span>
-                    {obl.realizationDate && <span>Realizada: {formatDate(obl.realizationDate)}</span>}
+                    <span>Vencimento: {formatDate(event.calculatedDueDate)}</span>
+                    {'realizationDate' in event && event.realizationDate && <span>Realizada: {formatDate(event.realizationDate)}</span>}
                   </div>
                 </div>
               ))
             )}
           </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={selectedEventDetails !== null} onOpenChange={() => setSelectedEventDetails(null)}>
+        <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
+          {selectedEventDetails && (
+            <>
+              <DialogHeader>
+                <div className="flex items-start justify-between">
+                  <div>
+                    <DialogTitle className="text-2xl">{selectedEventDetails.name}</DialogTitle>
+                    {'description' in selectedEventDetails && selectedEventDetails.description && (
+                      <DialogDescription className="text-sm text-muted-foreground mt-1">
+                        {selectedEventDetails.description}
+                      </DialogDescription>
+                    )}
+                  </div>
+                  <Badge
+                    className={
+                      selectedEventDetails.status === "completed"
+                        ? "bg-green-600"
+                        : selectedEventDetails.status === "in_progress"
+                          ? "bg-blue-600"
+                          : selectedEventDetails.status === "overdue"
+                            ? "bg-red-600"
+                            : "bg-gray-600"
+                    }
+                  >
+                    {selectedEventDetails.status === "completed"
+                      ? "Concluída"
+                      : selectedEventDetails.status === "in_progress"
+                        ? "Em Andamento"
+                        : selectedEventDetails.status === "overdue"
+                          ? "Atrasada"
+                          : "Pendente"}
+                  </Badge>
+                </div>
+              </DialogHeader>
+
+              <div className="space-y-6 py-4">
+                <div className="grid gap-4">
+                  {'client' in selectedEventDetails && (
+                    <div className="flex items-center gap-3">
+                      <Building2 className="size-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Cliente</p>
+                        <p className="text-sm text-muted-foreground">{selectedEventDetails.client.name}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  {'tax' in selectedEventDetails && selectedEventDetails.tax && (
+                    <div className="flex items-center gap-3">
+                      <Receipt className="size-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Imposto</p>
+                        <p className="text-sm text-muted-foreground">{selectedEventDetails.tax.name}</p>
+                      </div>
+                    </div>
+                  )}
+                  {'federalTaxCode' in selectedEventDetails && (
+                    <div className="flex items-center gap-3">
+                      <Receipt className="size-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Imposto</p>
+                        <p className="text-sm text-muted-foreground">{selectedEventDetails.name}</p>
+                        {selectedEventDetails.federalTaxCode && <p className="text-xs text-muted-foreground">Código: {selectedEventDetails.federalTaxCode}</p>}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-3">
+                    <Calendar className="size-5 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">Vencimento</p>
+                      <p className="text-sm text-muted-foreground font-mono">{formatDate(selectedEventDetails.calculatedDueDate)}</p>
+                    </div>
+                  </div>
+
+                  {'amount' in selectedEventDetails && selectedEventDetails.amount && (
+                    <div className="flex items-center gap-3">
+                      <DollarSign className="size-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Valor</p>
+                        <p className="text-sm text-muted-foreground">{formatCurrency(selectedEventDetails.amount)}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex items-center gap-3">
+                    <Clock className="size-5 text-muted-foreground" />
+                    <div>
+                      <p className="text-sm font-medium">Criada em</p>
+                      <p className="text-sm text-muted-foreground">{formatDate(selectedEventDetails.createdAt)}</p>
+                    </div>
+                  </div>
+
+                  {selectedEventDetails.completedAt && (
+                    <div className="flex items-center gap-3">
+                      <User className="size-5 text-muted-foreground" />
+                      <div>
+                        <p className="text-sm font-medium">Concluída em</p>
+                        <p className="text-sm text-muted-foreground">
+                          {formatDate(selectedEventDetails.completedAt)}
+                          {selectedEventDetails.completedBy && ` por ${selectedEventDetails.completedBy}`}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {'notes' in selectedEventDetails && selectedEventDetails.notes && (
+                  <>
+                    <Separator />
+                    <div>
+                      <div className="flex items-center gap-2 mb-2">
+                        <FileText className="size-4 text-muted-foreground" />
+                        <p className="text-sm font-medium">Observações</p>
+                      </div>
+                      <p className="text-sm text-muted-foreground whitespace-pre-wrap">{selectedEventDetails.notes}</p>
+                    </div>
+                  </>
+                )}
+
+                {'history' in selectedEventDetails && selectedEventDetails.history && selectedEventDetails.history.length > 0 && (
+                  <>
+                    <Separator />
+                    <div>
+                      <p className="text-sm font-medium mb-3">Histórico de Ações</p>
+                      <div className="space-y-3">
+                        {selectedEventDetails.history.map((entry) => (
+                          <div key={entry.id} className="flex gap-3 text-sm">
+                            <div className="size-2 rounded-full bg-primary mt-1.5 shrink-0" />
+                            <div className="flex-1">
+                              <p className="text-muted-foreground">{entry.description}</p>
+                              <p className="text-xs text-muted-foreground/70">{formatDate(entry.timestamp)}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
+              </div>
+            </>
+          )}
         </DialogContent>
       </Dialog>
     </>

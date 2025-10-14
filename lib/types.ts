@@ -96,6 +96,12 @@ export type ObligationWithDetails = Obligation & {
   calculatedDueDate: string
 }
 
+export type TaxWithDetails = Tax & {
+  calculatedDueDate: string;
+};
+
+export type CalendarEvent = ObligationWithDetails | TaxWithDetails;
+
 export type DashboardStats = {
   totalClients: number
   activeClients: number
