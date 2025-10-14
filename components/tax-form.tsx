@@ -253,43 +253,43 @@ export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormPro
             {/* Vencimentos */}
             <div className="space-y-4 border-t pt-4">
               <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Vencimentos</h3>
-
-              <div className="grid sm:grid-cols-3 gap-4">
+              <div className="grid sm:grid-cols-2 gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="dueDay">Dia do Vencimento *</Label>
-                  <Input
-                    id="dueDay"
-                    type="number"
-                    min="1"
-                    max="31"
-                    value={formData.dueDay || ""}
-                    onChange={(e) =>
-                      setFormData({ ...formData, dueDay: e.target.value ? Number(e.target.value) : 10 })
-                    }
-                    placeholder="Ex: 15"
-                    required
-                  />
+                  <Label>Data de Vencimento Inicial *</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
+                      <Button
+                        variant={"outline"}
+                        className={cn("w-full justify-start text-left font-normal", !formData.dueDay && "text-muted-foreground")}
+                      >
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        <span>
+                          {formData.dueDay ? `Dia ${formData.dueDay}` : "Selecione uma data"}
+                          {formData.dueMonth ? ` de ${new Date(0, formData.dueMonth - 1).toLocaleString('default', { month: 'long' })}` : ""}
+                        </span>
+                      </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0">
+                      <Calendar
+                        mode="single"
+                        selected={formData.dueDay ? new Date(new Date().getFullYear(), formData.dueMonth ? formData.dueMonth - 1 : new Date().getMonth(), formData.dueDay) : undefined}
+                        onSelect={(date) => {
+                          if (date) {
+                            setFormData({
+                              ...formData,
+                              dueDay: date.getDate(),
+                              dueMonth: formData.recurrence === 'annual' ? date.getMonth() + 1 : undefined,
+                            });
+                          }
+                        }}
+                        initialFocus
+                      />
+                    </PopoverContent>
+                  </Popover>
                   <p className="text-xs text-muted-foreground">
-                    Dia padrão de vencimento (pode ser sobrescrito na obrigação)
+                    Selecione a data para o primeiro vencimento. A recorrência definirá os próximos.
                   </p>
                 </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="dueMonth">Mês Específico (Opcional)</Label>
-                  <Input
-                    id="dueMonth"
-                    type="number"
-                    min="1"
-                    max="12"
-                    value={formData.dueMonth || ""}
-                    onChange={(e) =>
-                      setFormData({ ...formData, dueMonth: e.target.value ? Number(e.target.value) : undefined })
-                    }
-                    placeholder="1-12"
-                  />
-                  <p className="text-xs text-muted-foreground">Para impostos anuais ou específicos</p>
-                </div>
-
                 <div className="grid gap-2">
                   <Label htmlFor="weekendRule">Regra de Final de Semana *</Label>
                   <Select
