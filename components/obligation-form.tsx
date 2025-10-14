@@ -58,6 +58,8 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
 
   const [newTag, setNewTag] = useState("")
   const [newAttachmentUrl, setNewAttachmentUrl] = useState("")
+  const [isClientSelectDisabled, setIsClientSelectDisabled] = useState(false);
+
 
   // Effect to update form data when a tax is selected
   useEffect(() => {
@@ -74,9 +76,12 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
           weekendRule: selectedTax.weekendRule,
           notes: selectedTax.notes || prev.notes,
           tags: selectedTax.tags || prev.tags,
-          // Keep obligation-specific fields like status, priority, assignedTo, protocol
+          clientId: selectedTax.clientId || prev.clientId, // Set client if tax is client-specific
         }));
+        setIsClientSelectDisabled(!!selectedTax.clientId); // Disable client select if tax is client-specific
       }
+    } else {
+      setIsClientSelectDisabled(false); // Enable client select if no tax is selected
     }
   }, [formData.taxId, taxes]);
 
@@ -210,6 +215,7 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
                     value={formData.clientId}
                     onValueChange={(value) => setFormData({ ...formData, clientId: value })}
                     required
+                    disabled={isClientSelectDisabled} // Disable if tax is client-specific
                   >
                     <SelectTrigger id="clientId">
                       <SelectValue placeholder="Selecione o cliente" />
@@ -237,7 +243,7 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
                       <SelectItem value="none">Sem imposto vinculado</SelectItem>
                       {taxes.map((tax) => (
                         <SelectItem key={tax.id} value={tax.id}>
-                          {tax.name}
+                          {tax.name} {tax.clientId ? `(${clients.find(c => c.id === tax.clientId)?.name || "Cliente Desconhecido"})` : "(Global)"}
                         </SelectItem>
                       ))}
                     </SelectContent>

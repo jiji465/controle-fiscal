@@ -191,6 +191,7 @@ export default function ImpostosPage() {
                     <TableHeader>
                       <TableRow>
                         <TableHead>Nome</TableHead>
+                        <TableHead>Cliente</TableHead> {/* New column for client */}
                         <TableHead>Descrição</TableHead>
                         <TableHead>Vencimento Padrão</TableHead>
                         <TableHead>Recorrência</TableHead>
@@ -200,13 +201,17 @@ export default function ImpostosPage() {
                     <TableBody>
                       {getFilteredTaxes().length === 0 ? (
                         <TableRow>
-                          <TableCell colSpan={5} className="text-center text-muted-foreground py-8">
+                          <TableCell colSpan={6} className="text-center text-muted-foreground py-8"> {/* Updated colspan */}
                             Nenhum imposto encontrado
                           </TableCell>
                         </TableRow>
                       ) : (
                         getFilteredTaxes().map((tax) => (
-                          <TableRow key={tax.id}><TableCell className="font-medium">{tax.name}</TableCell>
+                          <TableRow key={tax.id}>
+                            <TableCell className="font-medium">{tax.name}</TableCell>
+                            <TableCell>
+                              {tax.clientId ? clients.find(c => c.id === tax.clientId)?.name || "Cliente Desconhecido" : "Global"}
+                            </TableCell>
                             <TableCell className="max-w-xs truncate">{tax.description}</TableCell>
                             <TableCell>{tax.dueDay ? `Dia ${tax.dueDay}` : "-"}</TableCell>
                             <TableCell>
@@ -230,7 +235,8 @@ export default function ImpostosPage() {
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
-                            </TableCell></TableRow>
+                            </TableCell>
+                          </TableRow>
                         ))
                       )}
                     </TableBody>
@@ -242,7 +248,7 @@ export default function ImpostosPage() {
         </div>
       </main>
 
-      <TaxForm tax={editingTax} open={isFormOpen} onOpenChange={setIsFormOpen} onSave={handleSave} />
+      <TaxForm tax={editingTax} open={isFormOpen} onOpenChange={setIsFormOpen} onSave={handleSave} clients={clients} />
       <GlobalSearch
         open={searchOpen}
         onOpenChange={setSearchOpen}

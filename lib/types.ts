@@ -14,6 +14,7 @@ export type Tax = {
   name: string
   description: string
   federalTaxCode?: string
+  clientId?: string; // Added optional clientId to link tax to a specific client
   dueDay?: number // Dia do vencimento do imposto (1-31)
   recurrence: RecurrenceType // Moved from Obligation, now part of Tax template
   recurrenceInterval?: number // Moved from Obligation

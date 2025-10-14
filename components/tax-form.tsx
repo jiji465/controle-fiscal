@@ -18,7 +18,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog"
-import type { Tax } from "@/lib/types"
+import type { Tax, Client } from "@/lib/types" // Import Client type
 import { toast } from "@/hooks/use-toast" // Import toast
 
 type TaxFormProps = {
@@ -26,14 +26,16 @@ type TaxFormProps = {
   open: boolean
   onOpenChange: (open: boolean) => void
   onSave: (tax: Tax) => void
+  clients: Client[] // Pass clients to the form
 }
 
-export function TaxForm({ tax, open, onOpenChange, onSave }: TaxFormProps) {
+export function TaxForm({ tax, open, onOpenChange, onSave, clients }: TaxFormProps) {
   const [formData, setFormData] = useState<Partial<Tax>>(
     tax || {
       name: "",
       description: "",
       federalTaxCode: "",
+      clientId: undefined, // Initialize clientId
       dueDay: undefined,
       recurrence: "monthly",
       recurrenceInterval: 1,
@@ -53,6 +55,7 @@ export function TaxForm({ tax, open, onOpenChange, onSave }: TaxFormProps) {
       name: formData.name!,
       description: formData.description!,
       federalTaxCode: formData.federalTaxCode,
+      clientId: formData.clientId === "none" ? undefined : formData.clientId, // Save clientId, or undefined if 'none'
       dueDay: formData.dueDay ? Number(formData.dueDay) : undefined,
       recurrence: formData.recurrence as any,
       recurrenceInterval: formData.recurrenceInterval,
@@ -127,6 +130,29 @@ export function TaxForm({ tax, open, onOpenChange, onSave }: TaxFormProps) {
                   onChange={(e) => setFormData({ ...formData, federalTaxCode: e.target.value })}
                   placeholder="Ex: 1234"
                 />
+              </div>
+
+              <div className="grid gap-2">
+                <Label htmlFor="clientId">Cliente (Opcional)</Label>
+                <Select
+                  value={formData.clientId || "none"}
+                  onValueChange={(value) => setFormData({ ...formData, clientId: value })}
+                >
+                  <SelectTrigger id="clientId">
+                    <SelectValue placeholder="Imposto global (sem cliente específico)" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="none">Imposto global (sem cliente específico)</SelectItem>
+                    {clients.map((client) => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  Selecione um cliente para tornar este imposto específico para ele.
+                </p>
               </div>
             </div>
 
