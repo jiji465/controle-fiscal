@@ -9,6 +9,11 @@ import { LayoutDashboard, Users, FileText, Calendar, Receipt, Menu, X, BarChart3
 import { cn } from "@/lib/utils"
 import { getObligationsWithDetails } from "@/lib/dashboard-utils"
 import { isOverdue } from "@/lib/date-utils"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover" // Import Popover components
+import { ScrollArea } from "@/components/ui/scroll-area" // Import ScrollArea
+import { Separator } from "@/components/ui/separator"
+import type { Notification } from "@/lib/types"
+import { getNotifications, markNotificationAsRead } from "@/lib/storage" // Assuming these functions exist
 
 export function Navigation() {
   const pathname = usePathname()
@@ -18,6 +23,12 @@ export function Navigation() {
     pending: 0,
     thisWeek: 0,
   })
+  const [notifications, setNotifications] = useState<Notification[]>([]);
+  const unreadNotificationsCount = notifications.filter(n => !n.read).length;
+
+  const loadNotifications = () => {
+    setNotifications(getNotifications().sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()));
+  };
 
   useEffect(() => {
     const obligations = getObligationsWithDetails()
@@ -32,7 +43,13 @@ export function Navigation() {
     }).length
 
     setAlertCounts({ overdue, pending, thisWeek })
+    loadNotifications(); // Load notifications on data update
   }, [pathname])
+
+  const handleMarkAsRead = (id: string) => {
+    markNotificationAsRead(id);
+    loadNotifications();
+  };
 
   const navItems = [
     {
@@ -100,14 +117,58 @@ export function Navigation() {
           </div>
 
           <div className="flex items-center gap-2">
-            {totalAlerts > 0 && (
-              <div className="hidden md:flex items-center gap-2 px-3 py-1.5 bg-red-50 dark:bg-red-950/20 rounded-full border border-red-200 dark:border-red-800">
-                <Bell className="size-4 text-red-600 dark:text-red-400" />
-                <span className="text-sm font-medium text-red-700 dark:text-red-300">
-                  {totalAlerts} {totalAlerts === 1 ? "alerta" : "alertas"}
-                </span>
-              </div>
-            )}
+            {/* Notification Bell */}
+            <Popover>
+              <PopoverTrigger asChild>
+                <Button variant="ghost" size="icon" className="relative">
+                  <Bell className="size-5" />
+                  {unreadNotificationsCount > 0 && (
+                    <Badge variant="destructive" className="absolute -top-1 -right-1 h-5 min-w-5 px-1 text-xs">
+                      {unreadNotificationsCount}
+                    </Badge>
+                  )}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-80 p-0">
+                <div className="flex items-center justify-between p-3">
+                  <h4 className="font-semibold text-sm">Notificações</h4>
+                  {unreadNotificationsCount > 0 && (
+                    <Button variant="link" size="sm" onClick={() => notifications.filter(n => !n.read).forEach(n => handleMarkAsRead(n.id))}>
+                      Marcar todas como lidas
+                    </Button>
+                  )}
+                </div>
+                <Separator />
+                <ScrollArea className="h-60">
+                  <div className="p-3 space-y-2">
+                    {notifications.length === 0 ? (
+                      <p className="text-center text-muted-foreground text-sm py-4">Nenhuma notificação</p>
+                    ) : (
+                      notifications.map((notification) => (
+                        <div
+                          key={notification.id}
+                          className={cn(
+                            "flex items-start gap-2 p-2 rounded-md hover:bg-muted/50 cursor-pointer",
+                            !notification.read && "bg-blue-50/50 dark:bg-blue-950/20"
+                          )}
+                          onClick={() => handleMarkAsRead(notification.id)}
+                        >
+                          <div className="flex-1">
+                            <p className="text-sm">{notification.message}</p>
+                            <p className="text-xs text-muted-foreground">
+                              {new Date(notification.timestamp).toLocaleDateString("pt-BR")}
+                            </p>
+                          </div>
+                          {!notification.read && (
+                            <span className="size-2 rounded-full bg-primary flex-shrink-0 mt-1.5" />
+                          )}
+                        </div>
+                      ))
+                    )}
+                  </div>
+                </ScrollArea>
+              </PopoverContent>
+            </Popover>
 
             <Button
               variant="ghost"

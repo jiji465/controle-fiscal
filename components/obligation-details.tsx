@@ -3,7 +3,7 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
 import { Separator } from "@/components/ui/separator"
-import { Calendar, Clock, User, FileText, DollarSign, Building2, Receipt } from "lucide-react"
+import { Calendar, Clock, User, FileText, DollarSign, Building2, Receipt, Paperclip } from "lucide-react" // Added Paperclip icon
 import type { ObligationWithDetails } from "@/lib/types"
 import { formatDate, formatCurrency } from "@/lib/date-utils"
 
@@ -127,6 +127,33 @@ export function ObligationDetails({ obligation, open, onOpenChange }: Obligation
                   <p className="text-sm font-medium">Observações</p>
                 </div>
                 <p className="text-sm text-muted-foreground whitespace-pre-wrap">{obligation.notes}</p>
+              </div>
+            </>
+          )}
+
+          {/* Attachments Section */}
+          {obligation.attachments && obligation.attachments.length > 0 && (
+            <>
+              <Separator />
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <Paperclip className="size-4 text-muted-foreground" />
+                  <p className="text-sm font-medium">Anexos</p>
+                </div>
+                <div className="space-y-2">
+                  {obligation.attachments.map((url, index) => (
+                    <a
+                      key={index}
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-2 text-sm text-blue-600 hover:underline dark:text-blue-400"
+                    >
+                      <Paperclip className="size-4" />
+                      {url.split('/').pop() || `Anexo ${index + 1}`}
+                    </a>
+                  ))}
+                </div>
               </div>
             </>
           )}

@@ -10,7 +10,7 @@ import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Switch } from "@/components/ui/switch"
 import { Badge } from "@/components/ui/badge"
-import { X, AlertCircle, AlertTriangle, Flag } from "lucide-react"
+import { X, AlertCircle, AlertTriangle, Flag, Paperclip } from "lucide-react" // Added Paperclip icon
 import {
   Dialog,
   DialogContent,
@@ -50,10 +50,12 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
       amount: 0,
       notes: "",
       tags: [],
+      attachments: [], // Initialize attachments
     },
   )
 
   const [newTag, setNewTag] = useState("")
+  const [newAttachmentUrl, setNewAttachmentUrl] = useState("") // State for new attachment URL
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
@@ -70,6 +72,7 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
       id: obligation?.id || crypto.randomUUID(),
       name: formData.name!,
       description: formData.description,
+      category: formData.category || "other", // Default category
       clientId: formData.clientId!,
       taxId: formData.taxId || undefined,
       dueDay: Number(formData.dueDay!),
@@ -90,7 +93,7 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
       createdAt: obligation?.createdAt || new Date().toISOString(),
       completedAt: obligation?.completedAt,
       completedBy: obligation?.completedBy,
-      attachments: obligation?.attachments || [],
+      attachments: formData.attachments || [], // Save attachments
       history: [...history, newHistoryEntry],
       parentObligationId: obligation?.parentObligationId,
       generatedFor: obligation?.generatedFor,
@@ -110,6 +113,17 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
   const removeTag = (tag: string) => {
     setFormData({ ...formData, tags: formData.tags?.filter((t) => t !== tag) })
   }
+
+  const addAttachment = () => {
+    if (newAttachmentUrl.trim() && !formData.attachments?.includes(newAttachmentUrl.trim())) {
+      setFormData({ ...formData, attachments: [...(formData.attachments || []), newAttachmentUrl.trim()] });
+      setNewAttachmentUrl("");
+    }
+  };
+
+  const removeAttachment = (url: string) => {
+    setFormData({ ...formData, attachments: formData.attachments?.filter((a) => a !== url) });
+  };
 
   const getPriorityIcon = (priority: string) => {
     switch (priority) {
@@ -461,6 +475,47 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
                     ))}
                   </div>
                 )}
+              </div>
+
+              {/* Attachments Section */}
+              <div className="grid gap-2">
+                <Label htmlFor="attachments" className="flex items-center gap-2">
+                  <Paperclip className="size-4" /> Anexos (URLs)
+                </Label>
+                <div className="flex gap-2">
+                  <Input
+                    id="attachments"
+                    value={newAttachmentUrl}
+                    onChange={(e) => setNewAttachmentUrl(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === "Enter") {
+                        e.preventDefault();
+                        addAttachment();
+                      }
+                    }}
+                    placeholder="Adicionar URL do anexo..."
+                  />
+                  <Button type="button" variant="outline" onClick={addAttachment}>
+                    Adicionar
+                  </Button>
+                </div>
+                {formData.attachments && formData.attachments.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mt-2">
+                    {formData.attachments.map((url, index) => (
+                      <Badge key={index} variant="secondary" className="gap-1">
+                        <a href={url} target="_blank" rel="noopener noreferrer" className="underline truncate max-w-[150px]">
+                          {url.split('/').pop()}
+                        </a>
+                        <button type="button" onClick={() => removeAttachment(url)} className="ml-1 hover:text-destructive">
+                          <X className="size-3" />
+                        </button>
+                      </Badge>
+                    ))}
+                  </div>
+                )}
+                <p className="text-xs text-muted-foreground">
+                  Para uploads de arquivos reais, a integração com o Supabase Storage será necessária.
+                </p>
               </div>
             </div>
           </div>

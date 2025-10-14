@@ -22,11 +22,15 @@ import {
   AlertTriangle,
   ArrowUpDown,
   Clock,
+  Square, // Added for checkbox
+  CheckSquare, // Added for checkbox
 } from "lucide-react"
 import type { ObligationWithDetails, Client, Tax } from "@/lib/types"
 import { saveObligation, deleteObligation } from "@/lib/storage"
 import { formatDate, isOverdue } from "@/lib/date-utils"
 import { getRecurrenceDescription } from "@/lib/recurrence-utils"
+import { Checkbox } from "@/components/ui/checkbox" // Import Checkbox component
+import { toast } from "@/hooks/use-toast" // Import toast
 
 type ObligationListProps = {
   obligations: ObligationWithDetails[]
@@ -45,6 +49,7 @@ export function ObligationList({ obligations, clients, taxes, onUpdate }: Obliga
   const [showFilters, setShowFilters] = useState(false)
   const [sortBy, setSortBy] = useState<"dueDate" | "client" | "status">("dueDate")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
+  const [selectedObligationIds, setSelectedObligationIds] = useState<string[]>([]); // State for selected obligations
 
   const filteredObligations = obligations.filter((obl) => {
     const matchesSearch =
@@ -76,12 +81,21 @@ export function ObligationList({ obligations, clients, taxes, onUpdate }: Obliga
     saveObligation(obligation)
     onUpdate()
     setEditingObligation(undefined)
+    toast({
+      title: "Obrigação salva!",
+      description: `A obrigação "${obligation.name}" foi salva com sucesso.`,
+    });
   }
 
   const handleDelete = (id: string) => {
     if (confirm("⚠️ Tem certeza que deseja excluir esta obrigação?\n\nEsta ação não pode ser desfeita.")) {
       deleteObligation(id)
       onUpdate()
+      toast({
+        title: "Obrigação excluída!",
+        description: "A obrigação foi removida com sucesso.",
+        variant: "destructive",
+      });
     }
   }
 
@@ -106,6 +120,11 @@ export function ObligationList({ obligations, clients, taxes, onUpdate }: Obliga
     }
     saveObligation(updated)
     onUpdate()
+    toast({
+      title: "Obrigação concluída!",
+      description: `A obrigação "${obligation.name}" foi marcada como concluída.`,
+      variant: "default",
+    });
   }
 
   const handleInProgress = (obligation: ObligationWithDetails) => {
@@ -125,6 +144,11 @@ export function ObligationList({ obligations, clients, taxes, onUpdate }: Obliga
     }
     saveObligation(updated)
     onUpdate()
+    toast({
+      title: "Obrigação em andamento!",
+      description: `A obrigação "${obligation.name}" foi marcada como em andamento.`,
+      variant: "default",
+    });
   }
 
   const handleEdit = (obligation: ObligationWithDetails) => {
@@ -208,6 +232,64 @@ export function ObligationList({ obligations, clients, taxes, onUpdate }: Obliga
     }
   }
 
+  const handleSelectObligation = (id: string, isSelected: boolean) => {
+    if (isSelected) {
+      setSelectedObligationIds((prev) => [...prev, id]);
+    } else {
+      setSelectedObligationIds((prev) => prev.filter((_id) => _id !== id));
+    }
+  };
+
+  const handleSelectAllObligations = (isSelected: boolean) => {
+    if (isSelected) {
+      setSelectedObligationIds(sortedObligations.map((obl) => obl.id));
+    } else {
+      setSelectedObligationIds([]);
+    }
+  };
+
+  const handleBulkComplete = () => {
+    if (selectedObligationIds.length === 0) return;
+    if (!confirm(`Tem certeza que deseja marcar ${selectedObligationIds.length} obrigação(ões) como concluída(s)?`)) return;
+
+    selectedObligationIds.forEach((id) => {
+      const obligation = obligations.find((o) => o.id === id);
+      if (obligation) {
+        handleComplete(obligation);
+      }
+    });
+    setSelectedObligationIds([]);
+  };
+
+  const handleBulkInProgress = () => {
+    if (selectedObligationIds.length === 0) return;
+    if (!confirm(`Tem certeza que deseja marcar ${selectedObligationIds.length} obrigação(ões) como em andamento?`)) return;
+
+    selectedObligationIds.forEach((id) => {
+      const obligation = obligations.find((o) => o.id === id);
+      if (obligation) {
+        handleInProgress(obligation);
+      }
+    });
+    setSelectedObligationIds([]);
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedObligationIds.length === 0) return;
+    if (!confirm(`⚠️ Tem certeza que deseja excluir ${selectedObligationIds.length} obrigação(ões)?\n\nEsta ação não pode ser desfeita.`)) return;
+
+    selectedObligationIds.forEach((id) => {
+      deleteObligation(id);
+    });
+    onUpdate();
+    setSelectedObligationIds([]);
+    toast({
+      title: "Obrigações excluídas!",
+      description: `${selectedObligationIds.length} obrigações foram removidas com sucesso.`,
+      variant: "destructive",
+    });
+  };
+
   const QuickActionButtons = ({ obligation }: { obligation: ObligationWithDetails }) => {
     if (obligation.status === "completed") {
       return null
@@ -284,10 +366,37 @@ export function ObligationList({ obligations, clients, taxes, onUpdate }: Obliga
         </div>
       )}
 
+      {selectedObligationIds.length > 0 && (
+        <div className="flex items-center gap-2 p-3 border rounded-lg bg-primary/10 dark:bg-primary/20">
+          <span className="text-sm font-medium">
+            {selectedObligationIds.length} obrigação(ões) selecionada(s)
+          </span>
+          <Button variant="outline" size="sm" onClick={handleBulkComplete} className="ml-auto">
+            <CheckCircle2 className="size-4 mr-2" />
+            Concluir Selecionadas
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleBulkInProgress}>
+            <PlayCircle className="size-4 mr-2" />
+            Iniciar Selecionadas
+          </Button>
+          <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+            <Trash2 className="size-4 mr-2" />
+            Excluir Selecionadas
+          </Button>
+        </div>
+      )}
+
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[40px]">
+                <Checkbox
+                  checked={selectedObligationIds.length === sortedObligations.length && sortedObligations.length > 0}
+                  onCheckedChange={(checked) => handleSelectAllObligations(checked as boolean)}
+                  aria-label="Selecionar todas as obrigações"
+                />
+              </TableHead>
               <TableHead>Obrigação</TableHead>
               <TableHead>
                 <Button variant="ghost" size="sm" onClick={() => toggleSort("client")} className="-ml-3">
@@ -315,7 +424,7 @@ export function ObligationList({ obligations, clients, taxes, onUpdate }: Obliga
           <TableBody>
             {sortedObligations.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={8} className="text-center text-muted-foreground py-8">
                   Nenhuma obrigação encontrada
                 </TableCell>
               </TableRow>
@@ -329,6 +438,13 @@ export function ObligationList({ obligations, clients, taxes, onUpdate }: Obliga
                       : ""
                   }
                 >
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedObligationIds.includes(obligation.id)}
+                      onCheckedChange={(checked) => handleSelectObligation(obligation.id, checked as boolean)}
+                      aria-label={`Selecionar obrigação ${obligation.name}`}
+                    />
+                  </TableCell>
                   <TableCell>
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">

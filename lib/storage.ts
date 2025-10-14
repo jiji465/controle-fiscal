@@ -1,9 +1,10 @@
-import type { Client, Tax, Obligation } from "./types"
+import type { Client, Tax, Obligation, Notification } from "./types"
 
 const STORAGE_KEYS = {
   CLIENTS: "fiscal_clients",
   TAXES: "fiscal_taxes",
   OBLIGATIONS: "fiscal_obligations",
+  NOTIFICATIONS: "fiscal_notifications", // Added for notifications
 }
 
 // Client Storage
@@ -74,3 +75,48 @@ export const deleteObligation = (id: string): void => {
   const obligations = getObligations().filter((o) => o.id !== id)
   localStorage.setItem(STORAGE_KEYS.OBLIGATIONS, JSON.stringify(obligations))
 }
+
+// Notification Storage
+export const getNotifications = (): Notification[] => {
+  if (typeof window === "undefined") return []
+  const data = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS)
+  return data ? JSON.parse(data) : []
+}
+
+export const saveNotification = (notification: Notification): void => {
+  const notifications = getNotifications()
+  const index = notifications.findIndex((n) => n.id === notification.id)
+  if (index >= 0) {
+    notifications[index] = notification
+  } else {
+    notifications.push(notification)
+  }
+  localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notifications))
+}
+
+export const addNotification = (message: string, type: Notification["type"] = "info", link?: string): void => {
+  const newNotification: Notification = {
+    id: crypto.randomUUID(),
+    message,
+    type,
+    link,
+    read: false,
+    timestamp: new Date().toISOString(),
+  };
+  const notifications = getNotifications();
+  notifications.unshift(newNotification); // Add to the beginning
+  localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notifications));
+};
+
+export const markNotificationAsRead = (id: string): void => {
+  const notifications = getNotifications();
+  const index = notifications.findIndex((n) => n.id === id);
+  if (index >= 0) {
+    notifications[index].read = true;
+    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notifications));
+  }
+};
+
+export const clearNotifications = (): void => {
+  localStorage.removeItem(STORAGE_KEYS.NOTIFICATIONS);
+};

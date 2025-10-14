@@ -5,39 +5,66 @@ import { Badge } from "@/components/ui/badge"
 import { Progress } from "@/components/ui/progress"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { CheckCircle2, Clock, AlertTriangle, Calendar, TrendingUp } from "lucide-react"
+import { CheckCircle2, Clock, AlertTriangle, Calendar, TrendingUp, Users, BarChart3, PieChart, LayoutDashboard } from "lucide-react"
 import type { ObligationWithDetails } from "@/lib/types"
 import { formatDate, formatCurrency } from "@/lib/date-utils"
 import { getRecurrenceDescription } from "@/lib/recurrence-utils"
-import { useState } from "react"
+import { useState, useMemo } from "react"
+import {
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from "@/components/ui/chart"
+import { Bar, BarChart, XAxis, YAxis, CartesianGrid, ResponsiveContainer, Pie, PieSector, Cell } from "recharts"
+import { calculateProductivityMetrics } from "@/lib/metrics" // Import calculateProductivityMetrics
 
 type ReportsPanelProps = {
   obligations: ObligationWithDetails[]
 }
 
+const statusColors = {
+  pending: "hsl(var(--chart-4))",
+  in_progress: "hsl(var(--chart-2))",
+  completed: "hsl(var(--chart-1))",
+  overdue: "hsl(var(--chart-5))",
+};
+
+const priorityColors = {
+  urgent: "hsl(var(--chart-5))",
+  high: "hsl(var(--chart-4))",
+  medium: "hsl(var(--chart-3))",
+  low: "hsl(var(--chart-2))",
+};
+
 export function ReportsPanel({ obligations }: ReportsPanelProps) {
   const [periodFilter, setPeriodFilter] = useState<string>("all")
 
-  const filteredObligations = obligations.filter((obl) => {
-    const oblDate = new Date(obl.calculatedDueDate)
-    const now = new Date()
+  const filteredObligations = useMemo(() => {
+    return obligations.filter((obl) => {
+      const oblDate = new Date(obl.calculatedDueDate)
+      const now = new Date()
 
-    switch (periodFilter) {
-      case "this_month":
-        return oblDate.getMonth() === now.getMonth() && oblDate.getFullYear() === now.getFullYear()
-      case "last_month":
-        const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
-        return oblDate.getMonth() === lastMonth.getMonth() && oblDate.getFullYear() === lastMonth.getFullYear()
-      case "this_quarter":
-        const quarter = Math.floor(now.getMonth() / 3)
-        const oblQuarter = Math.floor(oblDate.getMonth() / 3)
-        return oblQuarter === quarter && oblDate.getFullYear() === now.getFullYear()
-      case "this_year":
-        return oblDate.getFullYear() === now.getFullYear()
-      default:
-        return true
-    }
-  })
+      switch (periodFilter) {
+        case "this_month":
+          return oblDate.getMonth() === now.getMonth() && oblDate.getFullYear() === now.getFullYear()
+        case "last_month":
+          const lastMonth = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+          return oblDate.getMonth() === lastMonth.getMonth() && oblDate.getFullYear() === lastMonth.getFullYear()
+        case "this_quarter":
+          const quarter = Math.floor(now.getMonth() / 3)
+          const oblQuarter = Math.floor(oblDate.getMonth() / 3)
+          return oblQuarter === quarter && oblDate.getFullYear() === now.getFullYear()
+        case "this_year":
+          return oblDate.getFullYear() === now.getFullYear()
+        default:
+          return true
+      }
+    })
+  }, [obligations, periodFilter]);
+
+  const metrics = useMemo(() => calculateProductivityMetrics(filteredObligations), [filteredObligations]);
 
   const completed = filteredObligations.filter((o) => o.status === "completed")
   const inProgress = filteredObligations.filter((o) => o.status === "in_progress")
@@ -91,6 +118,34 @@ export function ReportsPanel({ obligations }: ReportsPanelProps) {
     },
     {} as Record<string, { total: number; completed: number }>,
   )
+
+  const obligationsByStatusChartData = metrics.obligationsByStatus.map(item => ({
+    name: item.status === "pending" ? "Pendente" : item.status === "in_progress" ? "Em Andamento" : item.status === "completed" ? "Concluída" : "Atrasada",
+    count: item.count,
+    fill: statusColors[item.status as keyof typeof statusColors],
+  }));
+
+  const obligationsByPriorityChartData = metrics.byPriority.map(item => ({
+    name: item.priority.charAt(0).toUpperCase() + item.priority.slice(1),
+    value: item.count,
+    fill: priorityColors[item.priority as keyof typeof priorityColors],
+  }));
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-popover text-popover-foreground p-2 border rounded-md text-sm shadow-lg">
+          <p className="font-semibold">{label}</p>
+          {payload.map((entry: any, index: number) => (
+            <p key={`item-${index}`} style={{ color: entry.color }}>
+              {entry.name}: {entry.value}
+            </p>
+          ))}
+        </div>
+      );
+    }
+    return null;
+  };
 
   return (
     <div className="space-y-6">
@@ -153,7 +208,7 @@ export function ReportsPanel({ obligations }: ReportsPanelProps) {
           <CardContent>
             <div className="text-2xl font-bold">{inProgress.length}</div>
             <p className="text-xs text-muted-foreground mt-3">
-              {Math.round((inProgress.length / filteredObligations.length) * 100)}% do total
+              {Math.round((inProgress.length / (filteredObligations.length || 1)) * 100)}% do total
             </p>
           </CardContent>
         </Card>
@@ -181,6 +236,90 @@ export function ReportsPanel({ obligations }: ReportsPanelProps) {
           <CardContent>
             <div className="text-2xl font-bold text-red-600">{overdue.length}</div>
             <p className="text-xs text-muted-foreground mt-3">Requerem atenção imediata</p>
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Gráficos */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <BarChart3 className="size-5" />
+              Obrigações por Status
+            </CardTitle>
+            <CardDescription>Distribuição atual das obrigações por status.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ChartContainer
+              config={{
+                completed: { label: "Concluída", color: statusColors.completed },
+                in_progress: { label: "Em Andamento", color: statusColors.in_progress },
+                pending: { label: "Pendente", color: statusColors.pending },
+                overdue: { label: "Atrasada", color: statusColors.overdue },
+              }}
+              className="min-h-[200px] w-full"
+            >
+              <BarChart accessibilityLayer data={obligationsByStatusChartData}>
+                <CartesianGrid vertical={false} />
+                <XAxis
+                  dataKey="name"
+                  tickLine={false}
+                  tickMargin={10}
+                  axisLine={false}
+                  className="text-xs"
+                />
+                <YAxis
+                  tickLine={false}
+                  tickMargin={10}
+                  axisLine={false}
+                  className="text-xs"
+                />
+                <ChartTooltip content={<CustomTooltip />} />
+                <Bar dataKey="count" fill="dataKey" radius={4} />
+              </BarChart>
+            </ChartContainer>
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <PieChart className="size-5" />
+              Obrigações por Prioridade
+            </CardTitle>
+            <CardDescription>Distribuição das obrigações por nível de prioridade.</CardDescription>
+          </CardHeader>
+          <CardContent className="flex items-center justify-center">
+            <ChartContainer
+              config={{
+                urgent: { label: "Urgente", color: priorityColors.urgent },
+                high: { label: "Alta", color: priorityColors.high },
+                medium: { label: "Média", color: priorityColors.medium },
+                low: { label: "Baixa", color: priorityColors.low },
+              }}
+              className="min-h-[200px] w-full"
+            >
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <ChartTooltip content={<CustomTooltip />} />
+                  <Pie
+                    data={obligationsByPriorityChartData}
+                    dataKey="value"
+                    nameKey="name"
+                    innerRadius={60}
+                    outerRadius={80}
+                    paddingAngle={5}
+                    cornerRadius={5}
+                  >
+                    {obligationsByPriorityChartData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.fill} />
+                    ))}
+                  </Pie>
+                  <ChartLegend content={<ChartLegendContent />} />
+                </PieChart>
+              </ResponsiveContainer>
+            </ChartContainer>
           </CardContent>
         </Card>
       </div>

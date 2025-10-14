@@ -75,7 +75,7 @@ export type Obligation = {
   createdAt: string
   completedAt?: string // Data de quando foi concluída
   completedBy?: string // Quem concluiu (usuário/contador)
-  attachments?: string[] // URLs de anexos/documentos
+  attachments?: string[] // URLs de anexos/documentos - Adicionado
   history?: ObligationHistory[]
   parentObligationId?: string // ID da obrigação original que gerou esta
   generatedFor?: string // Período para qual foi gerada (ex: "2025-01")
@@ -151,4 +151,15 @@ export type ProductivityMetrics = {
   byResponsible: { name: string; completed: number; onTime: number }[]
   byMonth: { month: string; completed: number; overdue: number }[]
   byPriority: { priority: Priority; count: number }[]
+  obligationsByStatus: { status: string; count: number }[]; // Added for charts
+  obligationsByClient: { clientName: string; count: number }[]; // Added for charts
 }
+
+export type Notification = {
+  id: string;
+  type: "info" | "warning" | "error" | "success";
+  message: string;
+  link?: string;
+  read: boolean;
+  timestamp: string;
+};
