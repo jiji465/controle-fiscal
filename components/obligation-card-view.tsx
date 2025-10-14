@@ -86,7 +86,7 @@ export function ObligationCardView({
           <CardHeader>
             <div className="flex justify-between">
               <div>
-                <h3 className="font-semibold">{obligation.title}</h3>
+                <h3 className="font-semibold">{obligation.name}</h3> {/* Changed from .title to .name */}
                 <p className="text-sm text-muted-foreground">{obligation.description}</p>
               </div>
               <Badge>{getStatusText(obligation)}</Badge>
@@ -99,11 +99,11 @@ export function ObligationCardView({
             </div>
             <div className="flex items-center space-x-2">
               <Building2 className="size-4 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">{obligation.clientName}</p>
+              <p className="text-sm text-muted-foreground">{obligation.client.name}</p> {/* Changed from .clientName to .client.name */}
             </div>
             <div className="flex items-center space-x-2">
               <FileText className="size-4 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">{getRecurrenceDescription(obligation.recurrence)}</p>
+              <p className="text-sm text-muted-foreground">{getRecurrenceDescription(obligation)}</p> {/* Passed obligation object */}
             </div>
           </CardContent>
           <CardFooter className="flex justify-between">

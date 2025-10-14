@@ -10,7 +10,8 @@ import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
-import { getTaxes, saveTax, deleteTax, getClients, getObligations } from "@/lib/storage"
+import { getTaxes, saveTax, deleteTax, getClients } from "@/lib/storage"
+import { getObligationsWithDetails } from "@/lib/dashboard-utils" // Import getObligationsWithDetails
 import {
   CheckCircle2,
   Clock,
@@ -22,13 +23,13 @@ import {
   Pencil,
   Trash2,
 } from "lucide-react"
-import type { Tax, Client, Obligation } from "@/lib/types"
+import type { Tax, Client, ObligationWithDetails } from "@/lib/types" // Updated type for obligations
 import { toast } from "@/hooks/use-toast" // Import toast
 
 export default function ImpostosPage() {
   const [taxes, setTaxes] = useState<Tax[]>([])
   const [clients, setClients] = useState<Client[]>([])
-  const [obligations, setObligations] = useState<Obligation[]>([])
+  const [obligations, setObligations] = useState<ObligationWithDetails[]>([]) // Changed to ObligationWithDetails[]
   const [editingTax, setEditingTax] = useState<Tax | undefined>()
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("all") // Keep tabs for future filtering by recurrence/dueDay
@@ -37,7 +38,7 @@ export default function ImpostosPage() {
   const updateData = () => {
     setTaxes(getTaxes())
     setClients(getClients())
-    setObligations(getObligations())
+    setObligations(getObligationsWithDetails()) // Use getObligationsWithDetails
   }
 
   useEffect(() => {
@@ -207,7 +208,17 @@ export default function ImpostosPage() {
                         </TableRow>
                       ) : (
                         getFilteredTaxes().map((tax) => (
-                          <TableRow key={tax.id}><TableCell className="font-medium">{tax.name}</TableCell><TableCell>{tax.clientId ? clients.find(c => c.id === tax.clientId)?.name || "Cliente Desconhecido" : "Global"}</TableCell><TableCell className="max-w-xs truncate">{tax.description}</TableCell><TableCell>{tax.dueDay ? `Dia ${tax.dueDay}` : "-"}</TableCell><TableCell><Badge variant="secondary">{tax.recurrence}</Badge></TableCell><TableCell>
+                          <TableRow key={tax.id}>
+                            <TableCell className="font-medium">{tax.name}</TableCell>
+                            <TableCell>
+                              {tax.clientId ? clients.find(c => c.id === tax.clientId)?.name || "Cliente Desconhecido" : "Global"}
+                            </TableCell>
+                            <TableCell className="max-w-xs truncate">{tax.description}</TableCell>
+                            <TableCell>{tax.dueDay ? `Dia ${tax.dueDay}` : "-"}</TableCell>
+                            <TableCell>
+                              <Badge variant="secondary">{tax.recurrence}</Badge>
+                            </TableCell>
+                            <TableCell>
                               <DropdownMenu>
                                 <DropdownMenuTrigger asChild>
                                   <Button variant="ghost" size="icon">
@@ -225,7 +236,8 @@ export default function ImpostosPage() {
                                   </DropdownMenuItem>
                                 </DropdownMenuContent>
                               </DropdownMenu>
-                            </TableCell></TableRow>
+                            </TableCell>
+                          </TableRow>
                         ))
                       )}
                     </TableBody>

@@ -188,10 +188,10 @@ export function ObligationKanban({ obligations, clients, taxes, onUpdate, onEdit
             </div>
           )}
 
-          {obligation.responsible && (
+          {obligation.assignedTo && ( {/* Changed from .responsible to .assignedTo */}
             <div className="flex items-center gap-2 text-xs text-muted-foreground">
               <User className="size-3" />
-              <span className="truncate">{obligation.responsible}</span>
+              <span className="truncate">{obligation.assignedTo}</span> {/* Changed from .responsible to .assignedTo */}
             </div>
           )}
         </CardContent>

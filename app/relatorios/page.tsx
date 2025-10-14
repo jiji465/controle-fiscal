@@ -22,7 +22,13 @@ export default function RelatoriosPage() {
     const obligationsWithDetails: ObligationWithDetails[] = obligationsData.map((obl) => {
       const client = clientsData.find((c) => c.id === obl.clientId)!
       const tax = obl.taxId ? taxesData.find((t) => t.id === obl.taxId) : undefined
-      const calculatedDueDate = calculateDueDate(obl)
+      // Corrected arguments for calculateDueDate and converted to ISO string
+      const calculatedDueDate = calculateDueDate(
+        obl.dueDay,
+        obl.dueMonth,
+        obl.frequency,
+        obl.weekendRule
+      ).toISOString()
 
       return {
         ...obl,

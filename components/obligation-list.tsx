@@ -437,11 +437,15 @@ export function ObligationList({ obligations, clients, taxes, onUpdate }: Obliga
                       ? "bg-red-50/50 dark:bg-red-950/10"
                       : ""
                   }
-                ><TableCell><Checkbox
+                >
+                  <TableCell>
+                    <Checkbox
                       checked={selectedObligationIds.includes(obligation.id)}
                       onCheckedChange={(checked) => handleSelectObligation(obligation.id, checked as boolean)}
                       aria-label={`Selecionar obrigação ${obligation.name}`}
-                    /></TableCell><TableCell>
+                    />
+                  </TableCell>
+                  <TableCell>
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
                         <div className="font-medium">{obligation.name}</div>
@@ -471,29 +475,35 @@ export function ObligationList({ obligations, clients, taxes, onUpdate }: Obliga
                         <div className="text-xs text-muted-foreground">Responsável: {obligation.assignedTo}</div>
                       )}
                     </div>
-                  </TableCell><TableCell>
+                  </TableCell>
+                  <TableCell>
                     <div className="font-medium">{obligation.client.name}</div>
-                  </TableCell><TableCell>
+                  </TableCell>
+                  <TableCell>
                     {obligation.tax ? (
                       <Badge variant="outline">{obligation.tax.name}</Badge>
                     ) : (
                       <span className="text-sm text-muted-foreground">-</span>
                     )}
-                  </TableCell><TableCell>{getStatusBadge(obligation)}</TableCell><TableCell>
+                  </TableCell>
+                  <TableCell>{getStatusBadge(obligation)}</TableCell>
+                  <TableCell>
                     <div className="space-y-1">
                       <div className="font-mono text-sm font-medium">{formatDate(obligation.calculatedDueDate)}</div>
                       <div className="text-xs text-muted-foreground">
                         {getRelativeDate(obligation.calculatedDueDate)}
                       </div>
-                      {obligation.recurrence && obligation.recurrence !== "none" && (
+                      {obligation.recurrence && ( // Removed unnecessary !== "none"
                         <Badge variant="secondary" className="text-xs">
                           {getRecurrenceDescription(obligation)}
                         </Badge>
                       )}
                     </div>
-                  </TableCell><TableCell>
+                  </TableCell>
+                  <TableCell>
                     <QuickActionButtons obligation={obligation} />
-                  </TableCell><TableCell>
+                  </TableCell>
+                  <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon">
@@ -515,7 +525,8 @@ export function ObligationList({ obligations, clients, taxes, onUpdate }: Obliga
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </TableCell></TableRow>
+                  </TableCell>
+                </TableRow>
               ))
             )}
           </TableBody>

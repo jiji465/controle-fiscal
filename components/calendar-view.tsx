@@ -8,7 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog"
 import { ChevronLeft, ChevronRight, CalendarIcon, Filter, Building2, Receipt, DollarSign, User, FileText, Clock } from "lucide-react"
 import type { CalendarEvent, ObligationWithDetails, TaxWithDetails } from "@/lib/types"
-import { formatDate, formatCurrency } from "@/lib/date-utils"
+import { formatDate, formatCurrency, isOverdue } from "@/lib/date-utils"
 import { Separator } from "@/components/ui/separator"
 
 type CalendarViewProps = {
@@ -32,7 +32,7 @@ export function CalendarView({ events }: CalendarViewProps) {
 
   const uniqueClients = Array.from(new Set(
     events
-      .filter((event): event is ObligationWithDetails => 'clientId' in event)
+      .filter((event): event is ObligationWithDetails => 'clientId' in event && 'client' in event)
       .map((o) => o.client.name)
   )).sort()
 
@@ -48,15 +48,30 @@ export function CalendarView({ events }: CalendarViewProps) {
     setCurrentDate(new Date())
   }
 
+  const getStatusInfo = (event: CalendarEvent) => {
+    if ('status' in event) { // It's an ObligationWithDetails
+      const isOverdueObligation = isOverdue(event.calculatedDueDate) && event.status !== "completed";
+      if (event.status === "completed") return { color: "bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30", text: "Concluída", badgeColor: "bg-green-600" };
+      if (event.status === "in_progress") return { color: "bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30", text: "Em Andamento", badgeColor: "bg-blue-600" };
+      if (isOverdueObligation) return { color: "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30", text: "Atrasada", badgeColor: "bg-red-600" };
+      return { color: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30", text: "Pendente", badgeColor: "bg-yellow-600" };
+    } else { // It's a TaxWithDetails
+      const isOverdueTax = isOverdue(event.calculatedDueDate);
+      if (isOverdueTax) return { color: "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30", text: "Atrasado", badgeColor: "bg-red-600" };
+      return { color: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30", text: "Vencimento", badgeColor: "bg-gray-600" };
+    }
+  };
+
   const getEventsForDay = (day: number) => {
     const dateStr = new Date(year, month, day).toISOString().split("T")[0]
     return events.filter((event) => {
       const eventDate = new Date(event.calculatedDueDate).toISOString().split("T")[0]
       const matchesDate = eventDate === dateStr
 
-      const matchesClient = filterClient === "all" || !('clientId' in event) || event.client.name === filterClient;
+      const matchesClient = filterClient === "all" || ('client' in event && event.client.name === filterClient);
 
-      const matchesStatus = filterStatus === "all" || event.status === filterStatus;
+      const eventStatus = 'status' in event ? event.status : (isOverdue(event.calculatedDueDate) ? "overdue" : "pending"); // Default status for taxes
+      const matchesStatus = filterStatus === "all" || eventStatus === filterStatus;
 
       return matchesDate && matchesClient && matchesStatus
     })
@@ -88,19 +103,6 @@ export function CalendarView({ events }: CalendarViewProps) {
   }
 
   const selectedDayEvents = selectedDay ? getEventsForDay(selectedDay) : []
-
-  const getStatusColor = (status: string) => {
-    switch (status) {
-      case "completed":
-        return "bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30"
-      case "in_progress":
-        return "bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30"
-      case "overdue":
-        return "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30"
-      default: // pending
-        return "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30"
-    }
-  }
 
   const handleDayClick = (day: number) => {
     setSelectedDay(day);
@@ -166,6 +168,7 @@ export function CalendarView({ events }: CalendarViewProps) {
                     <SelectItem value="in_progress">Em Andamento</SelectItem>
                     <SelectItem value="completed">Concluída</SelectItem>
                     <SelectItem value="overdue">Atrasada</SelectItem>
+                    <SelectItem value="tax_due">Vencimento Imposto</SelectItem> {/* Added for taxes */}
                   </SelectContent>
                 </Select>
               </div>
@@ -201,7 +204,7 @@ export function CalendarView({ events }: CalendarViewProps) {
                       {dayEvents.slice(0, 3).map((event) => (
                         <div
                           key={event.id}
-                          className={`text-[10px] px-1 py-0.5 rounded truncate border ${getStatusColor(event.status)}`}
+                          className={`text-[10px] px-1 py-0.5 rounded truncate border ${getStatusInfo(event).color}`}
                           title={`${event.name} - ${'client' in event ? event.client.name : 'Imposto'}`}
                         >
                           {event.name}
@@ -271,24 +274,8 @@ export function CalendarView({ events }: CalendarViewProps) {
                       {'client' in event && <p className="text-sm text-muted-foreground">{event.client.name}</p>}
                       {'federalTaxCode' in event && <p className="text-sm text-muted-foreground">Imposto</p>}
                     </div>
-                    <Badge
-                      className={
-                        event.status === "completed"
-                          ? "bg-green-600"
-                          : event.status === "in_progress"
-                            ? "bg-blue-600"
-                            : event.status === "overdue"
-                              ? "bg-red-600"
-                              : "bg-yellow-600"
-                      }
-                    >
-                      {event.status === "completed"
-                        ? "Concluída"
-                        : event.status === "in_progress"
-                          ? "Em Andamento"
-                          : event.status === "overdue"
-                            ? "Atrasada"
-                            : "Pendente"}
+                    <Badge className={getStatusInfo(event).badgeColor}>
+                      {getStatusInfo(event).text}
                     </Badge>
                   </div>
                   {'tax' in event && event.tax && <p className="text-sm">Imposto: {event.tax.name}</p>}
@@ -318,24 +305,8 @@ export function CalendarView({ events }: CalendarViewProps) {
                       </DialogDescription>
                     )}
                   </div>
-                  <Badge
-                    className={
-                      selectedEventDetails.status === "completed"
-                        ? "bg-green-600"
-                        : selectedEventDetails.status === "in_progress"
-                          ? "bg-blue-600"
-                          : selectedEventDetails.status === "overdue"
-                            ? "bg-red-600"
-                            : "bg-gray-600"
-                    }
-                  >
-                    {selectedEventDetails.status === "completed"
-                      ? "Concluída"
-                      : selectedEventDetails.status === "in_progress"
-                        ? "Em Andamento"
-                        : selectedEventDetails.status === "overdue"
-                          ? "Atrasada"
-                          : "Pendente"}
+                  <Badge className={getStatusInfo(selectedEventDetails).badgeColor}>
+                    {getStatusInfo(selectedEventDetails).text}
                   </Badge>
                 </div>
               </DialogHeader>
@@ -398,7 +369,7 @@ export function CalendarView({ events }: CalendarViewProps) {
                     </div>
                   </div>
 
-                  {selectedEventDetails.completedAt && (
+                  {'completedAt' in selectedEventDetails && selectedEventDetails.completedAt && (
                     <div className="flex items-center gap-3">
                       <User className="size-5 text-muted-foreground" />
                       <div>
