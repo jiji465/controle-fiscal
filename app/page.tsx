@@ -1,10 +1,12 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { createClient } from "@/integrations/supabase/client"
 import { Navigation } from "@/components/navigation"
 import { DashboardStatsCards } from "@/components/dashboard-stats"
 import { ProductivityStats } from "@/components/productivity-stats"
-import { UpcomingFiscalEvents } from "@/components/upcoming-fiscal-events" // Changed import name
+import { UpcomingFiscalEvents } from "@/components/upcoming-fiscal-events"
 import { ClientOverview } from "@/components/client-overview"
 import { TaxCalendar } from "@/components/tax-calendar"
 import { QuickActions } from "@/components/quick-actions"
@@ -16,25 +18,64 @@ import { Badge } from "@/components/ui/badge"
 import type { Client, Tax, ObligationWithDetails, DashboardStats, TaxDueDate, InstallmentWithDetails } from "@/lib/types"
 import { defaultDashboardStats } from "@/lib/types"
 import { isOverdue } from "@/lib/date-utils"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function DashboardPage() {
+  const supabase = createClient()
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<DashboardStats>(defaultDashboardStats)
   const [obligations, setObligations] = useState<ObligationWithDetails[]>([])
   const [clients, setClients] = useState<Client[]>([])
-  const [taxesDueDates, setTaxesDueDates] = useState<TaxDueDate[]>([]) // Changed to TaxDueDate[]
+  const [taxesDueDates, setTaxesDueDates] = useState<TaxDueDate[]>([])
   const [installments, setInstallments] = useState<InstallmentWithDetails[]>([])
 
-  const updateData = () => {
-    setStats(calculateDashboardStats())
-    setObligations(getObligationsWithDetails())
-    setClients(getClients())
-    setTaxesDueDates(getTaxesDueDates(6)) // Get tax due dates for 6 months
-    setInstallments(getInstallmentsWithDetails())
+  const updateData = async () => {
+    setLoading(true)
+    const statsData = await calculateDashboardStats()
+    const obligationsData = await getObligationsWithDetails()
+    const clientsData = await getClients()
+    const taxesData = await getTaxesDueDates(6)
+    const installmentsData = await getInstallmentsWithDetails()
+
+    setStats(statsData)
+    setObligations(obligationsData)
+    setClients(clientsData)
+    setTaxesDueDates(taxesData)
+    setInstallments(installmentsData)
+    setLoading(false)
   }
 
   useEffect(() => {
-    updateData()
-  }, [])
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.push('/login')
+      } else {
+        updateData()
+      }
+    }
+    checkSession()
+  }, [supabase, router])
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <main className="container mx-auto px-4 py-8 space-y-8">
+          <Skeleton className="h-12 w-1/2" />
+          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+            {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-28" />)}
+          </div>
+          <Skeleton className="h-64 w-full" />
+          <div className="grid gap-6 lg:grid-cols-2">
+            <Skeleton className="h-96 w-full" />
+            <Skeleton className="h-96 w-full" />
+          </div>
+        </main>
+      </div>
+    )
+  }
 
   const criticalObligationAlerts = obligations.filter(
     (o) => o.status === "overdue" || (o.status === "pending" && isOverdue(o.calculatedDueDate)),
@@ -43,13 +84,12 @@ export default function DashboardPage() {
     (i) => i.status === "overdue" || (i.status === "pending" && isOverdue(i.calculatedDueDate)),
   )
   const criticalTaxAlerts = taxesDueDates.filter(
-    (t) => isOverdue(t.calculatedDueDate) && t.status !== "completed", // Taxes don't have 'completed' status
+    (t) => isOverdue(t.calculatedDueDate) && t.status !== "completed",
   );
 
   const allCriticalAlerts = [...criticalObligationAlerts, ...criticalInstallmentAlerts, ...criticalTaxAlerts].sort(
     (a, b) => new Date(a.calculatedDueDate).getTime() - new Date(b.calculatedDueDate).getTime()
   );
-
 
   const today = new Date()
   const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
@@ -70,7 +110,6 @@ export default function DashboardPage() {
   const allUpcomingThisWeek = [...upcomingObligationsThisWeek, ...upcomingInstallmentsThisWeek, ...upcomingTaxesThisWeek].sort(
     (a, b) => new Date(a.calculatedDueDate).getTime() - new Date(b.calculatedDueDate).getTime()
   );
-
 
   return (
     <div className="min-h-screen bg-background">

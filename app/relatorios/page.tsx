@@ -10,16 +10,23 @@ export default function RelatoriosPage() {
   const [obligations, setObligations] = useState<ObligationWithDetails[]>([])
   const [installments, setInstallments] = useState<InstallmentWithDetails[]>([])
   const [taxesDueDates, setTaxesDueDates] = useState<TaxDueDate[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    const loadData = async () => {
+      setLoading(true)
+      const [obligationsData, installmentsData, taxesData] = await Promise.all([
+        getObligationsWithDetails(),
+        getInstallmentsWithDetails(),
+        getTaxesDueDates(12),
+      ])
+      setObligations(obligationsData)
+      setInstallments(installmentsData)
+      setTaxesDueDates(taxesData)
+      setLoading(false)
+    }
     loadData()
   }, [])
-
-  const loadData = () => {
-    setObligations(getObligationsWithDetails())
-    setInstallments(getInstallmentsWithDetails())
-    setTaxesDueDates(getTaxesDueDates(12)) // Load for 12 months for better reporting
-  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -31,7 +38,11 @@ export default function RelatoriosPage() {
             <p className="text-lg text-muted-foreground">Análise detalhada de obrigações fiscais e produtividade</p>
           </div>
 
-          <ReportsPanel obligations={obligations} installments={installments} taxesDueDates={taxesDueDates} />
+          {loading ? (
+            <p>Carregando relatórios...</p>
+          ) : (
+            <ReportsPanel obligations={obligations} installments={installments} taxesDueDates={taxesDueDates} />
+          )}
         </div>
       </main>
     </div>

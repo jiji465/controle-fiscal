@@ -8,9 +8,13 @@ import type { Client } from "@/lib/types"
 
 export default function ClientesPage() {
   const [clients, setClients] = useState<Client[]>([])
+  const [loading, setLoading] = useState(true)
 
-  const handleUpdate = () => {
-    setClients(getClients())
+  const handleUpdate = async () => {
+    setLoading(true)
+    const clientsData = await getClients()
+    setClients(clientsData)
+    setLoading(false)
   }
 
   useEffect(() => {
@@ -27,7 +31,11 @@ export default function ClientesPage() {
             <p className="text-muted-foreground mt-2">Gerencie os clientes e suas informações</p>
           </div>
 
-          <ClientList clients={clients} onUpdate={handleUpdate} />
+          {loading ? (
+            <p>Carregando clientes...</p>
+          ) : (
+            <ClientList clients={clients} onUpdate={handleUpdate} />
+          )}
         </div>
       </main>
     </div>

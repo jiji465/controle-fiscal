@@ -8,25 +8,34 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { getClients, getTaxes, getInstallments } from "@/lib/storage" // Import getInstallments
-import { getObligationsWithDetails, getInstallmentsWithDetails } from "@/lib/dashboard-utils" // Import getObligationsWithDetails and getInstallmentsWithDetails
+import { getClients, getTaxes, getInstallments } from "@/lib/storage"
+import { getObligationsWithDetails, getInstallmentsWithDetails } from "@/lib/dashboard-utils"
 import { isOverdue } from "@/lib/date-utils"
 import { CheckCircle2, Clock, PlayCircle, AlertTriangle, Search } from "lucide-react"
-import type { Client, Tax, ObligationWithDetails, InstallmentWithDetails } from "@/lib/types" // Added InstallmentWithDetails
+import type { Client, Tax, ObligationWithDetails, InstallmentWithDetails } from "@/lib/types"
 
 export default function ObligacoesPage() {
   const [obligations, setObligations] = useState<ObligationWithDetails[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [taxes, setTaxes] = useState<Tax[]>([])
-  const [installments, setInstallments] = useState<InstallmentWithDetails[]>([]) // New state for installments
+  const [installments, setInstallments] = useState<InstallmentWithDetails[]>([])
   const [activeTab, setActiveTab] = useState("all")
   const [searchOpen, setSearchOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  const updateData = () => {
-    setObligations(getObligationsWithDetails())
-    setClients(getClients())
-    setTaxes(getTaxes())
-    setInstallments(getInstallmentsWithDetails()) // Use the helper function
+  const updateData = async () => {
+    setLoading(true)
+    const [obligationsData, clientsData, taxesData, installmentsData] = await Promise.all([
+      getObligationsWithDetails(),
+      getClients(),
+      getTaxes(),
+      getInstallmentsWithDetails(),
+    ])
+    setObligations(obligationsData)
+    setClients(clientsData)
+    setTaxes(taxesData)
+    setInstallments(installmentsData)
+    setLoading(false)
   }
 
   useEffect(() => {
@@ -141,12 +150,16 @@ export default function ObligacoesPage() {
 
             <TabsContent value={activeTab} className="mt-6">
               <Card className="p-6">
-                <ObligationList
-                  obligations={getFilteredObligations()}
-                  clients={clients}
-                  taxes={taxes}
-                  onUpdate={updateData}
-                />
+                {loading ? (
+                  <p>Carregando obrigações...</p>
+                ) : (
+                  <ObligationList
+                    obligations={getFilteredObligations()}
+                    clients={clients}
+                    taxes={taxes}
+                    onUpdate={updateData}
+                  />
+                )}
               </Card>
             </TabsContent>
           </Tabs>
@@ -159,7 +172,7 @@ export default function ObligacoesPage() {
         clients={clients}
         taxes={taxes}
         obligations={obligations}
-        installments={getInstallmentsWithDetails()} // Pass installments to GlobalSearch
+        installments={installments}
       />
     </div>
   )

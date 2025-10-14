@@ -1,181 +1,244 @@
+import { createClient } from "@/integrations/supabase/client"
 import type { Client, Tax, Obligation, Notification, Installment, FiscalEventStatus } from "./types"
-import { createClient, createTax, createObligation, createInstallment } from "./factory"
 
-const STORAGE_KEYS = {
-  CLIENTS: "fiscal_clients",
-  TAXES: "fiscal_taxes",
-  OBLIGATIONS: "fiscal_obligations",
-  NOTIFICATIONS: "fiscal_notifications",
-  INSTALLMENTS: "fiscal_installments",
-  TAX_STATUSES: "fiscal_tax_statuses",
-  RECURRENCE_LAST_RUN: "fiscal_recurrence_last_run",
-}
+const supabase = createClient()
 
-// Recurrence Generation Tracker
+// --- Recurrence Generation Tracker ---
+// This can remain in localStorage as it's a client-side preference
+const RECURRENCE_LAST_RUN_KEY = "fiscal_recurrence_last_run"
 export const getLastGenerationRun = (): string | null => {
   if (typeof window === "undefined") return null
-  return localStorage.getItem(STORAGE_KEYS.RECURRENCE_LAST_RUN)
+  return localStorage.getItem(RECURRENCE_LAST_RUN_KEY)
 }
-
 export const setLastGenerationRun = (date: string): void => {
   if (typeof window === "undefined") return
-  localStorage.setItem(STORAGE_KEYS.RECURRENCE_LAST_RUN, date)
+  localStorage.setItem(RECURRENCE_LAST_RUN_KEY, date)
 }
 
-
-// Client Storage
-export const getClients = (): Client[] => {
-  if (typeof window === "undefined") return []
-  const data = localStorage.getItem(STORAGE_KEYS.CLIENTS)
-  if (data) return JSON.parse(data);
-
-  // No data, create sample clients
-  const sampleClients = [
-    createClient({ id: 'client-1', name: 'Empresa Alpha Ltda', cnpj: '00.111.222/0001-33', status: 'active', taxRegime: 'Simples Nacional' }),
-    createClient({ id: 'client-2', name: 'Comércio Beta S.A.', cnpj: '33.444.555/0001-66', status: 'active', taxRegime: 'Lucro Presumido' }),
-    createClient({ id: 'client-3', name: 'Serviços Gama', cnpj: '66.777.888/0001-99', status: 'inactive', taxRegime: 'Lucro Real' }),
-  ];
-  localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(sampleClients));
-  return sampleClients;
-}
-
-export const saveClient = (client: Client): void => {
-  const clients = getClients()
-  const index = clients.findIndex((c) => c.id === client.id)
-  if (index >= 0) {
-    clients[index] = client
-  } else {
-    clients.push(client)
+// --- Client Storage ---
+export const getClients = async (): Promise<Client[]> => {
+  const { data, error } = await supabase.from("clients").select("*")
+  if (error) {
+    console.error("Error fetching clients:", error)
+    return []
   }
-  localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(clients))
+  return data.map(d => ({ ...d, taxRegime: d.tax_regime, createdAt: d.created_at }))
 }
 
-export const deleteClient = (id: string): void => {
-  const clients = getClients().filter((c) => c.id !== id)
-  localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(clients))
-}
+export const saveClient = async (client: Omit<Client, 'createdAt' | 'id'> & { id?: string }): Promise<Client | null> => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
 
-// Tax Storage
-export const getTaxes = (): Tax[] => {
-  if (typeof window === "undefined") return []
-  const data = localStorage.getItem(STORAGE_KEYS.TAXES)
-  if (data) return JSON.parse(data);
-
-  const sampleTaxes = [
-    createTax({ id: 'tax-1', name: 'ICMS', description: 'Imposto sobre Circulação de Mercadorias e Serviços', dueDay: 20, recurrence: 'monthly' }),
-    createTax({ id: 'tax-2', name: 'PIS/COFINS', description: 'Contribuições para o PIS e COFINS', dueDay: 25, recurrence: 'monthly' }),
-    createTax({ id: 'tax-3', name: 'IRPJ/CSLL', description: 'Imposto de Renda e Contribuição Social', dueDay: 30, recurrence: 'quarterly' }),
-  ];
-  localStorage.setItem(STORAGE_KEYS.TAXES, JSON.stringify(sampleTaxes));
-  return sampleTaxes;
-}
-
-export const saveTax = (tax: Tax): void => {
-  const taxes = getTaxes()
-  const index = taxes.findIndex((t) => t.id === tax.id)
-  if (index >= 0) {
-    taxes[index] = tax
-  } else {
-    taxes.push(tax)
+  const clientData = {
+    id: client.id,
+    user_id: user.id,
+    name: client.name,
+    cnpj: client.cnpj,
+    email: client.email,
+    phone: client.phone,
+    status: client.status,
+    tax_regime: client.taxRegime,
   }
-  localStorage.setItem(STORAGE_KEYS.TAXES, JSON.stringify(taxes))
-}
 
-export const deleteTax = (id: string): void => {
-  const taxes = getTaxes().filter((t) => t.id !== id)
-  localStorage.setItem(STORAGE_KEYS.TAXES, JSON.stringify(taxes))
-}
-
-// Obligation Storage
-export const getObligations = (): Obligation[] => {
-  if (typeof window === "undefined") return []
-  const data = localStorage.getItem(STORAGE_KEYS.OBLIGATIONS)
-  if (data) return JSON.parse(data);
-
-  const sampleObligations = [
-    createObligation({ id: 'obl-1', name: 'EFD Contribuições', clientId: 'client-1', taxId: 'tax-2', dueDay: 15, status: 'pending', priority: 'high', autoGenerate: true }),
-    createObligation({ id: 'obl-2', name: 'DCTFWeb', clientId: 'client-2', dueDay: 15, status: 'in_progress', priority: 'urgent', autoGenerate: true }),
-    createObligation({ id: 'obl-3', name: 'SPED Fiscal', clientId: 'client-1', taxId: 'tax-1', dueDay: 20, status: 'completed', completedAt: new Date().toISOString() }),
-  ];
-  localStorage.setItem(STORAGE_KEYS.OBLIGATIONS, JSON.stringify(sampleObligations));
-  return sampleObligations;
-}
-
-export const saveObligation = (obligation: Obligation): void => {
-  const obligations = getObligations()
-  const index = obligations.findIndex((o) => o.id === obligation.id)
-  if (index >= 0) {
-    obligations[index] = obligation
-  } else {
-    obligations.push(obligation)
+  const { data, error } = await supabase.from("clients").upsert(clientData).select().single()
+  if (error) {
+    console.error("Error saving client:", error)
+    return null
   }
-  localStorage.setItem(STORAGE_KEYS.OBLIGATIONS, JSON.stringify(obligations))
+  return { ...data, taxRegime: data.tax_regime, createdAt: data.created_at }
 }
 
-export const deleteObligation = (id: string): void => {
-  const obligations = getObligations().filter((o) => o.id !== id)
-  localStorage.setItem(STORAGE_KEYS.OBLIGATIONS, JSON.stringify(obligations))
+export const deleteClient = async (id: string): Promise<void> => {
+  const { error } = await supabase.from("clients").delete().eq("id", id)
+  if (error) console.error("Error deleting client:", error)
 }
 
-// Tax Status Storage
-export const getTaxStatuses = (): Record<string, FiscalEventStatus> => {
-  if (typeof window === "undefined") return {}
-  const data = localStorage.getItem(STORAGE_KEYS.TAX_STATUSES)
-  return data ? JSON.parse(data) : {}
-}
-
-export const saveTaxStatus = (taxDueDateId: string, status: FiscalEventStatus): void => {
-  const statuses = getTaxStatuses()
-  statuses[taxDueDateId] = status
-  localStorage.setItem(STORAGE_KEYS.TAX_STATUSES, JSON.stringify(statuses))
-}
-
-// Installment Storage
-export const getInstallments = (): Installment[] => {
-  if (typeof window === "undefined") return []
-  const data = localStorage.getItem(STORAGE_KEYS.INSTALLMENTS)
-  if (data) return JSON.parse(data);
-
-  const sampleInstallments = [
-    createInstallment({ id: 'inst-1', name: 'Parcelamento REFIS', clientId: 'client-2', installmentNumber: 3, totalInstallments: 12, dueDay: 28, status: 'pending', autoGenerate: true }),
-    createInstallment({ id: 'inst-2', name: 'Parcelamento IPTU', clientId: 'client-1', installmentNumber: 1, totalInstallments: 10, dueDay: 10, status: 'completed', completedAt: new Date().toISOString() }),
-  ];
-  localStorage.setItem(STORAGE_KEYS.INSTALLMENTS, JSON.stringify(sampleInstallments));
-  return sampleInstallments;
-}
-
-export const saveInstallment = (installment: Installment): void => {
-  const installments = getInstallments()
-  const index = installments.findIndex((i) => i.id === installment.id)
-  if (index >= 0) {
-    installments[index] = installment
-  } else {
-    installments.push(installment)
+// --- Tax Storage ---
+export const getTaxes = async (): Promise<Tax[]> => {
+  const { data, error } = await supabase.from("taxes").select("*")
+  if (error) {
+    console.error("Error fetching taxes:", error)
+    return []
   }
-  localStorage.setItem(STORAGE_KEYS.INSTALLMENTS, JSON.stringify(installments))
+  return data.map(d => ({ ...d, federalTaxCode: d.federal_tax_code, clientId: d.client_id, dueDay: d.due_day, dueMonth: d.due_month, recurrenceInterval: d.recurrence_interval, recurrenceEndDate: d.recurrence_end_date, autoGenerate: d.auto_generate, weekendRule: d.weekend_rule, createdAt: d.created_at }))
 }
 
-export const deleteInstallment = (id: string): void => {
-  const installments = getInstallments().filter((i) => i.id !== id)
-  localStorage.setItem(STORAGE_KEYS.INSTALLMENTS, JSON.stringify(installments))
+export const saveTax = async (tax: Partial<Tax>): Promise<Tax | null> => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const taxData = {
+    id: tax.id,
+    user_id: user.id,
+    name: tax.name,
+    description: tax.description,
+    federal_tax_code: tax.federalTaxCode,
+    client_id: tax.clientId,
+    due_day: tax.dueDay,
+    due_month: tax.dueMonth,
+    recurrence: tax.recurrence,
+    recurrence_interval: tax.recurrenceInterval,
+    recurrence_end_date: tax.recurrenceEndDate,
+    auto_generate: tax.autoGenerate,
+    weekend_rule: tax.weekendRule,
+    notes: tax.notes,
+    tags: tax.tags,
+  }
+
+  const { data, error } = await supabase.from("taxes").upsert(taxData).select().single()
+  if (error) {
+    console.error("Error saving tax:", error)
+    return null
+  }
+  return { ...data, federalTaxCode: data.federal_tax_code, clientId: data.client_id, dueDay: data.due_day, dueMonth: data.due_month, recurrenceInterval: data.recurrence_interval, recurrenceEndDate: data.recurrence_end_date, autoGenerate: data.auto_generate, weekendRule: data.weekend_rule, createdAt: data.created_at }
 }
 
-// Notification Storage
+export const deleteTax = async (id: string): Promise<void> => {
+  const { error } = await supabase.from("taxes").delete().eq("id", id)
+  if (error) console.error("Error deleting tax:", error)
+}
+
+// --- Obligation Storage ---
+export const getObligations = async (): Promise<Obligation[]> => {
+  const { data, error } = await supabase.from("obligations").select("*")
+  if (error) {
+    console.error("Error fetching obligations:", error)
+    return []
+  }
+  return data.map(d => ({ ...d, clientId: d.client_id, taxId: d.tax_id, dueDay: d.due_day, dueMonth: d.due_month, recurrenceInterval: d.recurrence_interval, recurrenceEndDate: d.recurrence_end_date, autoGenerate: d.auto_generate, weekendRule: d.weekend_rule, assignedTo: d.assigned_to, realizationDate: d.realization_date, createdAt: d.created_at, completedAt: d.completed_at, completedBy: d.completed_by, parentObligationId: d.parent_obligation_id, generatedFor: d.generated_for }))
+}
+
+export const saveObligation = async (obligation: Partial<Obligation>): Promise<Obligation | null> => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const obligationData = {
+    id: obligation.id,
+    user_id: user.id,
+    name: obligation.name,
+    description: obligation.description,
+    category: obligation.category,
+    client_id: obligation.clientId,
+    tax_id: obligation.taxId,
+    due_day: obligation.dueDay,
+    due_month: obligation.dueMonth,
+    frequency: obligation.frequency,
+    recurrence: obligation.recurrence,
+    recurrence_interval: obligation.recurrenceInterval,
+    recurrence_end_date: obligation.recurrenceEndDate,
+    auto_generate: obligation.autoGenerate,
+    weekend_rule: obligation.weekendRule,
+    status: obligation.status,
+    priority: obligation.priority,
+    assigned_to: obligation.assignedTo,
+    protocol: obligation.protocol,
+    realization_date: obligation.realizationDate,
+    notes: obligation.notes,
+    completed_at: obligation.completedAt,
+    completed_by: obligation.completedBy,
+    attachments: obligation.attachments,
+    history: obligation.history,
+    parent_obligation_id: obligation.parentObligationId,
+    generated_for: obligation.generatedFor,
+    tags: obligation.tags,
+  }
+
+  const { data, error } = await supabase.from("obligations").upsert(obligationData).select().single()
+  if (error) {
+    console.error("Error saving obligation:", error)
+    return null
+  }
+  return { ...data, clientId: data.client_id, taxId: data.tax_id, dueDay: data.due_day, dueMonth: data.due_month, recurrenceInterval: data.recurrence_interval, recurrenceEndDate: data.recurrence_end_date, autoGenerate: data.auto_generate, weekendRule: data.weekend_rule, assignedTo: data.assigned_to, realizationDate: data.realization_date, createdAt: data.created_at, completedAt: data.completed_at, completedBy: data.completed_by, parentObligationId: data.parent_obligation_id, generatedFor: data.generated_for }
+}
+
+export const deleteObligation = async (id: string): Promise<void> => {
+  const { error } = await supabase.from("obligations").delete().eq("id", id)
+  if (error) console.error("Error deleting obligation:", error)
+}
+
+// --- Installment Storage ---
+export const getInstallments = async (): Promise<Installment[]> => {
+  const { data, error } = await supabase.from("installments").select("*")
+  if (error) {
+    console.error("Error fetching installments:", error)
+    return []
+  }
+  return data.map(d => ({ ...d, clientId: d.client_id, installmentNumber: d.installment_number, totalInstallments: d.total_installments, dueDay: d.due_day, dueMonth: d.due_month, recurrenceInterval: d.recurrence_interval, recurrenceEndDate: d.recurrence_end_date, autoGenerate: d.auto_generate, weekendRule: d.weekend_rule, createdAt: d.created_at, completedAt: d.completed_at, completedBy: d.completed_by, parentInstallmentId: d.parent_installment_id, generatedFor: d.generated_for }))
+}
+
+export const saveInstallment = async (installment: Partial<Installment>): Promise<Installment | null> => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return null
+
+  const installmentData = {
+    id: installment.id,
+    user_id: user.id,
+    name: installment.name,
+    description: installment.description,
+    client_id: installment.clientId,
+    installment_number: installment.installmentNumber,
+    total_installments: installment.totalInstallments,
+    due_day: installment.dueDay,
+    due_month: installment.dueMonth,
+    recurrence: installment.recurrence,
+    recurrence_interval: installment.recurrenceInterval,
+    recurrence_end_date: installment.recurrenceEndDate,
+    auto_generate: installment.autoGenerate,
+    weekend_rule: installment.weekendRule,
+    status: installment.status,
+    notes: installment.notes,
+    tags: installment.tags,
+    completed_at: installment.completedAt,
+    completed_by: installment.completedBy,
+    parent_installment_id: installment.parentInstallmentId,
+    generated_for: installment.generatedFor,
+  }
+
+  const { data, error } = await supabase.from("installments").upsert(installmentData).select().single()
+  if (error) {
+    console.error("Error saving installment:", error)
+    return null
+  }
+  return { ...data, clientId: data.client_id, installmentNumber: data.installment_number, totalInstallments: data.total_installments, dueDay: data.due_day, dueMonth: data.due_month, recurrenceInterval: data.recurrence_interval, recurrenceEndDate: data.recurrence_end_date, autoGenerate: data.auto_generate, weekendRule: data.weekend_rule, createdAt: data.created_at, completedAt: data.completed_at, completedBy: data.completed_by, parentInstallmentId: data.parent_installment_id, generatedFor: data.generated_for }
+}
+
+export const deleteInstallment = async (id: string): Promise<void> => {
+  const { error } = await supabase.from("installments").delete().eq("id", id)
+  if (error) console.error("Error deleting installment:", error)
+}
+
+// --- Tax Status Storage ---
+export const getTaxStatuses = async (): Promise<Record<string, FiscalEventStatus>> => {
+  const { data, error } = await supabase.from("tax_statuses").select("id, status")
+  if (error) {
+    console.error("Error fetching tax statuses:", error)
+    return {}
+  }
+  return data.reduce((acc, item) => {
+    acc[item.id] = item.status
+    return acc
+  }, {})
+}
+
+export const saveTaxStatus = async (taxDueDateId: string, status: FiscalEventStatus): Promise<void> => {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return
+
+  const { error } = await supabase.from("tax_statuses").upsert({
+    id: taxDueDateId,
+    user_id: user.id,
+    status: status,
+    updated_at: new Date().toISOString(),
+  })
+  if (error) console.error("Error saving tax status:", error)
+}
+
+// --- Notification Storage (can remain in localStorage for simplicity) ---
+const NOTIFICATIONS_KEY = "fiscal_notifications"
 export const getNotifications = (): Notification[] => {
   if (typeof window === "undefined") return []
-  const data = localStorage.getItem(STORAGE_KEYS.NOTIFICATIONS)
+  const data = localStorage.getItem(NOTIFICATIONS_KEY)
   return data ? JSON.parse(data) : []
-}
-
-export const saveNotification = (notification: Notification): void => {
-  const notifications = getNotifications()
-  const index = notifications.findIndex((n) => n.id === notification.id)
-  if (index >= 0) {
-    notifications[index] = notification
-  } else {
-    notifications.push(notification)
-  }
-  localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notifications))
 }
 
 export const addNotification = (message: string, type: Notification["type"] = "info", link?: string): void => {
@@ -186,21 +249,17 @@ export const addNotification = (message: string, type: Notification["type"] = "i
     link,
     read: false,
     timestamp: new Date().toISOString(),
-  };
-  const notifications = getNotifications();
-  notifications.unshift(newNotification); // Add to the beginning
-  localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notifications));
-};
+  }
+  const notifications = getNotifications()
+  notifications.unshift(newNotification)
+  localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications.slice(0, 50))) // Limit to 50
+}
 
 export const markNotificationAsRead = (id: string): void => {
-  const notifications = getNotifications();
-  const index = notifications.findIndex((n) => n.id === id);
+  const notifications = getNotifications()
+  const index = notifications.findIndex((n) => n.id === id)
   if (index >= 0) {
-    notifications[index].read = true;
-    localStorage.setItem(STORAGE_KEYS.NOTIFICATIONS, JSON.stringify(notifications));
+    notifications[index].read = true
+    localStorage.setItem(NOTIFICATIONS_KEY, JSON.stringify(notifications))
   }
-};
-
-export const clearNotifications = (): void => {
-  localStorage.removeItem(STORAGE_KEYS.NOTIFICATIONS);
-};
+}

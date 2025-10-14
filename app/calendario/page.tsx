@@ -8,13 +8,19 @@ import type { CalendarEvent } from "@/lib/types"
 
 export default function CalendarioPage() {
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const obligations = getObligationsWithDetails()
-    const taxes = getTaxesDueDates(6) // Generate tax due dates for 6 months ahead
-    const installments = getInstallmentsWithDetails()
-    const combinedEvents: CalendarEvent[] = [...obligations, ...taxes, ...installments];
-    setCalendarEvents(combinedEvents)
+    const loadData = async () => {
+      setLoading(true)
+      const obligations = await getObligationsWithDetails()
+      const taxes = await getTaxesDueDates(6)
+      const installments = await getInstallmentsWithDetails()
+      const combinedEvents: CalendarEvent[] = [...obligations, ...taxes, ...installments];
+      setCalendarEvents(combinedEvents)
+      setLoading(false)
+    }
+    loadData()
   }, [])
 
   return (
@@ -27,7 +33,11 @@ export default function CalendarioPage() {
             <p className="text-muted-foreground mt-2">Visualize os vencimentos das obrigações, impostos e parcelamentos no calendário</p>
           </div>
 
-          <CalendarView events={calendarEvents} />
+          {loading ? (
+            <p>Carregando calendário...</p>
+          ) : (
+            <CalendarView events={calendarEvents} />
+          )}
         </div>
       </main>
     </div>

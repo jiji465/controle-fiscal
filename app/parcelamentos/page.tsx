@@ -17,16 +17,25 @@ import type { Client, Tax, ObligationWithDetails, InstallmentWithDetails } from 
 export default function ParcelamentosPage() {
   const [installments, setInstallments] = useState<InstallmentWithDetails[]>([])
   const [clients, setClients] = useState<Client[]>([])
-  const [taxes, setTaxes] = useState<Tax[]>([]) // Needed for GlobalSearch
-  const [obligations, setObligations] = useState<ObligationWithDetails[]>([]) // Needed for GlobalSearch
+  const [taxes, setTaxes] = useState<Tax[]>([])
+  const [obligations, setObligations] = useState<ObligationWithDetails[]>([])
   const [activeTab, setActiveTab] = useState("all")
   const [searchOpen, setSearchOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  const updateData = () => {
-    setInstallments(getInstallmentsWithDetails())
-    setClients(getClients())
-    setTaxes(getTaxes())
-    setObligations(getObligationsWithDetails())
+  const updateData = async () => {
+    setLoading(true)
+    const [installmentsData, clientsData, taxesData, obligationsData] = await Promise.all([
+      getInstallmentsWithDetails(),
+      getClients(),
+      getTaxes(),
+      getObligationsWithDetails(),
+    ])
+    setInstallments(installmentsData)
+    setClients(clientsData)
+    setTaxes(taxesData)
+    setObligations(obligationsData)
+    setLoading(false)
   }
 
   useEffect(() => {
@@ -141,11 +150,15 @@ export default function ParcelamentosPage() {
 
             <TabsContent value={activeTab} className="mt-6">
               <Card className="p-6">
-                <InstallmentList
-                  installments={getFilteredInstallments()}
-                  clients={clients}
-                  onUpdate={updateData}
-                />
+                {loading ? (
+                  <p>Carregando parcelamentos...</p>
+                ) : (
+                  <InstallmentList
+                    installments={getFilteredInstallments()}
+                    clients={clients}
+                    onUpdate={updateData}
+                  />
+                )}
               </Card>
             </TabsContent>
           </Tabs>
@@ -158,7 +171,7 @@ export default function ParcelamentosPage() {
         clients={clients}
         taxes={taxes}
         obligations={obligations}
-        installments={installments} // Pass installments to GlobalSearch
+        installments={installments}
       />
     </div>
   )

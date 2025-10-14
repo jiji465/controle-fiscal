@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Card } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
-import { getTaxes, getClients, getInstallments, saveTax } from "@/lib/storage"
+import { getTaxes, getClients, saveTax } from "@/lib/storage"
 import { getObligationsWithDetails, getInstallmentsWithDetails, getTaxesDueDates } from "@/lib/dashboard-utils"
 import {
   CheckCircle2,
@@ -32,13 +32,23 @@ export default function ImpostosPage() {
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [activeTab, setActiveTab] = useState("all")
   const [searchOpen, setSearchOpen] = useState(false)
+  const [loading, setLoading] = useState(true)
 
-  const updateData = () => {
-    setTaxTemplates(getTaxes())
-    setClients(getClients())
-    setObligations(getObligationsWithDetails())
-    setInstallments(getInstallmentsWithDetails())
-    setTaxesDueDates(getTaxesDueDates(6))
+  const updateData = async () => {
+    setLoading(true)
+    const [taxesData, clientsData, obligationsData, installmentsData, taxesDueDatesData] = await Promise.all([
+      getTaxes(),
+      getClients(),
+      getObligationsWithDetails(),
+      getInstallmentsWithDetails(),
+      getTaxesDueDates(6),
+    ])
+    setTaxTemplates(taxesData)
+    setClients(clientsData)
+    setObligations(obligationsData)
+    setInstallments(installmentsData)
+    setTaxesDueDates(taxesDueDatesData)
+    setLoading(false)
   }
 
   useEffect(() => {
@@ -57,8 +67,8 @@ export default function ImpostosPage() {
     return () => window.removeEventListener("keydown", handleKeyDown)
   }, [])
 
-  const handleSaveTaxTemplate = (tax: Tax) => {
-    saveTax(tax);
+  const handleSaveTaxTemplate = async (tax: Tax) => {
+    await saveTax(tax);
     updateData()
     setEditingTaxTemplate(undefined)
     setIsFormOpen(false)
@@ -176,13 +186,17 @@ export default function ImpostosPage() {
 
             <TabsContent value={activeTab} className="mt-6">
               <Card className="p-6">
-                <TaxList
-                  taxesDueDates={getFilteredTaxesDueDates()}
-                  clients={clients}
-                  taxTemplates={taxTemplates}
-                  onUpdate={updateData}
-                  onEdit={handleEditTaxTemplate}
-                />
+                {loading ? (
+                  <p>Carregando impostos...</p>
+                ) : (
+                  <TaxList
+                    taxesDueDates={getFilteredTaxesDueDates()}
+                    clients={clients}
+                    taxTemplates={taxTemplates}
+                    onUpdate={updateData}
+                    onEdit={handleEditTaxTemplate}
+                  />
+                )}
               </Card>
             </TabsContent>
           </Tabs>
