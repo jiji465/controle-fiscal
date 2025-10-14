@@ -22,7 +22,7 @@ export function QuickActions({ obligations, installments, onUpdate }: QuickActio
 
   const pendingInstallments = installments.filter((i) => i.status === "pending")
   const overdueInstallments = installments.filter(
-    (i) => isOverdue(i.calculatedDueDate) && i.status !== "paid",
+    (i) => isOverdue(i.calculatedDueDate) && i.status !== "completed",
   )
 
   const handleBulkCompleteObligations = (obligationList: ObligationWithDetails[]) => {
@@ -71,14 +71,14 @@ export function QuickActions({ obligations, installments, onUpdate }: QuickActio
     }
   }
 
-  const handleBulkPayInstallments = (installmentList: InstallmentWithDetails[]) => {
-    if (confirm(`Tem certeza que deseja marcar ${installmentList.length} parcelamento(s) como pago(s)?`)) {
+  const handleBulkCompleteInstallments = (installmentList: InstallmentWithDetails[]) => {
+    if (confirm(`Tem certeza que deseja marcar ${installmentList.length} parcelamento(s) como concluído(s)?`)) {
       installmentList.forEach((installment) => {
         const updated = {
           ...installment,
-          status: "paid" as const,
-          paidAt: new Date().toISOString(),
-          paidBy: "Usuário (ação em lote)",
+          status: "completed" as const,
+          completedAt: new Date().toISOString(),
+          completedBy: "Usuário (ação em lote)",
         }
         saveInstallment(updated)
       })
@@ -115,12 +115,12 @@ export function QuickActions({ obligations, installments, onUpdate }: QuickActio
       disabled: inProgressObligations.length === 0,
     },
     {
-      title: "Pagar Parcelamentos Pendentes",
+      title: "Concluir Parcelamentos Pendentes",
       description: `${pendingInstallments.length} parcelamentos pendentes`,
       icon: DollarSign,
       color: "text-green-600",
       bgColor: "bg-green-50 dark:bg-green-950/30",
-      action: () => handleBulkPayInstallments(pendingInstallments),
+      action: () => handleBulkCompleteInstallments(pendingInstallments),
       disabled: pendingInstallments.length === 0,
     },
     {
@@ -138,7 +138,7 @@ export function QuickActions({ obligations, installments, onUpdate }: QuickActio
       icon: AlertTriangle,
       color: "text-red-600",
       bgColor: "bg-red-50 dark:bg-red-950/30",
-      action: () => handleBulkPayInstallments(overdueInstallments),
+      action: () => handleBulkCompleteInstallments(overdueInstallments),
       disabled: overdueInstallments.length === 0,
     },
   ]

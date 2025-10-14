@@ -306,6 +306,7 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
                       <Calendar
                         locale={ptBR}
                         mode="single"
+                        selected={formData.dueDay ? new Date(new Date().getFullYear(), formData.dueMonth ? formData.dueMonth - 1 : new Date().getMonth(), formData.dueDay) : undefined}
                         onSelect={(date) => {
                           if (date) {
                             setFormData({

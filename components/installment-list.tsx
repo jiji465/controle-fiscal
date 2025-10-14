@@ -22,6 +22,7 @@ import {
   ArrowUpDown,
   Clock,
   DollarSign,
+  PlayCircle,
 } from "lucide-react"
 import type { InstallmentWithDetails, Client, Installment } from "@/lib/types" // Import Installment
 import { saveInstallment, deleteInstallment } from "@/lib/storage"
@@ -65,7 +66,7 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
     } else if (sortBy === "client") {
       comparison = a.client.name.localeCompare(b.client.name)
     } else if (sortBy === "status") {
-      const statusOrder = { overdue: 0, pending: 1, paid: 2 }
+      const statusOrder = { overdue: 0, pending: 1, in_progress: 2, completed: 3 }
       comparison = statusOrder[a.status] - statusOrder[b.status]
     }
 
@@ -94,19 +95,31 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
     }
   }
 
-  const handleMarkAsPaid = (installment: InstallmentWithDetails) => {
+  const handleComplete = (installment: InstallmentWithDetails) => {
     const updated = {
       ...installment,
-      status: "paid" as const,
-      paidAt: new Date().toISOString(),
-      paidBy: "Usuário", // Or actual user name
+      status: "completed" as const,
+      completedAt: new Date().toISOString(),
+      completedBy: "Usuário",
     }
     saveInstallment(updated)
     onUpdate()
     toast({
-      title: "Parcelamento pago!",
-      description: `O parcelamento "${installment.name}" foi marcado como pago.`,
-      variant: "default",
+      title: "Parcelamento concluído!",
+      description: `O parcelamento "${installment.name}" foi marcado como concluído.`,
+    });
+  }
+
+  const handleInProgress = (installment: InstallmentWithDetails) => {
+    const updated = {
+      ...installment,
+      status: "in_progress" as const,
+    }
+    saveInstallment(updated)
+    onUpdate()
+    toast({
+      title: "Parcelamento em andamento!",
+      description: `O parcelamento "${installment.name}" foi marcado como em andamento.`,
     });
   }
 
@@ -145,17 +158,25 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
   }
 
   const getStatusBadge = (installment: InstallmentWithDetails) => {
-    if (installment.status === "paid") {
+    if (installment.status === "completed") {
       return (
         <div className="flex flex-col gap-1">
           <Badge className="bg-green-600 hover:bg-green-700 text-white">
             <CheckCircle2 className="size-3 mr-1" />
-            Pago
+            Concluído
           </Badge>
-          {installment.paidAt && (
-            <span className="text-xs text-muted-foreground">{formatDate(installment.paidAt.split("T")[0])}</span>
+          {installment.completedAt && (
+            <span className="text-xs text-muted-foreground">{formatDate(installment.completedAt.split("T")[0])}</span>
           )}
         </div>
+      )
+    }
+    if (installment.status === "in_progress") {
+      return (
+        <Badge className="bg-blue-600 hover:bg-blue-700 text-white">
+          <PlayCircle className="size-3 mr-1" />
+          Em Andamento
+        </Badge>
       )
     }
     if (installment.status === "overdue" || isOverdue(installment.calculatedDueDate)) {
@@ -184,20 +205,26 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
   }
 
   const QuickActionButtons = ({ installment }: { installment: InstallmentWithDetails }) => {
-    if (installment.status === "paid") {
+    if (installment.status === "completed") {
       return null
     }
 
     return (
       <div className="flex gap-1">
+        {installment.status === "pending" && (
+          <Button size="sm" variant="outline" onClick={() => handleInProgress(installment)} className="h-7 text-xs">
+            <PlayCircle className="size-3 mr-1" />
+            Iniciar
+          </Button>
+        )}
         <Button
           size="sm"
           variant="default"
-          onClick={() => handleMarkAsPaid(installment)}
+          onClick={() => handleComplete(installment)}
           className="h-7 text-xs bg-green-600 hover:bg-green-700"
         >
           <CheckCircle2 className="size-3 mr-1" />
-          Marcar como Pago
+          Concluir
         </Button>
       </div>
     )
@@ -292,7 +319,7 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
                 <TableRow
                   key={installment.id}
                   className={
-                    isOverdue(installment.calculatedDueDate) && installment.status !== "paid"
+                    isOverdue(installment.calculatedDueDate) && installment.status !== "completed"
                       ? "bg-red-50/50 dark:bg-red-950/10"
                       : ""
                   }

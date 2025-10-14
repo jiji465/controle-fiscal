@@ -130,7 +130,7 @@ export const calculateDashboardStats = (): DashboardStats => {
 
   const pendingInstallments = installments.filter(i => i.status === "pending" && !isOverdue(i.calculatedDueDate));
   const overdueInstallments = installments.filter(i => i.status === 'overdue' || (i.status === 'pending' && isOverdue(i.calculatedDueDate)));
-  const upcomingInstallmentsThisWeek = installments.filter(i => isUpcomingThisWeek(i.calculatedDueDate) && i.status !== 'paid');
+  const upcomingInstallmentsThisWeek = installments.filter(i => isUpcomingThisWeek(i.calculatedDueDate) && i.status !== 'completed');
 
   const pendingTaxes = taxesDueDates.filter(t => !isOverdue(t.calculatedDueDate));
   const overdueTaxes = taxesDueDates.filter(t => isOverdue(t.calculatedDueDate));
@@ -146,13 +146,13 @@ export const calculateDashboardStats = (): DashboardStats => {
       o.status === "completed"
     )
   }).length
-  const paidInstallmentsThisMonth = installments.filter((i) => {
-    if (!i.paidAt) return false
-    const paid = new Date(i.paidAt)
+  const completedInstallmentsThisMonth = installments.filter((i) => {
+    if (!i.completedAt) return false
+    const completed = new Date(i.completedAt)
     return (
-      paid.getMonth() === today.getMonth() &&
-      paid.getFullYear() === today.getFullYear() &&
-      i.status === "paid"
+      completed.getMonth() === today.getMonth() &&
+      completed.getFullYear() === today.getFullYear() &&
+      i.status === "completed"
     )
   }).length
 
@@ -161,7 +161,7 @@ export const calculateDashboardStats = (): DashboardStats => {
     activeClients,
     totalEvents: obligations.length + installments.length + taxesDueDates.length,
     pendingEvents: pendingObligations.length + pendingInstallments.length + pendingTaxes.length,
-    completedThisMonth: completedObligationsThisMonth + paidInstallmentsThisMonth,
+    completedThisMonth: completedObligationsThisMonth + completedInstallmentsThisMonth,
     overdueEvents: overdueObligations.length + overdueInstallments.length + overdueTaxes.length,
     upcomingThisWeek: upcomingObligationsThisWeek.length + upcomingInstallmentsThisWeek.length + upcomingTaxesThisWeek.length,
   }

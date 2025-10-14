@@ -65,7 +65,7 @@ export function CalendarView({ events }: CalendarViewProps) {
         return { color: "bg-purple-500/20 text-purple-700 dark:text-purple-300 border-purple-500/30", text: "Vencimento Imposto", badgeColor: "bg-purple-600" };
       case "installment":
         const inst = event as InstallmentWithDetails;
-        if (inst.status === "paid") return { color: "bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30", text: "Parcelamento Pago", badgeColor: "bg-green-600" };
+        if (inst.status === "completed") return { color: "bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30", text: "Parcelamento Concluído", badgeColor: "bg-green-600" };
         if (isEventOverdue) return { color: "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30", text: "Parcelamento Atrasado", badgeColor: "bg-red-600" };
         return { color: "bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-500/30", text: "Parcelamento Pendente", badgeColor: "bg-orange-600" };
       default:
@@ -185,9 +185,8 @@ export function CalendarView({ events }: CalendarViewProps) {
                     <SelectItem value="all">Todos status</SelectItem>
                     <SelectItem value="pending">Pendente</SelectItem>
                     <SelectItem value="in_progress">Em Andamento</SelectItem>
-                    <SelectItem value="completed">Concluída</SelectItem>
-                    <SelectItem value="overdue">Atrasada</SelectItem>
-                    <SelectItem value="paid">Pago</SelectItem>
+                    <SelectItem value="completed">Concluído</SelectItem>
+                    <SelectItem value="overdue">Atrasado</SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -273,11 +272,11 @@ export function CalendarView({ events }: CalendarViewProps) {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="size-4 bg-green-500/20 border border-green-500/30 rounded" />
-                  <span className="text-muted-foreground">Obrigação Concluída / Parcelamento Pago</span>
+                  <span className="text-muted-foreground">Concluído (Obrigação/Parcelamento)</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="size-4 bg-red-500/20 border border-red-500/30 rounded" />
-                  <span className="text-muted-foreground">Atrasada (Obrigação/Imposto/Parcelamento)</span>
+                  <span className="text-muted-foreground">Atrasado (Todos)</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="size-4 bg-purple-500/20 border border-purple-500/30 rounded" />
@@ -322,7 +321,7 @@ export function CalendarView({ events }: CalendarViewProps) {
                   <div className="flex gap-4 text-xs text-muted-foreground">
                     <span>Vencimento: {formatDate(event.calculatedDueDate)}</span>
                     {event.type === "obligation" && (event as ObligationWithDetails).realizationDate && <span>Realizada: {formatDate((event as ObligationWithDetails).realizationDate!)}</span>}
-                    {event.type === "installment" && (event as InstallmentWithDetails).paidAt && <span>Pago em: {formatDate((event as InstallmentWithDetails).paidAt!)}</span>}
+                    {event.type === "installment" && (event as InstallmentWithDetails).completedAt && <span>Concluído em: {formatDate((event as InstallmentWithDetails).completedAt!)}</span>}
                   </div>
                 </div>
               ))
@@ -422,14 +421,14 @@ export function CalendarView({ events }: CalendarViewProps) {
                       </div>
                     </div>
                   )}
-                  {selectedEventDetails.type === "installment" && (selectedEventDetails as InstallmentWithDetails).paidAt && (
+                  {selectedEventDetails.type === "installment" && (selectedEventDetails as InstallmentWithDetails).completedAt && (
                     <div className="flex items-center gap-3">
                       <User className="size-5 text-muted-foreground" />
                       <div>
-                        <p className="text-sm font-medium">Pago em</p>
+                        <p className="text-sm font-medium">Concluído em</p>
                         <p className="text-sm text-muted-foreground">
-                          {formatDate((selectedEventDetails as InstallmentWithDetails).paidAt!)}
-                          {(selectedEventDetails as InstallmentWithDetails).paidBy && ` por ${(selectedEventDetails as InstallmentWithDetails).paidBy}`}
+                          {formatDate((selectedEventDetails as InstallmentWithDetails).completedAt!)}
+                          {(selectedEventDetails as InstallmentWithDetails).completedBy && ` por ${(selectedEventDetails as InstallmentWithDetails).completedBy}`}
                         </p>
                       </div>
                     </div>

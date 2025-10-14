@@ -17,8 +17,10 @@ type InstallmentDetailsProps = {
 export function InstallmentDetails({ installment, open, onOpenChange }: InstallmentDetailsProps) {
   const getStatusColor = () => {
     switch (installment.status) {
-      case "paid":
+      case "completed":
         return "bg-green-600"
+      case "in_progress":
+        return "bg-blue-600"
       case "overdue":
         return "bg-red-600"
       default:
@@ -28,8 +30,10 @@ export function InstallmentDetails({ installment, open, onOpenChange }: Installm
 
   const getStatusLabel = () => {
     switch (installment.status) {
-      case "paid":
-        return "Pago"
+      case "completed":
+        return "Concluído"
+      case "in_progress":
+        return "Em Andamento"
       case "overdue":
         return "Atrasado"
       default:
@@ -91,14 +95,14 @@ export function InstallmentDetails({ installment, open, onOpenChange }: Installm
               </div>
             </div>
 
-            {installment.paidAt && (
+            {installment.completedAt && (
               <div className="flex items-center gap-3">
                 <User className="size-5 text-muted-foreground" />
                 <div>
-                  <p className="text-sm font-medium">Pago em</p>
+                  <p className="text-sm font-medium">Concluído em</p>
                   <p className="text-sm text-muted-foreground">
-                    {formatDate(installment.paidAt)}
-                    {installment.paidBy && ` por ${installment.paidBy}`}
+                    {formatDate(installment.completedAt)}
+                    {installment.completedBy && ` por ${installment.completedBy}`}
                   </p>
                 </div>
               </div>

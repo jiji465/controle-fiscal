@@ -52,14 +52,14 @@ export function ReportsPanel({ obligations, installments, taxesDueDates }: Repor
   const metrics = useMemo(() => calculateProductivityMetrics(obligations), [obligations]);
 
   const completedObligations = filteredEvents.filter((e) => e.type === "obligation" && e.status === "completed") as ObligationWithDetails[];
-  const paidInstallments = filteredEvents.filter((e) => e.type === "installment" && e.status === "paid") as InstallmentWithDetails[];
+  const completedInstallments = filteredEvents.filter((e) => e.type === "installment" && e.status === "completed") as InstallmentWithDetails[];
   const inProgressObligations = filteredEvents.filter((e) => e.type === "obligation" && e.status === "in_progress") as ObligationWithDetails[];
   const pendingObligations = filteredEvents.filter((e) => e.type === "obligation" && e.status === "pending") as ObligationWithDetails[];
   const pendingInstallments = filteredEvents.filter((e) => e.type === "installment" && e.status === "pending") as InstallmentWithDetails[];
   const pendingTaxes = filteredEvents.filter((e) => e.type === "tax" && e.status === "pending") as TaxDueDate[];
   const overdueEvents = filteredEvents.filter((e) => e.status === "overdue");
 
-  const totalCompletedOrPaid = completedObligations.length + paidInstallments.length;
+  const totalCompletedOrPaid = completedObligations.length + completedInstallments.length;
   const totalEventsConsidered = filteredEvents.length;
 
   const completionRate =
@@ -69,13 +69,13 @@ export function ReportsPanel({ obligations, installments, taxesDueDates }: Repor
     if (!obl.realizationDate) return false
     return new Date(obl.realizationDate) <= new Date(obl.calculatedDueDate)
   })
-  const paidInstallmentsOnTime = paidInstallments.filter((inst) => {
-    if (!inst.paidAt) return false;
-    return new Date(inst.paidAt) <= new Date(inst.calculatedDueDate);
+  const completedInstallmentsOnTime = completedInstallments.filter((inst) => {
+    if (!inst.completedAt) return false;
+    return new Date(inst.completedAt) <= new Date(inst.calculatedDueDate);
   });
 
-  const totalCompletedOnTime = completedObligationsOnTime.length + paidInstallmentsOnTime.length;
-  const totalCompletedAndPaid = completedObligations.length + paidInstallments.length;
+  const totalCompletedOnTime = completedObligationsOnTime.length + completedInstallmentsOnTime.length;
+  const totalCompletedAndPaid = completedObligations.length + completedInstallments.length;
   const onTimeRate = totalCompletedAndPaid > 0 ? Math.round((totalCompletedOnTime / totalCompletedAndPaid) * 100) : 0;
 
   // Events by client
@@ -91,7 +91,7 @@ export function ReportsPanel({ obligations, installments, taxesDueDates }: Repor
         if (event.status === "pending") acc[clientName].pending++;
         if (event.status === "in_progress") acc[clientName].inProgress++;
       } else if (event.type === "installment") {
-        if (event.status === "paid") acc[clientName].paid++;
+        if (event.status === "completed") acc[clientName].completed++;
         if (event.status === "pending") acc[clientName].pending++;
       } else if (event.type === "tax") {
         if (event.status === "pending") acc[clientName].pending++;
@@ -166,7 +166,7 @@ export function ReportsPanel({ obligations, installments, taxesDueDates }: Repor
           <CardHeader className="pb-3">
             <CardTitle className="text-sm font-medium flex items-center gap-2">
               <CheckCircle2 className="size-4 text-green-600" />
-              Concluídas/Pagas
+              Concluídas
             </CardTitle>
           </CardHeader>
           <CardContent>
@@ -186,7 +186,7 @@ export function ReportsPanel({ obligations, installments, taxesDueDates }: Repor
           <CardContent>
             <div className="text-2xl font-bold">{totalCompletedOnTime}</div>
             <Progress value={onTimeRate} className="mt-2" />
-            <p className="text-xs text-muted-foreground mt-1">{onTimeRate}% das concluídas/pagas</p>
+            <p className="text-xs text-muted-foreground mt-1">{onTimeRate}% das concluídas</p>
           </CardContent>
         </Card>
 
@@ -239,7 +239,7 @@ export function ReportsPanel({ obligations, installments, taxesDueDates }: Repor
           <TabsTrigger value="type">Por Tipo</TabsTrigger>
           <TabsTrigger value="tax">Por Imposto (Obrigações)</TabsTrigger>
           <TabsTrigger value="recurrence">Por Recorrência</TabsTrigger>
-          <TabsTrigger value="completed">Finalizadas/Pagas</TabsTrigger>
+          <TabsTrigger value="completed">Finalizadas</TabsTrigger>
         </TabsList>
 
         <TabsContent value="clients" className="space-y-4">
@@ -257,13 +257,12 @@ export function ReportsPanel({ obligations, installments, taxesDueDates }: Repor
                       <span className="text-sm text-muted-foreground">{stats.total} eventos</span>
                     </div>
                     <div className="flex gap-2">
-                      {stats.completed > 0 && <Badge className="bg-green-600">{stats.completed} obrigações concluídas</Badge>}
-                      {stats.paid > 0 && <Badge className="bg-green-600">{stats.paid} parcelamentos pagos</Badge>}
-                      {stats.inProgress > 0 && <Badge className="bg-blue-600">{stats.inProgress} obrigações em andamento</Badge>}
+                      {stats.completed > 0 && <Badge className="bg-green-600">{stats.completed} concluídos</Badge>}
+                      {stats.inProgress > 0 && <Badge className="bg-blue-600">{stats.inProgress} em andamento</Badge>}
                       {stats.pending > 0 && <Badge variant="secondary">{stats.pending} pendentes</Badge>}
                       {stats.overdue > 0 && <Badge variant="destructive">{stats.overdue} atrasados</Badge>}
                     </div>
-                    <Progress value={((stats.completed + stats.paid) / stats.total) * 100} className="h-2" />
+                    <Progress value={(stats.completed / stats.total) * 100} className="h-2" />
                   </div>
                 ))}
               </div>
@@ -345,15 +344,15 @@ export function ReportsPanel({ obligations, installments, taxesDueDates }: Repor
         <TabsContent value="completed" className="space-y-4">
           <Card>
             <CardHeader>
-              <CardTitle>Eventos Finalizados/Pagas</CardTitle>
+              <CardTitle>Eventos Finalizados</CardTitle>
               <CardDescription>Histórico de tarefas concluídas e parcelamentos pagos</CardDescription>
             </CardHeader>
             <CardContent>
               <div className="space-y-3">
                 {totalCompletedOrPaid === 0 ? (
-                  <p className="text-center text-muted-foreground py-8">Nenhum evento concluído ou pago ainda</p>
+                  <p className="text-center text-muted-foreground py-8">Nenhum evento concluído ainda</p>
                 ) : (
-                  [...completedObligations, ...paidInstallments].sort((a,b) => new Date(b.calculatedDueDate).getTime() - new Date(a.calculatedDueDate).getTime()).map((event) => (
+                  [...completedObligations, ...completedInstallments].sort((a,b) => new Date(b.calculatedDueDate).getTime() - new Date(a.calculatedDueDate).getTime()).map((event) => (
                     <div key={event.id} className="flex items-start justify-between p-3 border rounded-lg">
                       <div className="space-y-1">
                         <div className="font-medium">{event.name}</div>
@@ -363,16 +362,16 @@ export function ReportsPanel({ obligations, installments, taxesDueDates }: Repor
                             Realizada em: {formatDate((event as ObligationWithDetails).realizationDate!)}
                           </div>
                         )}
-                        {event.type === "installment" && (event as InstallmentWithDetails).paidAt && (
+                        {event.type === "installment" && (event as InstallmentWithDetails).completedAt && (
                           <div className="text-xs text-muted-foreground">
-                            Pago em: {formatDate((event as InstallmentWithDetails).paidAt!)}
+                            Concluído em: {formatDate((event as InstallmentWithDetails).completedAt!)}
                           </div>
                         )}
                       </div>
                       <div className="text-right">
                         <Badge className="bg-green-600 mt-1">
                           <CheckCircle2 className="size-3 mr-1" />
-                          {event.type === "obligation" ? "Concluída" : "Pago"}
+                          Concluído
                         </Badge>
                       </div>
                     </div>
