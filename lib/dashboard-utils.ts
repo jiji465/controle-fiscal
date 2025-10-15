@@ -198,119 +198,125 @@ export async function calculateDashboardStats(): Promise<DashboardStats> {
  * Se não, gera novas ocorrências e arquiva as antigas.
  */
 export async function runRecurrenceCheckAndGeneration() {
-  const now = new Date()
-  const currentMonthYear = `${now.getFullYear()}-${now.getMonth() + 1}`
-  const log = getRecurrenceLog()
+  try {
+    const now = new Date()
+    const currentMonthYear = `${now.getFullYear()}-${now.getMonth() + 1}`
+    const log = getRecurrenceLog()
 
-  // 1. Verifica se a geração já foi feita para este mês/ano
-  if (log.lastRunMonthYear === currentMonthYear) {
-    console.log(`Recorrência já executada para ${currentMonthYear}. Pulando geração.`)
-    return
-  }
-
-  console.log(`Executando verificação de recorrência para ${currentMonthYear}...`)
-
-  const allObligations = await getObligations()
-  const allInstallments = await getInstallments()
-  const allTaxes = await getTaxes()
-
-  const newObligations: Obligation[] = []
-  const newInstallments: Installment[] = []
-  const newTaxes: Tax[] = []
-
-  const updatedObligations: Obligation[] = []
-  const updatedInstallments: Installment[] = []
-  const updatedTaxes: Tax[] = []
-
-  const todayStr = now.toISOString().split("T")[0]
-
-  // --- Processamento de Obrigações ---
-  allObligations.forEach((obl) => {
-    if (obl.recurrence !== "none") {
-      const nextDueDate = calculateNextDueDate(obl, now)
-
-      // Se a data de vencimento da obrigação original for anterior ao mês atual,
-      // e ela for recorrente, criamos uma nova OBRIGAÇÃO (com novo ID) para o mês atual.
-      
-      const lastDue = new Date(obl.calculatedDueDate);
-      const firstDayOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      
-      if (lastDue < firstDayOfCurrentMonth) {
-          // 1. Cria a nova ocorrência
-          const newRecurrence = generateNextRecurrence(obl, nextDueDate) as Obligation;
-          newObligations.push(newRecurrence);
-          
-          // 2. Atualiza a obrigação original para que ela não gere mais recorrência
-          //    (ou a marca como 'arquivada' se estiver concluída)
-          if (obl.status === "completed") {
-              // Se concluída, remove a recorrência para não gerar mais a partir dela
-              const archivedObl: Obligation = { ...obl, recurrence: "none", isArchived: true };
-              updatedObligations.push(archivedObl);
-          } else {
-              // Se não concluída, ela permanece como está (agora overdue)
-              updatedObligations.push(obl);
-          }
-      } else {
-          updatedObligations.push(obl);
-      }
-    } else {
-      updatedObligations.push(obl)
+    // 1. Verifica se a geração já foi feita para este mês/ano
+    if (log.lastRunMonthYear === currentMonthYear) {
+      console.log(`Recorrência já executada para ${currentMonthYear}. Pulando geração.`)
+      return
     }
-  })
 
-  // --- Processamento de Parcelamentos ---
-  allInstallments.forEach((inst) => {
-    if (inst.recurrence !== "none") {
-      const nextDueDate = calculateNextDueDate(inst, now)
-      
-      const lastDue = new Date(inst.calculatedDueDate);
-      const firstDayOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-      
-      if (lastDue < firstDayOfCurrentMonth) {
-        // 1. Cria a nova ocorrência
-        const newRecurrence = generateNextRecurrence(inst, nextDueDate) as Installment;
-        newInstallments.push(newRecurrence);
+    console.log(`Executando verificação de recorrência para ${currentMonthYear}...`)
+
+    const allObligations = await getObligations()
+    const allInstallments = await getInstallments()
+    const allTaxes = await getTaxes()
+
+    const newObligations: Obligation[] = []
+    const newInstallments: Installment[] = []
+    const newTaxes: Tax[] = []
+
+    const updatedObligations: Obligation[] = []
+    const updatedInstallments: Installment[] = []
+    const updatedTaxes: Tax[] = []
+
+    const todayStr = now.toISOString().split("T")[0]
+
+    // --- Processamento de Obrigações ---
+    allObligations.forEach((obl) => {
+      if (obl.recurrence !== "none") {
+        const nextDueDate = calculateNextDueDate(obl, now)
+
+        // Se a data de vencimento da obrigação original for anterior ao mês atual,
+        // e ela for recorrente, criamos uma nova OBRIGAÇÃO (com novo ID) para o mês atual.
         
-        // 2. Atualiza o parcelamento original
-        if (inst.status === "completed") {
-            // Se concluído, remove a recorrência e marca como arquivado
-            const archivedInst: Installment = { ...inst, recurrence: "none", isArchived: true };
-            updatedInstallments.push(archivedInst);
+        const lastDue = new Date(obl.calculatedDueDate);
+        const firstDayOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        
+        if (lastDue < firstDayOfCurrentMonth) {
+            // 1. Cria a nova ocorrência
+            const newRecurrence = generateNextRecurrence(obl, nextDueDate) as Obligation;
+            newObligations.push(newRecurrence);
+            
+            // 2. Atualiza a obrigação original para que ela não gere mais a partir dela
+            //    (ou a marca como 'arquivada' se estiver concluída)
+            if (obl.status === "completed") {
+                // Se concluída, remove a recorrência para não gerar mais a partir dela
+                const archivedObl: Obligation = { ...obl, recurrence: "none", isArchived: true };
+                updatedObligations.push(archivedObl);
+            } else {
+                // Se não concluída, ela permanece como está (agora overdue)
+                updatedObligations.push(obl);
+            }
         } else {
-            // Se não concluído, permanece como está (agora overdue)
-            updatedInstallments.push(inst);
+            updatedObligations.push(obl);
         }
       } else {
-        updatedInstallments.push(inst);
+        updatedObligations.push(obl)
       }
-    } else {
-      updatedInstallments.push(inst)
-    }
-  })
+    })
 
-  // --- Processamento de Impostos (Templates) ---
-  // Impostos não precisam de geração de novas entidades, apenas o template base.
-  allTaxes.forEach((tax) => {
-    updatedTaxes.push(tax);
-  });
+    // --- Processamento de Parcelamentos ---
+    allInstallments.forEach((inst) => {
+      if (inst.recurrence !== "none") {
+        const nextDueDate = calculateNextDueDate(inst, now)
+        
+        const lastDue = new Date(inst.calculatedDueDate);
+        const firstDayOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+        
+        if (lastDue < firstDayOfCurrentMonth) {
+          // 1. Cria a nova ocorrência
+          const newRecurrence = generateNextRecurrence(inst, nextDueDate) as Installment;
+          newInstallments.push(newRecurrence);
+          
+          // 2. Atualiza o parcelamento original
+          if (inst.status === "completed") {
+              // Se concluído, remove a recorrência e marca como arquivado
+              const archivedInst: Installment = { ...inst, recurrence: "none", isArchived: true };
+              updatedInstallments.push(archivedInst);
+          } else {
+              // Se não concluído, permanece como está (agora overdue)
+              updatedInstallments.push(inst);
+          }
+        } else {
+          updatedInstallments.push(inst);
+        }
+      } else {
+        updatedInstallments.push(inst)
+      }
+    })
 
-  // --- Salvamento e Log ---
-  
-  // Combina as obrigações antigas (atualizadas) com as novas ocorrências
-  const finalObligations = [...updatedObligations.filter(o => !o.isArchived), ...newObligations];
-  const finalInstallments = [...updatedInstallments.filter(i => !i.isArchived), ...newInstallments];
-  const finalTaxes = updatedTaxes; // Impostos não geram novas entidades, apenas datas
+    // --- Processamento de Impostos (Templates) ---
+    // Impostos não precisam de geração de novas entidades, apenas o template base.
+    allTaxes.forEach((tax) => {
+      updatedTaxes.push(tax);
+    });
 
-  await saveAllObligations(finalObligations);
-  await saveAllInstallments(finalInstallments);
-  await saveAllTaxes(finalTaxes);
+    // --- Salvamento e Log ---
+    
+    // Combina as obrigações antigas (atualizadas) com as novas ocorrências
+    const finalObligations = [...updatedObligations.filter(o => !o.isArchived), ...newObligations];
+    const finalInstallments = [...updatedInstallments.filter(i => !i.isArchived), ...newInstallments];
+    const finalTaxes = updatedTaxes; // Impostos não geram novas entidades, apenas datas
 
-  // Salva o log de execução
-  saveRecurrenceLog({
-    lastRunMonthYear: currentMonthYear,
-    timestamp: now.toISOString(),
-    generatedCount: newObligations.length + newInstallments.length,
-  })
+    await saveAllObligations(finalObligations);
+    await saveAllInstallments(finalInstallments);
+    await saveAllTaxes(finalTaxes);
 
-  console.log(`Geração de recorrência concluída. ${newObligations.length + newInstallments.length} novos eventos gerados.`)
+    // Salva o log de execução
+    saveRecurrenceLog({
+      lastRunMonthYear: currentMonthYear,
+      timestamp: now.toISOString(),
+      generatedCount: newObligations.length + newInstallments.length,
+    })
+
+    console.log(`Geração de recorrência concluída. ${newObligations.length + newInstallments.length} novos eventos gerados.`)
+  } catch (error) {
+    console.error("Erro durante a execução da recorrência:", error);
+    // Re-lança o erro para que o chamador saiba que falhou, mas agora com um log útil.
+    throw error;
+  }
 }
