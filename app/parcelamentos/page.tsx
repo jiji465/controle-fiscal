@@ -1,28 +1,27 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { supabase } from "@/integrations/supabase/client"
+import { useEffect, useState, useCallback } from "react"
 import { Navigation } from "@/components/navigation"
 import { InstallmentList } from "@/components/installment-list"
 import { InstallmentForm } from "@/components/installment-form"
 import { Button } from "@/components/ui/button"
 import { Plus, Download } from "lucide-react"
-import { getClients, saveInstallment, deleteInstallment } from "@/lib/storage"
+import { getClients, saveInstallment } from "@/lib/storage"
 import { getInstallmentsWithDetails, runRecurrenceCheckAndGeneration } from "@/lib/dashboard-utils"
 import type { Client, InstallmentWithDetails, Installment } from "@/lib/types"
 import { Skeleton } from "@/components/ui/skeleton"
 import { toast } from "@/hooks/use-toast"
+import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 
 export default function InstallmentsPage() {
-  const router = useRouter()
+  const { isAuthenticated, isLoading: isAuthLoading, router } = useSupabaseAuth()
   const [loading, setLoading] = useState(true)
   const [installments, setInstallments] = useState<InstallmentWithDetails[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [isFormOpen, setIsFormOpen] = useState(false)
   const [editingInstallment, setEditingInstallment] = useState<InstallmentWithDetails | undefined>()
 
-  const updateData = async () => {
+  const updateData = useCallback(async () => {
     setLoading(true)
     // Executa a verificação de recorrência antes de carregar os dados
     await runRecurrenceCheckAndGeneration()
@@ -33,19 +32,18 @@ export default function InstallmentsPage() {
     setInstallments(installmentsData)
     setClients(clientsData)
     setLoading(false)
-  }
+  }, [])
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        router.push('/login')
-      } else {
-        updateData()
-      }
+    if (isAuthLoading) return
+
+    if (!isAuthenticated) {
+      router.push('/login')
+      return
     }
-    checkSession()
-  }, [router])
+    
+    updateData()
+  }, [isAuthenticated, isAuthLoading, router, updateData])
 
   const handleSave = (installment: Installment) => {
     saveInstallment(installment)
@@ -63,7 +61,7 @@ export default function InstallmentsPage() {
     setIsFormOpen(true)
   }
 
-  if (loading) {
+  if (isAuthLoading || loading) {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />

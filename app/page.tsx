@@ -1,8 +1,6 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { useRouter } from "next/navigation"
-import { supabase } from "@/integrations/supabase/client"
 import { Navigation } from "@/components/navigation"
 import { DashboardStatsCards } from "@/components/dashboard-stats"
 import { ProductivityStats } from "@/components/productivity-stats"
@@ -18,9 +16,11 @@ import type { Client, ObligationWithDetails, DashboardStats, TaxDueDate, Install
 import { defaultDashboardStats } from "@/lib/types"
 import { isOverdue } from "@/lib/date-utils"
 import { Skeleton } from "@/components/ui/skeleton"
+import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
+import { getClients } from "@/lib/storage"
 
 export default function DashboardPage() {
-  const router = useRouter()
+  const { isAuthenticated, isLoading: isAuthLoading, router } = useSupabaseAuth()
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<DashboardStats>(defaultDashboardStats)
   const [obligations, setObligations] = useState<ObligationWithDetails[]>([])
@@ -49,24 +49,24 @@ export default function DashboardPage() {
   }, [])
 
   useEffect(() => {
+    if (isAuthLoading) return
+
+    if (!isAuthenticated) {
+      router.push('/login')
+      return
+    }
+    
     const initialize = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        router.push('/login')
-        return
-      }
-      
       // 1. Executa a verificação de recorrência e gera novos eventos se necessário
-      // Esta é a única chamada que pode alterar o storage e deve ser feita antes do carregamento.
       await runRecurrenceCheckAndGeneration()
       
       // 2. Carrega os dados iniciais
       updateData()
     }
     initialize()
-  }, [router, updateData]) // Adicionando updateData como dependência, mas é um useCallback estável
+  }, [isAuthenticated, isAuthLoading, router, updateData])
 
-  if (loading) {
+  if (isAuthLoading || loading) {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />

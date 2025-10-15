@@ -5,7 +5,7 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { Button } from "@/components/ui/button"
 import { Badge } from "@/components/ui/badge"
-import { LayoutDashboard, Users, FileText, Calendar, Receipt, Menu, X, BarChart3, Bell, DollarSign } from "lucide-react"
+import { LayoutDashboard, Users, FileText, Calendar, Receipt, Menu, X, BarChart3, Bell, DollarSign, LogOut } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { getObligationsWithDetails, getTaxesDueDates, getInstallmentsWithDetails } from "@/lib/dashboard-utils"
 import { isOverdue } from "@/lib/date-utils"
@@ -14,9 +14,11 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import type { Notification } from "@/lib/types"
 import { getNotifications, markNotificationAsRead } from "@/lib/storage"
+import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 
 export function Navigation() {
   const pathname = usePathname()
+  const { signOut, isAuthenticated } = useSupabaseAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [alertCounts, setAlertCounts] = useState({
     overdueObligations: 0,
@@ -35,6 +37,8 @@ export function Navigation() {
   };
 
   useEffect(() => {
+    if (!isAuthenticated) return;
+
     const loadData = async () => {
       const obligations = await getObligationsWithDetails()
       const installments = await getInstallmentsWithDetails()
@@ -78,7 +82,7 @@ export function Navigation() {
     }
     
     loadData();
-  }, [pathname])
+  }, [pathname, isAuthenticated])
 
   const handleMarkAsRead = (id: string) => {
     markNotificationAsRead(id);
@@ -216,6 +220,12 @@ export function Navigation() {
                 </ScrollArea>
               </PopoverContent>
             </Popover>
+            
+            {isAuthenticated && (
+              <Button variant="ghost" size="icon" onClick={signOut} title="Sair">
+                <LogOut className="size-5" />
+              </Button>
+            )}
 
             <Button
               variant="ghost"
@@ -252,6 +262,12 @@ export function Navigation() {
                 </Link>
               )
             })}
+            {isAuthenticated && (
+              <Button variant="ghost" className="w-full justify-start gap-2" onClick={signOut}>
+                <LogOut className="size-4" />
+                Sair
+              </Button>
+            )}
           </div>
         )}
       </div>

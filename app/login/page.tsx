@@ -1,31 +1,25 @@
 "use client"
 
 import { useEffect, useState } from 'react'
-import { useRouter } from 'next/navigation'
 import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
 import { supabase } from '@/integrations/supabase/client'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { useTheme } from 'next-themes'
+import { useSupabaseAuth } from '@/hooks/use-supabase-auth'
 
 export default function LoginPage() {
-  const router = useRouter()
-  const [loading, setLoading] = useState(true)
+  const { isAuthenticated, isLoading } = useSupabaseAuth()
   const { theme } = useTheme()
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (session) {
-        router.push('/')
-      } else {
-        setLoading(false)
-      }
+    if (!isLoading && isAuthenticated) {
+      // Redireciona se já estiver autenticado
+      window.location.href = '/'
     }
-    checkSession()
-  }, [router])
+  }, [isAuthenticated, isLoading])
 
-  if (loading) {
+  if (isLoading || isAuthenticated) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <p>Carregando...</p>

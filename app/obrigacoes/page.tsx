@@ -1,8 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { useRouter } from "next/navigation"
-import { supabase } from "@/integrations/supabase/client"
+import { useEffect, useState, useCallback } from "react"
 import { Navigation } from "@/components/navigation"
 import { ObligationList } from "@/components/obligation-list"
 import { ObligationCardView } from "@/components/obligation-card-view"
@@ -18,9 +16,10 @@ import type { Client, Tax, ObligationWithDetails } from "@/lib/types"
 import { Skeleton } from "@/components/ui/skeleton"
 import { ExportDialog } from "@/components/export-dialog"
 import { toast } from "@/hooks/use-toast"
+import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 
 export default function ObligationsPage() {
-  const router = useRouter()
+  const { isAuthenticated, isLoading: isAuthLoading, router } = useSupabaseAuth()
   const [loading, setLoading] = useState(true)
   const [obligations, setObligations] = useState<ObligationWithDetails[]>([])
   const [clients, setClients] = useState<Client[]>([])
@@ -31,7 +30,7 @@ export default function ObligationsPage() {
   const [viewingObligation, setViewingObligation] = useState<ObligationWithDetails | undefined>()
   const [isExportOpen, setIsExportOpen] = useState(false)
 
-  const updateData = async () => {
+  const updateData = useCallback(async () => {
     setLoading(true)
     // Executa a verificação de recorrência antes de carregar os dados
     await runRecurrenceCheckAndGeneration()
@@ -44,19 +43,18 @@ export default function ObligationsPage() {
     setClients(clientsData)
     setTaxes(taxesData)
     setLoading(false)
-  }
+  }, [])
 
   useEffect(() => {
-    const checkSession = async () => {
-      const { data: { session } } = await supabase.auth.getSession()
-      if (!session) {
-        router.push('/login')
-      } else {
-        updateData()
-      }
+    if (isAuthLoading) return
+
+    if (!isAuthenticated) {
+      router.push('/login')
+      return
     }
-    checkSession()
-  }, [router])
+    
+    updateData()
+  }, [isAuthenticated, isAuthLoading, router, updateData])
 
   const handleSave = (obligation: any) => {
     saveObligation(obligation)
@@ -148,7 +146,7 @@ export default function ObligationsPage() {
     });
   }
 
-  if (loading) {
+  if (isAuthLoading || loading) {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />

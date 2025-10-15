@@ -1,27 +1,51 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { Navigation } from "@/components/navigation"
 import { CalendarView } from "@/components/calendar-view"
-import { getObligationsWithDetails, getTaxesDueDates, getInstallmentsWithDetails } from "@/lib/dashboard-utils"
+import { getObligationsWithDetails, getTaxesDueDates, getInstallmentsWithDetails, runRecurrenceCheckAndGeneration } from "@/lib/dashboard-utils"
 import type { CalendarEvent } from "@/lib/types"
+import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
+import { Skeleton } from "@/components/ui/skeleton"
 
 export default function CalendarioPage() {
+  const { isAuthenticated, isLoading: isAuthLoading, router } = useSupabaseAuth()
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    const loadData = async () => {
-      setLoading(true)
-      const obligations = await getObligationsWithDetails()
-      const taxes = await getTaxesDueDates(6)
-      const installments = await getInstallmentsWithDetails()
-      const combinedEvents: CalendarEvent[] = [...obligations, ...taxes, ...installments];
-      setCalendarEvents(combinedEvents)
-      setLoading(false)
-    }
-    loadData()
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    await runRecurrenceCheckAndGeneration()
+    const obligations = await getObligationsWithDetails()
+    const taxes = await getTaxesDueDates(6)
+    const installments = await getInstallmentsWithDetails()
+    const combinedEvents: CalendarEvent[] = [...obligations, ...taxes, ...installments];
+    setCalendarEvents(combinedEvents)
+    setLoading(false)
   }, [])
+
+  useEffect(() => {
+    if (isAuthLoading) return
+
+    if (!isAuthenticated) {
+      router.push('/login')
+      return
+    }
+    
+    loadData()
+  }, [isAuthenticated, isAuthLoading, router, loadData])
+
+  if (isAuthLoading || loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <main className="container mx-auto px-4 py-8 space-y-8">
+          <Skeleton className="h-12 w-1/3" />
+          <Skeleton className="h-[600px] w-full" />
+        </main>
+      </div>
+    )
+  }
 
   return (
     <div className="min-h-screen bg-background">
@@ -33,11 +57,7 @@ export default function CalendarioPage() {
             <p className="text-muted-foreground mt-2">Visualize os vencimentos das obrigações, impostos e parcelamentos no calendário</p>
           </div>
 
-          {loading ? (
-            <p>Carregando calendário...</p>
-          ) : (
-            <CalendarView events={calendarEvents} />
-          )}
+          <CalendarView events={calendarEvents} />
         </div>
       </main>
     </div>

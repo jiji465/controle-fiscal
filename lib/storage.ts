@@ -1,163 +1,160 @@
+import { supabase } from "@/integrations/supabase/client"
 import type { Client, Obligation, Tax, Installment, RecurrenceLog, Notification } from "./types"
 
 const STORAGE_KEYS = {
-  CLIENTS: "fiscal_clients",
-  OBLIGATIONS: "fiscal_obligations",
-  TAXES: "fiscal_taxes",
-  INSTALLMENTS: "fiscal_installments",
   RECURRENCE_LOG: "fiscal_recurrence_log",
   NOTIFICATIONS: "fiscal_notifications",
 }
 
+// --- Helper para obter o ID do usuário logado ---
+async function getUserId(): Promise<string> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) {
+    throw new Error("User not authenticated.")
+  }
+  return user.id
+}
+
 // --- Clientes ---
 
-export function getClients(): Client[] {
-  if (typeof window === "undefined") return []
-  const data = localStorage.getItem(STORAGE_KEYS.CLIENTS)
-  return data ? JSON.parse(data) : []
+export async function getClients(): Promise<Client[]> {
+  const { data, error } = await supabase.from("clients").select("*").order("name", { ascending: true })
+  if (error) throw error
+  return data as Client[]
 }
 
-export function saveClient(client: Client) {
-  const clients = getClients()
-  const index = clients.findIndex((c) => c.id === client.id)
-  const now = new Date().toISOString()
+export async function saveClient(client: Client) {
+  const user_id = await getUserId()
+  const clientData = { ...client, user_id }
 
-  if (index > -1) {
-    clients[index] = { ...client, updatedAt: now }
+  if (client.id && client.createdAt) {
+    // Update
+    const { error } = await supabase.from("clients").update(clientData).eq("id", client.id)
+    if (error) throw error
   } else {
-    clients.push({ ...client, id: crypto.randomUUID(), createdAt: now, updatedAt: now, status: client.status || "active" })
+    // Insert
+    const { error } = await supabase.from("clients").insert(clientData)
+    if (error) throw error
   }
-  localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(clients))
 }
 
-export function deleteClient(id: string) {
-  const clients = getClients().filter((c) => c.id !== id)
-  localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(clients))
+export async function deleteClient(id: string) {
+  const { error } = await supabase.from("clients").delete().eq("id", id)
+  if (error) throw error
 }
 
 // --- Obrigações ---
 
-export function getObligations(): Obligation[] {
-  if (typeof window === "undefined") return []
-  const data = localStorage.getItem(STORAGE_KEYS.OBLIGATIONS)
-  const obligations: Obligation[] = data ? JSON.parse(data) : []
-  // Filtra obrigações arquivadas para não aparecerem nas listas ativas
-  return obligations.filter(o => !o.isArchived)
+export async function getObligations(): Promise<Obligation[]> {
+  const { data, error } = await supabase.from("obligations").select("*").eq("isArchived", false).order("calculatedDueDate", { ascending: true })
+  if (error) throw error
+  return data as Obligation[]
 }
 
-export function saveAllObligations(obligations: Obligation[]) {
-  localStorage.setItem(STORAGE_KEYS.OBLIGATIONS, JSON.stringify(obligations))
+export async function saveAllObligations(obligations: Obligation[]) {
+  // Esta função é usada para salvar em massa (e.g., após geração de recorrência).
+  // No Supabase, faremos upsert (insert/update)
+  const user_id = await getUserId()
+  const obligationsWithUserId = obligations.map(o => ({ ...o, user_id }))
+
+  // Usamos `upsert` para lidar com inserts e updates em massa
+  const { error } = await supabase.from("obligations").upsert(obligationsWithUserId, { onConflict: 'id' })
+  if (error) throw error
 }
 
-export function saveObligation(obligation: Obligation) {
-  const obligations = getObligations()
-  const index = obligations.findIndex((o) => o.id === obligation.id)
-  const now = new Date().toISOString()
+export async function saveObligation(obligation: Obligation) {
+  const user_id = await getUserId()
+  const obligationData = { ...obligation, user_id }
 
-  if (index > -1) {
-    obligations[index] = { ...obligation, updatedAt: now }
+  if (obligation.id && obligation.createdAt) {
+    // Update
+    const { error } = await supabase.from("obligations").update(obligationData).eq("id", obligation.id)
+    if (error) throw error
   } else {
-    obligations.push({
-      ...obligation,
-      id: crypto.randomUUID(),
-      createdAt: now,
-      updatedAt: now,
-      status: obligation.status || "pending",
-      history: obligation.history || [],
-    })
+    // Insert
+    const { error } = await supabase.from("obligations").insert(obligationData)
+    if (error) throw error
   }
-  localStorage.setItem(STORAGE_KEYS.OBLIGATIONS, JSON.stringify(obligations))
 }
 
-export function deleteObligation(id: string) {
-  const obligations = getObligations().filter((o) => o.id !== id)
-  localStorage.setItem(STORAGE_KEYS.OBLIGATIONS, JSON.stringify(obligations))
+export async function deleteObligation(id: string) {
+  const { error } = await supabase.from("obligations").delete().eq("id", id)
+  if (error) throw error
 }
 
 // --- Impostos (Templates) ---
 
-export function getTaxes(): Tax[] {
-  if (typeof window === "undefined") return []
-  const data = localStorage.getItem(STORAGE_KEYS.TAXES)
-  const taxes: Tax[] = data ? JSON.parse(data) : []
-  // Filtra impostos arquivados
-  return taxes.filter(t => !t.isArchived)
+export async function getTaxes(): Promise<Tax[]> {
+  const { data, error } = await supabase.from("taxes").select("*").eq("isArchived", false).order("name", { ascending: true })
+  if (error) throw error
+  return data as Tax[]
 }
 
-export function saveAllTaxes(taxes: Tax[]) {
-  localStorage.setItem(STORAGE_KEYS.TAXES, JSON.stringify(taxes))
+export async function saveAllTaxes(taxes: Tax[]) {
+  const user_id = await getUserId()
+  const taxesWithUserId = taxes.map(t => ({ ...t, user_id }))
+
+  const { error } = await supabase.from("taxes").upsert(taxesWithUserId, { onConflict: 'id' })
+  if (error) throw error
 }
 
-export function saveTax(tax: Tax) {
-  const taxes = getTaxes()
-  const index = taxes.findIndex((t) => t.id === tax.id)
-  const now = new Date().toISOString()
+export async function saveTax(tax: Tax) {
+  const user_id = await getUserId()
+  const taxData = { ...tax, user_id }
 
-  if (index > -1) {
-    taxes[index] = { ...tax, updatedAt: now }
+  if (tax.id && tax.createdAt) {
+    // Update
+    const { error } = await supabase.from("taxes").update(taxData).eq("id", tax.id)
+    if (error) throw error
   } else {
-    taxes.push({
-      ...tax,
-      id: crypto.randomUUID(),
-      createdAt: now,
-      updatedAt: now,
-      recurrence: tax.recurrence || "none",
-    })
+    // Insert
+    const { error } = await supabase.from("taxes").insert(taxData)
+    if (error) throw error
   }
-  localStorage.setItem(STORAGE_KEYS.TAXES, JSON.stringify(taxes))
 }
 
-export function deleteTax(id: string) {
-  const taxes = getTaxes().filter((t) => t.id !== id)
-  localStorage.setItem(STORAGE_KEYS.TAXES, JSON.stringify(taxes))
+export async function deleteTax(id: string) {
+  const { error } = await supabase.from("taxes").delete().eq("id", id)
+  if (error) throw error
 }
 
 // --- Parcelamentos ---
 
-export function getInstallments(): Installment[] {
-  if (typeof window === "undefined") return []
-  const data = localStorage.getItem(STORAGE_KEYS.INSTALLMENTS)
-  const installments: Installment[] = data ? JSON.parse(data) : []
-  // Filtra parcelamentos arquivados
-  return installments.filter(i => !i.isArchived)
+export async function getInstallments(): Promise<Installment[]> {
+  const { data, error } = await supabase.from("installments").select("*").eq("isArchived", false).order("calculatedDueDate", { ascending: true })
+  if (error) throw error
+  return data as Installment[]
 }
 
-export function saveAllInstallments(installments: Installment[]) {
-  localStorage.setItem(STORAGE_KEYS.INSTALLMENTS, JSON.stringify(installments))
+export async function saveAllInstallments(installments: Installment[]) {
+  const user_id = await getUserId()
+  const installmentsWithUserId = installments.map(i => ({ ...i, user_id }))
+
+  const { error } = await supabase.from("installments").upsert(installmentsWithUserId, { onConflict: 'id' })
+  if (error) throw error
 }
 
-export function saveInstallment(installment: Installment) {
-  const installments = getInstallments()
-  const index = installments.findIndex((i) => i.id === installment.id)
-  const now = new Date().toISOString()
+export async function saveInstallment(installment: Installment) {
+  const user_id = await getUserId()
+  const installmentData = { ...installment, user_id }
 
-  if (index > -1) {
-    installments[index] = { ...installment, updatedAt: now }
+  if (installment.id && installment.createdAt) {
+    // Update
+    const { error } = await supabase.from("installments").update(installmentData).eq("id", installment.id)
+    if (error) throw error
   } else {
-    installments.push({
-      ...installment,
-      id: crypto.randomUUID(),
-      createdAt: now,
-      updatedAt: now,
-      status: installment.status || "pending",
-    })
+    // Insert
+    const { error } = await supabase.from("installments").insert(installmentData)
+    if (error) throw error
   }
-  localStorage.setItem(STORAGE_KEYS.INSTALLMENTS, JSON.stringify(installments))
 }
 
-export function deleteInstallment(id: string) {
-  const installments = getInstallments().filter((i) => i.id !== id)
-  localStorage.setItem(STORAGE_KEYS.INSTALLMENTS, JSON.stringify(installments))
+export async function deleteInstallment(id: string) {
+  const { error } = await supabase.from("installments").delete().eq("id", id)
+  if (error) throw error
 }
 
-// --- Status de Imposto (TaxDueDate) ---
-
-export function saveTaxStatus(taxDueDateId: string, newStatus: "completed" | "in_progress") {
-  // A função saveTaxStatus foi removida ou adaptada para não fazer nada,
-  // pois a lógica de TaxList foi alterada para não usar saveTaxStatus.
-}
-
-// --- Recorrência Log ---
+// --- Recorrência Log (Mantido no LocalStorage por simplicidade de execução única por cliente) ---
 
 export function getRecurrenceLog(): RecurrenceLog {
   if (typeof window === "undefined") return { lastRunMonthYear: null, timestamp: null, generatedCount: 0 }
@@ -169,7 +166,7 @@ export function saveRecurrenceLog(log: RecurrenceLog) {
   localStorage.setItem(STORAGE_KEYS.RECURRENCE_LOG, JSON.stringify(log))
 }
 
-// --- Notificações ---
+// --- Notificações (Mantido no LocalStorage) ---
 
 export function getNotifications(): Notification[] {
   if (typeof window === "undefined") return []
