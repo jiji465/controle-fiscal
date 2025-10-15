@@ -86,13 +86,15 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
   }
 
   const handleDelete = (id: string) => {
-    deleteInstallment(id)
-    onUpdate()
-    toast({
-      title: "Parcelamento excluído!",
-      description: "O parcelamento foi removido com sucesso.",
-      variant: "destructive",
-    });
+    if (confirm("⚠️ Tem certeza que deseja excluir este parcelamento?\n\nEsta ação não pode ser desfeita.")) {
+      deleteInstallment(id)
+      onUpdate()
+      toast({
+        title: "Parcelamento excluído!",
+        description: "O parcelamento foi removido com sucesso.",
+        variant: "destructive",
+      });
+    }
   }
 
   const handleComplete = (installment: InstallmentWithDetails) => {
@@ -461,11 +463,7 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
                           <Pencil className="size-4 mr-2" />
                           Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => {
-                          if (confirm("⚠️ Tem certeza que deseja excluir este parcelamento?\n\nEsta ação não pode ser desfeita.")) {
-                            handleDelete(installment.id)
-                          }
-                        }} className="text-destructive">
+                        <DropdownMenuItem onClick={() => handleDelete(installment.id)} className="text-destructive">
                           <Trash2 className="size-4 mr-2" />
                           Excluir
                         </DropdownMenuItem>
