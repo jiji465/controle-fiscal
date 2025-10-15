@@ -29,7 +29,7 @@ function genId() {
 type Action =
   | {
       type: typeof actionTypes.ADD_TOAST
-      toast: ToasterToast | ((toast: ToasterToast) => ToasterToast)
+      toast: ToasterToast // Simplificando o tipo para o que é realmente adicionado
     }
   | {
       type: typeof actionTypes.UPDATE_TOAST
@@ -69,6 +69,7 @@ const addToRemoveQueue = (toastId: string) => {
 export const reducer = (state: State, action: Action): State => {
   switch (action.type) {
     case "ADD_TOAST": {
+      // O tipo de action.toast foi simplificado para ToasterToast, resolvendo o TS2322
       return {
         ...state,
         toasts: [action.toast].slice(0, TOAST_LIMIT),
@@ -156,10 +157,14 @@ export function useToast() {
   }
 }
 
-type Toast = Omit<ToasterToast, "id">
-
-// Adicionando 'success' ao tipo de variant
+// Definindo o tipo ToastProps com o variant customizado
 export type ToastVariant = "default" | "destructive" | "success"
+
+type CustomToastProps = Omit<ToastProps, 'variant'> & {
+  variant?: ToastVariant
+}
+
+type Toast = Omit<ToasterToast, "id"> & CustomToastProps
 
 export function toast({ ...props }: Toast) {
   const id = genId()
@@ -178,7 +183,7 @@ export function toast({ ...props }: Toast) {
           dismiss()
         }
       },
-    },
+    } as ToasterToast, // Forçando a tipagem para ToasterToast
   })
 
   return {
