@@ -62,41 +62,59 @@ export const calculateTaxDueDate = (
   tax: Tax,
   referenceDate: Date = new Date(),
 ): Date => {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // 1. Determine the base date (Year and Month)
   let dueDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), tax.dueDay);
+  dueDate.setHours(0, 0, 0, 0);
 
-  // Ensure the due date is in the future or current month/day
-  if (dueDate < referenceDate && dueDate.getDate() !== referenceDate.getDate()) {
-    dueDate.setMonth(dueDate.getMonth() + (tax.recurrenceInterval || 1));
+  // If the tax has a specific dueMonth (e.g., annual recurrence), use it.
+  if (tax.dueMonth !== undefined && tax.recurrence === "annual") {
+    dueDate.setMonth(tax.dueMonth - 1);
   }
 
-  // Adjust based on recurrence type to find the next relevant date
-  switch (tax.recurrence) {
-    case "monthly":
-    case "custom":
-      // Already handled by initial check and recurrenceInterval
-      break;
-    case "bimonthly":
-      while (dueDate < referenceDate || (dueDate.getMonth() % 2 !== referenceDate.getMonth() % 2)) {
-        dueDate.setMonth(dueDate.getMonth() + 1);
-      }
-      break;
-    case "quarterly":
-      while (dueDate < referenceDate || (dueDate.getMonth() % 3 !== referenceDate.getMonth() % 3)) {
-        dueDate.setMonth(dueDate.getMonth() + 1);
-      }
-      break;
-    case "semiannual":
-      while (dueDate < referenceDate || (dueDate.getMonth() % 6 !== referenceDate.getMonth() % 6)) {
-        dueDate.setMonth(dueDate.getMonth() + 1);
-      }
-      break;
-    case "annual":
-      if (dueDate < referenceDate) {
-        dueDate.setFullYear(dueDate.getFullYear() + 1);
-      }
-      break;
+  // 2. Advance the date if it's in the past relative to today, considering recurrence rules.
+  // We only advance if the date is strictly in the past.
+  if (dueDate < today) {
+    let interval = tax.recurrenceInterval || 1;
+    
+    switch (tax.recurrence) {
+      case "monthly":
+      case "custom":
+        // Advance by interval until it's today or future
+        while (dueDate < today) {
+          dueDate.setMonth(dueDate.getMonth() + interval);
+        }
+        break;
+      case "bimonthly":
+        interval = 2;
+        while (dueDate < today || (dueDate.getMonth() % interval !== today.getMonth() % interval)) {
+          dueDate.setMonth(dueDate.getMonth() + 1);
+        }
+        break;
+      case "quarterly":
+        interval = 3;
+        while (dueDate < today || (dueDate.getMonth() % interval !== today.getMonth() % interval)) {
+          dueDate.setMonth(dueDate.getMonth() + 1);
+        }
+        break;
+      case "semiannual":
+        interval = 6;
+        while (dueDate < today || (dueDate.getMonth() % interval !== today.getMonth() % interval)) {
+          dueDate.setMonth(dueDate.getMonth() + 1);
+        }
+        break;
+      case "annual":
+        // Advance year until it's today or future
+        while (dueDate < today) {
+          dueDate.setFullYear(dueDate.getFullYear() + 1);
+        }
+        break;
+    }
   }
 
+  // 3. Apply weekend rule
   return adjustForWeekend(dueDate, tax.weekendRule);
 };
 
@@ -104,52 +122,58 @@ export const calculateInstallmentDueDate = (
   installment: Installment,
   referenceDate: Date = new Date(),
 ): Date => {
-  let dueDate: Date;
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
 
-  // Start with the current year/month and the installment's dueDay
-  dueDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), installment.dueDay);
+  // 1. Determine the base date (Year and Month)
+  let dueDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), installment.dueDay);
+  dueDate.setHours(0, 0, 0, 0);
 
-  // If a specific dueMonth is defined (e.g., for annual installments)
-  if (installment.dueMonth !== undefined) {
+  // If the installment has a specific dueMonth (e.g., annual recurrence), use it.
+  if (installment.dueMonth !== undefined && installment.recurrence === "annual") {
     dueDate.setMonth(installment.dueMonth - 1); // Months are 0-indexed
-    if (dueDate < referenceDate && dueDate.getDate() !== referenceDate.getDate()) {
-      dueDate.setFullYear(dueDate.getFullYear() + 1);
-    }
-  } else {
-    // For monthly or other recurring types without a specific month
-    if (dueDate < referenceDate && dueDate.getDate() !== referenceDate.getDate()) {
-      dueDate.setMonth(dueDate.getMonth() + (installment.recurrenceInterval || 1));
+  }
+
+  // 2. Advance the date if it's in the past relative to today, considering recurrence rules.
+  if (dueDate < today) {
+    let interval = installment.recurrenceInterval || 1;
+
+    switch (installment.recurrence) {
+      case "monthly":
+      case "custom":
+        // Advance by interval until it's today or future
+        while (dueDate < today) {
+          dueDate.setMonth(dueDate.getMonth() + interval);
+        }
+        break;
+      case "bimonthly":
+        interval = 2;
+        while (dueDate < today || (dueDate.getMonth() % interval !== today.getMonth() % interval)) {
+          dueDate.setMonth(dueDate.getMonth() + 1);
+        }
+        break;
+      case "quarterly":
+        interval = 3;
+        while (dueDate < today || (dueDate.getMonth() % interval !== today.getMonth() % interval)) {
+          dueDate.setMonth(dueDate.getMonth() + 1);
+        }
+        break;
+      case "semiannual":
+        interval = 6;
+        while (dueDate < today || (dueDate.getMonth() % interval !== today.getMonth() % interval)) {
+          dueDate.setMonth(dueDate.getMonth() + 1);
+        }
+        break;
+      case "annual":
+        // Advance year until it's today or future
+        while (dueDate < today) {
+          dueDate.setFullYear(dueDate.getFullYear() + 1);
+        }
+        break;
     }
   }
 
-  // Adjust based on recurrence type to find the next relevant date
-  switch (installment.recurrence) {
-    case "monthly":
-    case "custom":
-      // Already handled by initial check and recurrenceInterval
-      break;
-    case "bimonthly":
-      while (dueDate < referenceDate || (dueDate.getMonth() % 2 !== referenceDate.getMonth() % 2)) {
-        dueDate.setMonth(dueDate.getMonth() + 1);
-      }
-      break;
-    case "quarterly":
-      while (dueDate < referenceDate || (dueDate.getMonth() % 3 !== referenceDate.getMonth() % 3)) {
-        dueDate.setMonth(dueDate.getMonth() + 1);
-      }
-      break;
-    case "semiannual":
-      while (dueDate < referenceDate || (dueDate.getMonth() % 6 !== referenceDate.getMonth() % 6)) {
-        dueDate.setMonth(dueDate.getMonth() + 1);
-      }
-      break;
-    case "annual":
-      if (dueDate < referenceDate) {
-        dueDate.setFullYear(dueDate.getFullYear() + 1);
-      }
-      break;
-  }
-
+  // 3. Apply weekend rule
   return adjustForWeekend(dueDate, installment.weekendRule);
 };
 

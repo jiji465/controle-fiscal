@@ -57,20 +57,28 @@ export const getTaxesDueDates = async (monthsAhead: number = 3): Promise<TaxDueD
   };
 
   taxes.forEach(tax => {
-    for (let i = 0; i < monthsAhead; i++) {
-      const referenceDate = new Date(today.getFullYear(), today.getMonth() + i, 1); // Start of current/future month
-      let calculatedDueDate = calculateTaxDueDate(tax, referenceDate);
+    // Determine the initial reference date based on the tax's creation date
+    const initialReferenceDate = new Date(tax.createdAt);
+    
+    // Calculate the first due date based on the initial reference date
+    let calculatedDueDate = calculateTaxDueDate(tax, initialReferenceDate);
+    
+    // If the calculated date is in the past, advance it to the current month/period
+    while (calculatedDueDate < today) {
+        calculatedDueDate.setMonth(calculatedDueDate.getMonth() + (tax.recurrenceInterval || 1));
+        calculatedDueDate = calculateTaxDueDate(tax, calculatedDueDate);
+    }
 
-      // Ensure we don't generate past dates for the current month
-      if (i === 0 && calculatedDueDate < today && calculatedDueDate.getDate() !== today.getDate()) {
-        calculatedDueDate = calculateTaxDueDate(tax, new Date(today.getFullYear(), today.getMonth() + 1, 1));
-      }
+    // Generate occurrences for the next 'monthsAhead' periods starting from the calculated date
+    for (let i = 0; i < monthsAhead; i++) {
+      const referenceDate = new Date(calculatedDueDate.getFullYear(), calculatedDueDate.getMonth() + i, 1);
+      let occurrenceDate = calculateTaxDueDate(tax, referenceDate);
 
       const client = tax.clientId ? clients.find(c => c.id === tax.clientId) || unknownClient : unknownClient;
       
-      const uniqueId = `${tax.id}-${calculatedDueDate.toISOString().split("T")[0]}`;
+      const uniqueId = `${tax.id}-${occurrenceDate.toISOString().split("T")[0]}`;
       const storedStatus = taxStatuses[uniqueId];
-      const isEventOverdue = isOverdue(calculatedDueDate.toISOString());
+      const isEventOverdue = isOverdue(occurrenceDate.toISOString());
       
       let status: FiscalEventStatus = "pending";
       if (storedStatus) {
@@ -83,7 +91,7 @@ export const getTaxesDueDates = async (monthsAhead: number = 3): Promise<TaxDueD
         ...tax,
         id: uniqueId,
         client,
-        calculatedDueDate: calculatedDueDate.toISOString(),
+        calculatedDueDate: occurrenceDate.toISOString(),
         status,
         type: "tax",
       } as TaxDueDate);
@@ -111,7 +119,10 @@ export const getInstallmentsWithDetails = async (): Promise<InstallmentWithDetai
 
   return installments.map((installment) => {
     const client = clients.find((c) => c.id === installment.clientId) || unknownClient;
-    const calculatedDueDate = calculateInstallmentDueDate(installment).toISOString();
+    
+    // Use the installment's creation date as the reference for the first calculation
+    const initialReferenceDate = new Date(installment.createdAt);
+    const calculatedDueDate = calculateInstallmentDueDate(installment, initialReferenceDate).toISOString();
 
     return {
       ...installment,
