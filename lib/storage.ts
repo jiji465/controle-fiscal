@@ -116,6 +116,7 @@ export async function deleteObligation(id: string) {
 // --- Impostos (Templates) ---
 
 export async function getTaxes(): Promise<Tax[]> {
+  // Corrigido para usar a nova coluna isArchived
   const { data, error } = await supabase.from("taxes").select("*").eq("isArchived", false).order("name", { ascending: true })
   if (error) {
     console.error("Supabase Error (getTaxes):", error);
@@ -167,6 +168,7 @@ export async function deleteTax(id: string) {
 // --- Parcelamentos ---
 
 export async function getInstallments(): Promise<Installment[]> {
+  // Corrigido para usar a nova coluna isArchived
   const { data, error } = await supabase.from("installments").select("*").eq("isArchived", false).order("calculatedDueDate", { ascending: true })
   if (error) {
     console.error("Supabase Error (getInstallments):", error);
