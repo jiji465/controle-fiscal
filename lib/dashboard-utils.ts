@@ -227,12 +227,15 @@ export async function runRecurrenceCheckAndGeneration() {
 
     // --- Processamento de Obrigações ---
     allObligations.forEach((obl) => {
-      if (obl.recurrence !== "none") {
+      // Adicionando verificação de segurança para clientId
+      if (!obl.clientId) {
+        console.warn(`Obrigação ${obl.id} ignorada: clientId ausente.`)
+        return;
+      }
+
+      if (obl.recurrence !== "none" && obl.autoGenerate) {
         const nextDueDate = calculateNextDueDate(obl, now)
 
-        // Se a data de vencimento da obrigação original for anterior ao mês atual,
-        // e ela for recorrente, criamos uma nova OBRIGAÇÃO (com novo ID) para o mês atual.
-        
         const lastDue = new Date(obl.calculatedDueDate);
         const firstDayOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
         
@@ -261,7 +264,13 @@ export async function runRecurrenceCheckAndGeneration() {
 
     // --- Processamento de Parcelamentos ---
     allInstallments.forEach((inst) => {
-      if (inst.recurrence !== "none") {
+      // Adicionando verificação de segurança para clientId
+      if (!inst.clientId) {
+        console.warn(`Parcelamento ${inst.id} ignorado: clientId ausente.`)
+        return;
+      }
+
+      if (inst.recurrence !== "none" && inst.autoGenerate) {
         const nextDueDate = calculateNextDueDate(inst, now)
         
         const lastDue = new Date(inst.calculatedDueDate);
@@ -270,16 +279,22 @@ export async function runRecurrenceCheckAndGeneration() {
         if (lastDue < firstDayOfCurrentMonth) {
           // 1. Cria a nova ocorrência
           const newRecurrence = generateNextRecurrence(inst, nextDueDate) as Installment;
-          newInstallments.push(newRecurrence);
+          
+          // Verifica se o número da parcela não excedeu o total
+          if (newRecurrence.installmentNumber <= newRecurrence.totalInstallments) {
+            newInstallments.push(newRecurrence);
+          }
           
           // 2. Atualiza o parcelamento original
-          if (inst.status === "completed") {
-              // Se concluído, remove a recorrência e marca como arquivado
+          // Se o parcelamento original for a última parcela ou se já estiver concluído, arquiva.
+          if (inst.installmentNumber >= inst.totalInstallments || inst.status === "completed") {
               const archivedInst: Installment = { ...inst, recurrence: "none", isArchived: true };
               updatedInstallments.push(archivedInst);
           } else {
-              // Se não concluído, permanece como está (agora overdue)
-              updatedInstallments.push(inst);
+              // Se não for a última parcela e não estiver concluído, atualiza o número da parcela
+              // para que a próxima geração use o número correto.
+              const updatedInst: Installment = { ...inst, installmentNumber: inst.installmentNumber + 1 };
+              updatedInstallments.push(updatedInst);
           }
         } else {
           updatedInstallments.push(inst);
@@ -290,17 +305,17 @@ export async function runRecurrenceCheckAndGeneration() {
     })
 
     // --- Processamento de Impostos (Templates) ---
-    // Impostos não precisam de geração de novas entidades, apenas o template base.
+    // Impostos não geram novas entidades, apenas o template base é atualizado.
     allTaxes.forEach((tax) => {
       updatedTaxes.push(tax);
     });
 
     // --- Salvamento e Log ---
     
-    // Combina as obrigações antigas (atualizadas) com as novas ocorrências
+    // Filtra os itens que não foram arquivados e adiciona os novos
     const finalObligations = [...updatedObligations.filter(o => !o.isArchived), ...newObligations];
     const finalInstallments = [...updatedInstallments.filter(i => !i.isArchived), ...newInstallments];
-    const finalTaxes = updatedTaxes; // Impostos não geram novas entidades, apenas datas
+    const finalTaxes = updatedTaxes;
 
     await saveAllObligations(finalObligations);
     await saveAllInstallments(finalInstallments);
