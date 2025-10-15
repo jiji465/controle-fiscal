@@ -1,69 +1,67 @@
-import type { WeekendRule, Tax, Installment } from "./types"
+import type { WeekendRule, Tax, Installment, RecurrenceType } from "./types"
+import { format } from "date-fns"
 
-export const isWeekend = (date: Date): boolean => {
-  const day = date.getDay()
-  return day === 0 || day === 6
+/**
+ * Verifica se uma data está atrasada (vencida).
+ * @param dateString Data no formato 'YYYY-MM-DD'.
+ * @returns true se a data for anterior a hoje.
+ */
+export const isOverdue = (dateString: string): boolean => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const dueDate = new Date(dateString)
+  dueDate.setHours(0, 0, 0, 0)
+  return dueDate < today
 }
 
-export const adjustForWeekend = (date: Date, rule: WeekendRule): Date => {
-  if (!isWeekend(date)) return date
-
-  const adjusted = new Date(date)
-
-  if (rule === "anticipate") {
-    // Move to previous business day
-    while (isWeekend(adjusted)) {
-      adjusted.setDate(adjusted.getDate() - 1)
-    }
-  } else if (rule === "postpone") {
-    // Move to next business day
-    while (isWeekend(adjusted)) {
-      adjusted.setDate(adjusted.getDate() + 1)
-    }
+/**
+ * Formata uma string de data para o formato brasileiro.
+ * @param dateString Data no formato 'YYYY-MM-DD'.
+ * @returns Data no formato 'DD/MM/YYYY'.
+ */
+export const formatDate = (dateString: string): string => {
+  if (!dateString) return ""
+  try {
+    return format(new Date(dateString), "dd/MM/yyyy")
+  } catch (e) {
+    return dateString
   }
-  // 'keep' doesn't change the date
-
-  return adjusted
 }
 
-export const calculateDueDate = (
-  dueDay: number,
-  dueMonth: number | undefined,
-  frequency: string, // This is now less relevant for Tax/Installment, but kept for Obligation
-  weekendRule: WeekendRule,
-  referenceDate: Date = new Date(),
-): Date => {
-  let dueDate: Date
+/**
+ * Ajusta a data se cair em um fim de semana, com base na regra.
+ */
+const adjustForWeekend = (date: Date, rule?: WeekendRule): Date => {
+  if (!rule || rule === "none") return date
 
-  if (frequency === "annual" && dueMonth) {
-    // Annual obligation with specific month
-    dueDate = new Date(referenceDate.getFullYear(), dueMonth - 1, dueDay)
-    if (dueDate < referenceDate) {
-      dueDate.setFullYear(dueDate.getFullYear() + 1)
+  let adjustedDate = new Date(date)
+  const dayOfWeek = adjustedDate.getDay() // 0 = Sunday, 6 = Saturday
+
+  if (dayOfWeek === 0) {
+    // Sunday
+    if (rule === "advance") {
+      adjustedDate.setDate(adjustedDate.getDate() - 2) // Friday
+    } else if (rule === "postpone") {
+      adjustedDate.setDate(adjustedDate.getDate() + 1) // Monday
     }
-  } else if (frequency === "quarterly" && dueMonth) {
-    // Quarterly obligation
-    dueDate = new Date(referenceDate.getFullYear(), dueMonth - 1, dueDay)
-    while (dueDate < referenceDate) {
-      dueDate.setMonth(dueDate.getMonth() + 3)
-    }
-  } else {
-    // Monthly or custom
-    dueDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), dueDay)
-    if (dueDate < referenceDate) {
-      dueDate.setMonth(dueDate.getMonth() + 1)
+  } else if (dayOfWeek === 6) {
+    // Saturday
+    if (rule === "advance") {
+      adjustedDate.setDate(adjustedDate.getDate() - 1) // Friday
+    } else if (rule === "postpone") {
+      adjustedDate.setDate(adjustedDate.getDate() + 2) // Monday
     }
   }
 
-  return adjustForWeekend(dueDate, weekendRule)
+  return adjustedDate
 }
 
-export const calculateTaxDueDate = (
-  tax: Tax,
-  referenceDate: Date = new Date(),
-): Date => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+/**
+ * Calcula a data de vencimento de um imposto (template) para o mês atual.
+ */
+export const calculateTaxDueDate = (tax: Tax, referenceDate: Date = new Date()): Date => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
 
   // 1. Determine the base date (Year and Month)
   let dueDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), tax.dueDay);
@@ -74,43 +72,37 @@ export const calculateTaxDueDate = (
     dueDate.setMonth(tax.dueMonth - 1);
   }
 
-  // 2. Advance the date if it's in the past relative to today, considering recurrence rules.
-  // We only advance if the date is strictly in the past.
+  // 2. Advance the date if it's in the past (for recurrence)
   if (dueDate < today) {
     let interval = tax.recurrenceInterval || 1;
-    
-    switch (tax.recurrence) {
-      case "monthly":
-      case "custom":
-        // Advance by interval until it's today or future
-        while (dueDate < today) {
+    let recurrenceType: RecurrenceType = tax.recurrence;
+
+    while (dueDate < today) {
+      switch (recurrenceType) {
+        case "monthly":
+        case "custom":
+          // Advance by interval until it's today or future
           dueDate.setMonth(dueDate.getMonth() + interval);
-        }
-        break;
-      case "bimonthly":
-        interval = 2;
-        while (dueDate < today || (dueDate.getMonth() % interval !== today.getMonth() % interval)) {
-          dueDate.setMonth(dueDate.getMonth() + 1);
-        }
-        break;
-      case "quarterly":
-        interval = 3;
-        while (dueDate < today || (dueDate.getMonth() % interval !== today.getMonth() % interval)) {
-          dueDate.setMonth(dueDate.getMonth() + 1);
-        }
-        break;
-      case "semiannual":
-        interval = 6;
-        while (dueDate < today || (dueDate.getMonth() % interval !== today.getMonth() % interval)) {
-          dueDate.setMonth(dueDate.getMonth() + 1);
-        }
-        break;
-      case "annual":
-        // Advance year until it's today or future
-        while (dueDate < today) {
-          dueDate.setFullYear(dueDate.getFullYear() + 1);
-        }
-        break;
+          break;
+        case "bimonthly":
+          interval = 2;
+          dueDate.setMonth(dueDate.getMonth() + interval);
+          break;
+        case "quarterly":
+          interval = 3;
+          dueDate.setMonth(dueDate.getMonth() + interval);
+          break;
+        case "semiannual":
+          interval = 6;
+          dueDate.setMonth(dueDate.getMonth() + interval);
+          break;
+        case "annual":
+          dueDate.setFullYear(dueDate.getFullYear() + interval);
+          break;
+        case "none":
+          // If it's 'none' and in the past, stop.
+          return dueDate;
+      }
     }
   }
 
@@ -118,83 +110,51 @@ export const calculateTaxDueDate = (
   return adjustForWeekend(dueDate, tax.weekendRule);
 };
 
-export const calculateInstallmentDueDate = (
-  installment: Installment,
-  referenceDate: Date = new Date(),
-): Date => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+/**
+ * Calcula a data de vencimento de um parcelamento para o mês atual.
+ */
+export const calculateInstallmentDueDate = (installment: Installment, referenceDate: Date = new Date()): Date => {
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
 
   // 1. Determine the base date (Year and Month)
   let dueDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth(), installment.dueDay);
   dueDate.setHours(0, 0, 0, 0);
 
-  // If the installment has a specific dueMonth (e.g., annual recurrence), use it.
-  if (installment.dueMonth !== undefined && installment.recurrence === "annual") {
-    dueDate.setMonth(installment.dueMonth - 1); // Months are 0-indexed
-  }
-
-  // 2. Advance the date if it's in the past relative to today, considering recurrence rules.
+  // 2. Advance the date if it's in the past (for recurrence)
   if (dueDate < today) {
     let interval = installment.recurrenceInterval || 1;
+    let recurrenceType: RecurrenceType = installment.recurrence;
 
-    switch (installment.recurrence) {
-      case "monthly":
-      case "custom":
-        // Advance by interval until it's today or future
-        while (dueDate < today) {
+    while (dueDate < today) {
+      switch (recurrenceType) {
+        case "monthly":
+        case "custom":
+          // Advance by interval until it's today or future
           dueDate.setMonth(dueDate.getMonth() + interval);
-        }
-        break;
-      case "bimonthly":
-        interval = 2;
-        while (dueDate < today || (dueDate.getMonth() % interval !== today.getMonth() % interval)) {
-          dueDate.setMonth(dueDate.getMonth() + 1);
-        }
-        break;
-      case "quarterly":
-        interval = 3;
-        while (dueDate < today || (dueDate.getMonth() % interval !== today.getMonth() % interval)) {
-          dueDate.setMonth(dueDate.getMonth() + 1);
-        }
-        break;
-      case "semiannual":
-        interval = 6;
-        while (dueDate < today || (dueDate.getMonth() % interval !== today.getMonth() % interval)) {
-          dueDate.setMonth(dueDate.getMonth() + 1);
-        }
-        break;
-      case "annual":
-        // Advance year until it's today or future
-        while (dueDate < today) {
-          dueDate.setFullYear(dueDate.getFullYear() + 1);
-        }
-        break;
+          break;
+        case "bimonthly":
+          interval = 2;
+          dueDate.setMonth(dueDate.getMonth() + interval);
+          break;
+        case "quarterly":
+          interval = 3;
+          dueDate.setMonth(dueDate.getMonth() + interval);
+          break;
+        case "semiannual":
+          interval = 6;
+          dueDate.setMonth(dueDate.getMonth() + interval);
+          break;
+        case "annual":
+          dueDate.setFullYear(dueDate.getFullYear() + interval);
+          break;
+        case "none":
+          // If it's 'none' and in the past, stop.
+          return dueDate;
+      }
     }
   }
 
   // 3. Apply weekend rule
   return adjustForWeekend(dueDate, installment.weekendRule);
 };
-
-
-export const formatDate = (date: string | Date): string => {
-  const d = typeof date === "string" ? new Date(date) : date
-  return d.toLocaleDateString("pt-BR")
-}
-
-export const isOverdue = (dueDate: string): boolean => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0); // Normalize today to start of day
-  const due = new Date(dueDate);
-  due.setHours(0, 0, 0, 0); // Normalize due date to start of day
-  return due < today;
-}
-
-export const isUpcomingThisWeek = (dueDate: string): boolean => {
-  const due = new Date(dueDate)
-  const today = new Date()
-  const weekFromNow = new Date()
-  weekFromNow.setDate(today.getDate() + 7)
-  return due >= today && due <= weekFromNow
-}

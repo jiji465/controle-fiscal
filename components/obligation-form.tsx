@@ -1,29 +1,19 @@
-"use client"
-
-import type React from "react"
 import { useState, useEffect } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { X, AlertCircle, AlertTriangle, Flag, Paperclip } from "lucide-react"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import type { Obligation, Client, Tax } from "@/lib/types"
-import { toast } from "@/hooks/use-toast"
+import { X, Plus, Link } from "lucide-react"
+import type { Obligation, Client, Tax, ObligationWithDetails, ObligationHistoryEntry, RecurrenceType, WeekendRule } from "@/lib/types"
 import { createObligation } from "@/lib/factory"
+import { toast } from "@/hooks/use-toast"
 
-type ObligationFormProps = {
-  obligation?: Obligation
+interface ObligationFormProps {
+  obligation?: ObligationWithDetails
   clients: Client[]
   taxes: Tax[]
   open: boolean
@@ -33,87 +23,74 @@ type ObligationFormProps = {
 
 export function ObligationForm({ obligation, clients, taxes, open, onOpenChange, onSave }: ObligationFormProps) {
   const [formData, setFormData] = useState<Partial<Obligation>>(createObligation())
-  const [newTag, setNewTag] = useState("")
   const [newAttachmentUrl, setNewAttachmentUrl] = useState("")
-  const [isClientSelectDisabled, setIsClientSelectDisabled] = useState(false);
-  const [initialDueDate, setInitialDueDate] = useState("");
 
   useEffect(() => {
     if (obligation) {
-      setFormData(obligation);
-      if (obligation.dueDay) {
-        const year = new Date().getFullYear();
-        const month = obligation.dueMonth ? obligation.dueMonth - 1 : new Date().getMonth();
-        const day = obligation.dueDay;
-        const date = new Date(year, month, day);
-        setInitialDueDate(date.toISOString().split('T')[0]);
-      } else {
-        setInitialDueDate("");
-      }
+      setFormData(obligation)
     } else {
-      setFormData(createObligation());
-      setInitialDueDate("");
+      setFormData(createObligation())
     }
-  }, [obligation, open]);
+  }, [obligation])
 
-  useEffect(() => {
-    if (formData.taxId) {
-      const selectedTax = taxes.find(t => t.id === formData.taxId);
-      if (selectedTax) {
-        setFormData(prev => ({
-          ...prev,
-          dueDay: selectedTax.dueDay || prev.dueDay,
-          recurrence: selectedTax.recurrence,
-          recurrenceInterval: selectedTax.recurrenceInterval,
-          recurrenceEndDate: selectedTax.recurrenceEndDate,
-          autoGenerate: selectedTax.autoGenerate,
-          weekendRule: selectedTax.weekendRule,
-          notes: selectedTax.notes || prev.notes,
-          tags: selectedTax.tags || prev.tags,
-          clientId: selectedTax.clientId || prev.clientId,
-        }));
-        setIsClientSelectDisabled(!!selectedTax.clientId);
-      }
+  const handleChange = (field: keyof Obligation, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
+  }
+
+  const handleTaxChange = (taxId: string) => {
+    const selectedTax = taxes.find(t => t.id === taxId)
+    if (selectedTax) {
+      setFormData(prev => ({
+        ...prev,
+        taxId: taxId,
+        name: selectedTax.name,
+        description: selectedTax.description,
+        dueDay: selectedTax.dueDay || prev.dueDay,
+        recurrence: selectedTax.recurrence,
+        recurrenceInterval: selectedTax.recurrenceInterval,
+        recurrenceEndDate: selectedTax.recurrenceEndDate,
+        autoGenerate: selectedTax.autoGenerate,
+        weekendRule: selectedTax.weekendRule,
+        notes: selectedTax.notes || prev.notes,
+        tags: selectedTax.tags || prev.tags,
+        clientId: selectedTax.clientId || prev.clientId,
+      }))
     } else {
-      setIsClientSelectDisabled(false);
+      setFormData(prev => ({ ...prev, taxId: undefined }))
     }
-  }, [formData.taxId, taxes]);
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault()
+    if (!formData.name || !formData.clientId || !formData.calculatedDueDate) {
+      toast({
+        title: "Erro de validação",
+        description: "Nome, Cliente e Data de Vencimento são obrigatórios.",
+        variant: "destructive",
+      })
+      return
+    }
 
-    const history = obligation?.history || []
-    const newHistoryEntry = {
+    const isEditing = !!formData.id
+    const history = formData.history || []
+    const newHistoryEntry: ObligationHistoryEntry = {
       id: crypto.randomUUID(),
-      action: obligation ? ("updated" as const) : ("created" as const),
-      description: obligation ? `Obrigação atualizada` : `Obrigação criada`,
+      action: isEditing ? "edited" : "created",
+      description: isEditing ? "Obrigação editada" : "Obrigação criada",
       timestamp: new Date().toISOString(),
     }
 
-    const obligationData: Obligation = {
+    const finalObligation: Obligation = {
       ...createObligation(),
       ...formData,
-      id: obligation?.id || crypto.randomUUID(),
-      createdAt: obligation?.createdAt || new Date().toISOString(),
+      id: formData.id || crypto.randomUUID(),
+      createdAt: formData.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      type: "obligation",
       history: [...history, newHistoryEntry],
-    }
-    onSave(obligationData)
-    onOpenChange(false)
-    toast({
-      title: "Obrigação salva!",
-      description: `A obrigação "${obligationData.name}" foi salva com sucesso.`,
-    });
-  }
+    } as Obligation
 
-  const addTag = () => {
-    if (newTag.trim() && !formData.tags?.includes(newTag.trim())) {
-      setFormData({ ...formData, tags: [...(formData.tags || []), newTag.trim()] })
-      setNewTag("")
-    }
-  }
-
-  const removeTag = (tag: string) => {
-    setFormData({ ...formData, tags: formData.tags?.filter((t) => t !== tag) })
+    onSave(finalObligation)
   }
 
   const addAttachment = () => {
@@ -121,406 +98,281 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
       setFormData({ ...formData, attachments: [...(formData.attachments || []), newAttachmentUrl.trim()] });
       setNewAttachmentUrl("");
     }
-  };
+  }
 
   const removeAttachment = (url: string) => {
     setFormData({ ...formData, attachments: formData.attachments?.filter((a) => a !== url) });
   };
 
-  const getPriorityIcon = (priority: string) => {
-    switch (priority) {
-      case "urgent":
-        return <AlertCircle className="size-4 text-red-600" />
-      case "high":
-        return <AlertTriangle className="size-4 text-orange-600" />
-      case "medium":
-        return <Flag className="size-4 text-yellow-600" />
-      default:
-        return <Flag className="size-4 text-blue-600" />
-    }
-  }
+  const recurrenceOptions: { value: RecurrenceType, label: string }[] = [
+    { value: "none", label: "Única" },
+    { value: "monthly", label: "Mensal" },
+    { value: "bimonthly", label: "Bimestral" },
+    { value: "quarterly", label: "Trimestral" },
+    { value: "semiannual", label: "Semestral" },
+    { value: "annual", label: "Anual" },
+    { value: "custom", label: "Personalizada (N meses)" },
+  ]
+
+  const weekendRuleOptions: { value: WeekendRule, label: string }[] = [
+    { value: "none", label: "Nenhuma" },
+    { value: "advance", label: "Antecipar (para sexta)" },
+    { value: "postpone", label: "Postergar (para segunda)" },
+  ]
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[700px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{obligation ? "Editar Obrigação" : "Nova Obrigação"}</DialogTitle>
-          <DialogDescription>Configure a obrigação fiscal com todas as regras e vencimentos.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-6 py-4">
-            {/* Informações Básicas */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Informações Básicas
-              </h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nome da Obrigação</Label>
+              <Input
+                id="name"
+                value={formData.name || ""}
+                onChange={(e) => handleChange("name", e.target.value)}
+                required
+              />
+            </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="name">Nome da Obrigação *</Label>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="clientId">Cliente</Label>
+                <Select
+                  value={formData.clientId || ""}
+                  onValueChange={(value) => handleChange("clientId", value)}
+                  required
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o Cliente" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {clients.map((client) => (
+                      <SelectItem key={client.id} value={client.id}>
+                        {client.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="taxId">Vincular a Imposto (Opcional)</Label>
+                <Select
+                  value={formData.taxId || ""}
+                  onValueChange={handleTaxChange}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione o Imposto Base" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">Nenhum</SelectItem>
+                    {taxes.map((tax) => (
+                      <SelectItem key={tax.id} value={tax.id}>
+                        {tax.name} ({tax.federalTaxCode})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="description">Descrição</Label>
+              <Textarea
+                id="description"
+                value={formData.description || ""}
+                onChange={(e) => handleChange("description", e.target.value)}
+              />
+            </div>
+
+            <div className="grid grid-cols-3 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="category">Categoria</Label>
+                <Select
+                  value={formData.category || "federal"}
+                  onValueChange={(value) => handleChange("category", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="federal">Federal</SelectItem>
+                    <SelectItem value="state">Estadual</SelectItem>
+                    <SelectItem value="municipal">Municipal</SelectItem>
+                    <SelectItem value="other">Outra</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="priority">Prioridade</Label>
+                <Select
+                  value={formData.priority || "medium"}
+                  onValueChange={(value) => handleChange("priority", value)}
+                >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Prioridade" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="urgent">Urgente</SelectItem>
+                    <SelectItem value="high">Alta</SelectItem>
+                    <SelectItem value="medium">Média</SelectItem>
+                    <SelectItem value="low">Baixa</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="assignedTo">Responsável</Label>
                 <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Ex: DCTF, EFD-ICMS, SPED Fiscal"
+                  id="assignedTo"
+                  value={formData.assignedTo || ""}
+                  onChange={(e) => handleChange("assignedTo", e.target.value)}
+                />
+              </div>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="recurrence">Recorrência</Label>
+              <Select
+                value={formData.recurrence || "none"}
+                onValueChange={(value) => handleChange("recurrence", value)}
+                disabled={!!formData.taxId}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a Recorrência" />
+                </SelectTrigger>
+                <SelectContent>
+                  {recurrenceOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {(formData.recurrence === "custom" || formData.recurrence === "bimonthly") && (
+              <div className="grid gap-2">
+                <Label htmlFor="recurrenceInterval">Intervalo de Recorrência (em meses)</Label>
+                <Input
+                  id="recurrenceInterval"
+                  type="number"
+                  min="1"
+                  value={formData.recurrenceInterval || 1}
+                  onChange={(e) => handleChange("recurrenceInterval", Number(e.target.value))}
+                  disabled={!!formData.taxId || formData.recurrence === "bimonthly"}
+                />
+              </div>
+            )}
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="autoGenerate"
+                checked={formData.autoGenerate}
+                onCheckedChange={(checked) => handleChange("autoGenerate", checked)}
+                disabled={!!formData.taxId}
+              />
+              <Label htmlFor="autoGenerate">Gerar automaticamente novas ocorrências</Label>
+            </div>
+
+            {formData.autoGenerate && (
+              <div className="grid gap-2">
+                <Label htmlFor="recurrenceEndDate">Data Final da Recorrência (Opcional)</Label>
+                <Input
+                  id="recurrenceEndDate"
+                  type="date"
+                  value={formData.recurrenceEndDate || ""}
+                  onChange={(e) => handleChange("recurrenceEndDate", e.target.value)}
+                />
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="calculatedDueDate">Data de Vencimento Base</Label>
+                <Input
+                  id="calculatedDueDate"
+                  type="date"
+                  value={formData.calculatedDueDate || ""}
+                  onChange={(e) => handleChange("calculatedDueDate", e.target.value)}
                   required
                 />
               </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="description">Descrição (Opcional)</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description || ""}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Descreva a obrigação..."
-                  rows={2}
-                />
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="clientId">Cliente *</Label>
-                  <Select
-                    value={formData.clientId}
-                    onValueChange={(value) => setFormData({ ...formData, clientId: value })}
-                    required
-                    disabled={isClientSelectDisabled}
-                  >
-                    <SelectTrigger id="clientId">
-                      <SelectValue placeholder="Selecione o cliente" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      {clients.map((client) => (
-                        <SelectItem key={client.id} value={client.id}>
-                          {client.name}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="taxId">Imposto (Opcional)</Label>
-                  <Select
-                    value={formData.taxId || "none"}
-                    onValueChange={(value) => setFormData({ ...formData, taxId: value === "none" ? "" : value })}
-                  >
-                    <SelectTrigger id="taxId">
-                      <SelectValue placeholder="Sem imposto vinculado" />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="none">Sem imposto vinculado</SelectItem>
-                      {taxes.map((tax) => (
-                        <SelectItem key={tax.id} value={tax.id}>
-                          {tax.name} {tax.clientId ? `(${clients.find(c => c.id === tax.clientId)?.name || "Cliente Desconhecido"})` : "(Global)"}
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* Gestão e Controle */}
-            <div className="space-y-4 border-t pt-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Gestão e Controle</h3>
-
-              <div className="grid sm:grid-cols-3 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="priority" className="flex items-center gap-2">
-                    Prioridade *{getPriorityIcon(formData.priority || "medium")}
-                  </Label>
-                  <Select
-                    value={formData.priority}
-                    onValueChange={(value) => setFormData({ ...formData, priority: value as any })}
-                  >
-                    <SelectTrigger id="priority">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="low">Baixa</SelectItem>
-                      <SelectItem value="medium">Média</SelectItem>
-                      <SelectItem value="high">Alta</SelectItem>
-                      <SelectItem value="urgent">Urgente</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="status">Status *</Label>
-                  <Select
-                    value={formData.status}
-                    onValueChange={(value) => setFormData({ ...formData, status: value as any })}
-                  >
-                    <SelectTrigger id="status">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="pending">Pendente</SelectItem>
-                      <SelectItem value="in_progress">Em Andamento</SelectItem>
-                      <SelectItem value="completed">Concluída</SelectItem>
-                      <SelectItem value="overdue">Atrasada</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="realizationDate">Data de Realização</Label>
-                  <Input
-                    id="realizationDate"
-                    type="date"
-                    value={formData.realizationDate || ""}
-                    onChange={(e) => setFormData({ ...formData, realizationDate: e.target.value })}
-                  />
-                </div>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="assignedTo">Responsável</Label>
-                  <Input
-                    id="assignedTo"
-                    value={formData.assignedTo || ""}
-                    onChange={(e) => setFormData({ ...formData, assignedTo: e.target.value })}
-                    placeholder="Nome do responsável"
-                  />
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="protocol">Protocolo/Processo</Label>
-                  <Input
-                    id="protocol"
-                    value={formData.protocol || ""}
-                    onChange={(e) => setFormData({ ...formData, protocol: e.target.value })}
-                    placeholder="Número do protocolo"
-                  />
-                </div>
-              </div>
-            </div>
-
-            {/* Configuração de Recorrência */}
-            <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
-              <h3 className="text-sm font-semibold">Configuração de Recorrência</h3>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="recurrence">Tipo de Recorrência *</Label>
-                  <Select
-                    value={formData.recurrence}
-                    onValueChange={(value) => {
-                      const newRecurrence = value as any;
-                      let dueMonth = formData.dueMonth;
-                      if (initialDueDate) {
-                          const [, month] = initialDueDate.split('-').map(Number);
-                          dueMonth = newRecurrence === 'annual' ? month : undefined;
-                      }
-                      setFormData({ 
-                          ...formData, 
-                          recurrence: newRecurrence,
-                          dueMonth: dueMonth
-                      });
-                    }}
+              <div className="space-y-2">
+                <Label htmlFor="weekendRule">Regra de Fim de Semana</Label>
+                <Select
+                    value={formData.weekendRule}
+                    onValueChange={(value) => handleChange("weekendRule", value as WeekendRule)}
                     disabled={!!formData.taxId}
                   >
-                    <SelectTrigger id="recurrence">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="monthly">Mensal</SelectItem>
-                      <SelectItem value="bimonthly">Bimestral</SelectItem>
-                      <SelectItem value="quarterly">Trimestral</SelectItem>
-                      <SelectItem value="semiannual">Semestral</SelectItem>
-                      <SelectItem value="annual">Anual</SelectItem>
-                      <SelectItem value="custom">Personalizado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {formData.recurrence === "custom" && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="recurrenceInterval">Intervalo (meses)</Label>
-                    <Input
-                      id="recurrenceInterval"
-                      type="number"
-                      min="1"
-                      value={formData.recurrenceInterval || 1}
-                      onChange={(e) => setFormData({ ...formData, recurrenceInterval: Number(e.target.value) })}
-                      disabled={!!formData.taxId}
-                    />
-                  </div>
-                )}
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a Regra" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {weekendRuleOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
+            </div>
 
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="autoGenerate">Gerar Automaticamente</Label>
-                  <p className="text-xs text-muted-foreground">Criar próximas ocorrências automaticamente</p>
-                </div>
-                <Switch
-                  id="autoGenerate"
-                  checked={formData.autoGenerate}
-                  onCheckedChange={(checked) => setFormData({ ...formData, autoGenerate: checked })}
-                  disabled={!!formData.taxId}
+            <div className="space-y-2">
+              <Label htmlFor="protocol">Protocolo/Número de Referência</Label>
+              <Input
+                id="protocol"
+                value={formData.protocol || ""}
+                onChange={(e) => handleChange("protocol", e.target.value)}
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="attachments">Anexos (Links)</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="attachments"
+                  placeholder="Adicionar link de anexo"
+                  value={newAttachmentUrl}
+                  onChange={(e) => setNewAttachmentUrl(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addAttachment();
+                    }
+                  }}
                 />
+                <Button type="button" onClick={addAttachment} variant="outline" size="icon">
+                  <Plus className="size-4" />
+                </Button>
               </div>
-
-              {formData.autoGenerate && (
-                <div className="grid gap-2">
-                  <Label htmlFor="recurrenceEndDate">Data Final (Opcional)</Label>
-                  <Input
-                    id="recurrenceEndDate"
-                    type="date"
-                    value={formData.recurrenceEndDate || ""}
-                    onChange={(e) => setFormData({ ...formData, recurrenceEndDate: e.target.value })}
-                  />
-                  <p className="text-xs text-muted-foreground">Deixe em branco para recorrência indefinida</p>
+              {formData.attachments && formData.attachments.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {formData.attachments.map((url, index) => (
+                    <Badge key={index} variant="secondary" className="gap-1">
+                      <Link className="size-3" />
+                      Anexo {index + 1}
+                      <X className="size-3 cursor-pointer" onClick={() => removeAttachment(url)} />
+                    </Badge>
+                  ))}
                 </div>
               )}
             </div>
 
-            {/* Vencimentos */}
-            <div className="space-y-4 border-t pt-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Vencimentos</h3>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>Data de Vencimento Inicial *</Label>
-                  <Input
-                      type="date"
-                      value={initialDueDate}
-                      onChange={(e) => {
-                          const newDateValue = e.target.value;
-                          setInitialDueDate(newDateValue);
-                          if (newDateValue) {
-                              const [year, month, day] = newDateValue.split('-').map(Number);
-                              setFormData({
-                                  ...formData,
-                                  dueDay: day,
-                                  dueMonth: formData.recurrence === 'annual' ? month : undefined,
-                              });
-                          }
-                      }}
-                      disabled={!!formData.taxId}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Selecione a data para o primeiro vencimento. A recorrência definirá os próximos.
-                  </p>
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="weekendRule">Final de Semana *</Label>
-                  <Select
-                    value={formData.weekendRule}
-                    onValueChange={(value) => setFormData({ ...formData, weekendRule: value as any })}
-                    disabled={!!formData.taxId}
-                  >
-                    <SelectTrigger id="weekendRule">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="postpone">Postergar</SelectItem>
-                      <SelectItem value="anticipate">Antecipar</SelectItem>
-                      <SelectItem value="keep">Manter</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* Informações Adicionais */}
-            <div className="space-y-4 border-t pt-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Informações Adicionais
-              </h3>
-
-              <div className="grid gap-2">
-                <Label htmlFor="notes">Observações</Label>
-                <Textarea
-                  id="notes"
-                  value={formData.notes}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Observações adicionais, comentários internos..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="tags">Tags</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="tags"
-                    value={newTag}
-                    onChange={(e) => setNewTag(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault()
-                        addTag()
-                      }
-                    }}
-                    placeholder="Adicionar tag..."
-                  />
-                  <Button type="button" variant="outline" onClick={addTag}>
-                    Adicionar
-                  </Button>
-                </div>
-                {formData.tags && formData.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {formData.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="gap-1">
-                        {tag}
-                        <button type="button" onClick={() => removeTag(tag)} className="ml-1 hover:text-destructive">
-                          <X className="size-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="attachments" className="flex items-center gap-2">
-                  <Paperclip className="size-4" /> Anexos (URLs)
-                </Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="attachments"
-                    value={newAttachmentUrl}
-                    onChange={(e) => setNewAttachmentUrl(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault();
-                        addAttachment();
-                      }
-                    }}
-                    placeholder="Adicionar URL do anexo..."
-                  />
-                  <Button type="button" variant="outline" onClick={addAttachment}>
-                    Adicionar
-                  </Button>
-                </div>
-                {formData.attachments && formData.attachments.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {formData.attachments.map((url, index) => (
-                      <Badge key={index} variant="secondary" className="gap-1">
-                        <a href={url} target="_blank" rel="noopener noreferrer" className="underline truncate max-w-[150px]">
-                          {url.split('/').pop()}
-                        </a>
-                        <button type="button" onClick={() => removeAttachment(url)} className="ml-1 hover:text-destructive">
-                          <X className="size-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-                <p className="text-xs text-muted-foreground">
-                  Para uploads de arquivos reais, a integração com o Supabase Storage será necessária.
-                </p>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notas Internas</Label>
+              <Textarea
+                id="notes"
+                value={formData.notes || ""}
+                onChange={(e) => handleChange("notes", e.target.value)}
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit">Salvar Obrigação</Button>
+            <Button type="submit">{obligation ? "Salvar Alterações" : "Criar Obrigação"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

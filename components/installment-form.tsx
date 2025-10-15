@@ -1,29 +1,19 @@
-"use client"
-
-import type React from "react"
 import { useState, useEffect } from "react"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { Textarea } from "@/components/ui/textarea"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
-import { Switch } from "@/components/ui/switch"
+import { Textarea } from "@/components/ui/textarea"
+import { Checkbox } from "@/components/ui/checkbox"
 import { Badge } from "@/components/ui/badge"
-import { X } from "lucide-react"
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog"
-import type { Installment, Client } from "@/lib/types"
-import { toast } from "@/hooks/use-toast"
+import { X, Plus } from "lucide-react"
+import type { Installment, Client, InstallmentWithDetails, RecurrenceType, WeekendRule } from "@/lib/types"
 import { createInstallment } from "@/lib/factory"
+import { toast } from "@/hooks/use-toast"
 
-type InstallmentFormProps = {
-  installment?: Installment
+interface InstallmentFormProps {
+  installment?: InstallmentWithDetails
   clients: Client[]
   open: boolean
   onOpenChange: (open: boolean) => void
@@ -33,40 +23,17 @@ type InstallmentFormProps = {
 export function InstallmentForm({ installment, clients, open, onOpenChange, onSave }: InstallmentFormProps) {
   const [formData, setFormData] = useState<Partial<Installment>>(createInstallment())
   const [newTag, setNewTag] = useState("")
-  const [initialDueDate, setInitialDueDate] = useState("");
 
   useEffect(() => {
     if (installment) {
-      setFormData(installment);
-      if (installment.dueDay) {
-        const year = new Date().getFullYear();
-        const month = installment.dueMonth ? installment.dueMonth - 1 : new Date().getMonth();
-        const day = installment.dueDay;
-        const date = new Date(year, month, day);
-        setInitialDueDate(date.toISOString().split('T')[0]);
-      } else {
-        setInitialDueDate("");
-      }
+      setFormData(installment)
     } else {
-      setFormData(createInstallment());
-      setInitialDueDate("");
+      setFormData(createInstallment())
     }
-  }, [installment, open]);
+  }, [installment])
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault()
-    const installmentData: Installment = {
-      ...createInstallment(),
-      ...formData,
-      id: installment?.id || crypto.randomUUID(),
-      createdAt: installment?.createdAt || new Date().toISOString(),
-    }
-    onSave(installmentData)
-    onOpenChange(false)
-    toast({
-      title: "Parcelamento salvo!",
-      description: `O parcelamento "${installmentData.name}" foi salvo com sucesso.`,
-    });
+  const handleChange = (field: keyof Installment, value: any) => {
+    setFormData((prev) => ({ ...prev, [field]: value }))
   }
 
   const addTag = () => {
@@ -80,57 +47,188 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
     setFormData({ ...formData, tags: formData.tags?.filter((t) => t !== tag) })
   }
 
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!formData.name || !formData.clientId || !formData.calculatedDueDate) {
+      toast({
+        title: "Erro de validação",
+        description: "Nome, Cliente e Data de Vencimento são obrigatórios.",
+        variant: "destructive",
+      })
+      return
+    }
+
+    // Garante que o objeto final é do tipo Installment
+    const finalInstallment: Installment = {
+      ...createInstallment(),
+      ...formData,
+      id: formData.id || crypto.randomUUID(),
+      createdAt: formData.createdAt || new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
+      type: "installment",
+    } as Installment
+
+    onSave(finalInstallment)
+  }
+
+  const recurrenceOptions: { value: RecurrenceType, label: string }[] = [
+    { value: "none", label: "Única" },
+    { value: "monthly", label: "Mensal" },
+    { value: "bimonthly", label: "Bimestral" },
+    { value: "quarterly", label: "Trimestral" },
+    { value: "semiannual", label: "Semestral" },
+    { value: "annual", label: "Anual" },
+    { value: "custom", label: "Personalizada (N meses)" },
+  ]
+
+  const weekendRuleOptions: { value: WeekendRule, label: string }[] = [
+    { value: "none", label: "Nenhuma" },
+    { value: "advance", label: "Antecipar (para sexta)" },
+    { value: "postpone", label: "Postergar (para segunda)" },
+  ]
+
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[800px] max-h-[90vh] overflow-y-auto">
+      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle>{installment ? "Editar Parcelamento" : "Novo Parcelamento"}</DialogTitle>
-          <DialogDescription>Configure os detalhes do parcelamento fiscal.</DialogDescription>
         </DialogHeader>
-        <form onSubmit={handleSubmit}>
-          <div className="grid gap-6 py-4">
-            {/* Informações Básicas */}
-            <div className="space-y-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Informações Básicas
-              </h3>
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="grid gap-4 py-4">
+            <div className="space-y-2">
+              <Label htmlFor="name">Nome do Parcelamento</Label>
+              <Input
+                id="name"
+                value={formData.name || ""}
+                onChange={(e) => handleChange("name", e.target.value)}
+                required
+              />
+            </div>
 
-              <div className="grid gap-2">
-                <Label htmlFor="name">Nome do Parcelamento *</Label>
+            <div className="space-y-2">
+              <Label htmlFor="clientId">Cliente</Label>
+              <Select
+                value={formData.clientId || ""}
+                onValueChange={(value) => handleChange("clientId", value)}
+                required
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione o Cliente" />
+                </SelectTrigger>
+                <SelectContent>
+                  {clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="totalInstallments">Total de Parcelas</Label>
                 <Input
-                  id="name"
-                  value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  placeholder="Ex: Parcelamento ICMS, Refis"
+                  id="totalInstallments"
+                  type="number"
+                  min="1"
+                  value={formData.totalInstallments || 1}
+                  onChange={(e) => handleChange("totalInstallments", Number(e.target.value))}
                   required
                 />
               </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="description">Descrição (Opcional)</Label>
-                <Textarea
-                  id="description"
-                  value={formData.description || ""}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  placeholder="Descreva o parcelamento..."
-                  rows={2}
+              <div className="space-y-2">
+                <Label htmlFor="installmentNumber">Número da Parcela Atual</Label>
+                <Input
+                  id="installmentNumber"
+                  type="number"
+                  min="1"
+                  max={formData.totalInstallments}
+                  value={formData.installmentNumber || 1}
+                  onChange={(e) => handleChange("installmentNumber", Number(e.target.value))}
+                  required
                 />
               </div>
+            </div>
 
+            <div className="space-y-2">
+              <Label htmlFor="recurrence">Recorrência</Label>
+              <Select
+                value={formData.recurrence || "none"}
+                onValueChange={(value) => handleChange("recurrence", value)}
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Selecione a Recorrência" />
+                </SelectTrigger>
+                <SelectContent>
+                  {recurrenceOptions.map((option) => (
+                    <SelectItem key={option.value} value={option.value}>
+                      {option.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {(formData.recurrence === "custom" || formData.recurrence === "bimonthly") && (
               <div className="grid gap-2">
-                <Label htmlFor="clientId">Cliente *</Label>
+                <Label htmlFor="recurrenceInterval">Intervalo de Recorrência (em meses)</Label>
+                <Input
+                  id="recurrenceInterval"
+                  type="number"
+                  min="1"
+                  value={formData.recurrenceInterval || 1}
+                  onChange={(e) => handleChange("recurrenceInterval", Number(e.target.value))}
+                  disabled={formData.recurrence === "bimonthly"}
+                />
+              </div>
+            )}
+
+            <div className="flex items-center space-x-2">
+              <Checkbox
+                id="autoGenerate"
+                checked={formData.autoGenerate}
+                onCheckedChange={(checked) => handleChange("autoGenerate", checked)}
+              />
+              <Label htmlFor="autoGenerate">Gerar automaticamente novas ocorrências</Label>
+            </div>
+
+            {formData.autoGenerate && (
+              <div className="grid gap-2">
+                <Label htmlFor="recurrenceEndDate">Data Final da Recorrência (Opcional)</Label>
+                <Input
+                  id="recurrenceEndDate"
+                  type="date"
+                  value={formData.recurrenceEndDate || ""}
+                  onChange={(e) => handleChange("recurrenceEndDate", e.target.value)}
+                />
+              </div>
+            )}
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="calculatedDueDate">Data de Vencimento Base</Label>
+                <Input
+                  id="calculatedDueDate"
+                  type="date"
+                  value={formData.calculatedDueDate || ""}
+                  onChange={(e) => handleChange("calculatedDueDate", e.target.value)}
+                  required
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="weekendRule">Regra de Fim de Semana</Label>
                 <Select
-                  value={formData.clientId}
-                  onValueChange={(value) => setFormData({ ...formData, clientId: value })}
-                  required
-                >
-                  <SelectTrigger id="clientId">
-                    <SelectValue placeholder="Selecione o cliente" />
+                    value={formData.weekendRule}
+                    onValueChange={(value) => handleChange("weekendRule", value as WeekendRule)}
+                  >
+                  <SelectTrigger>
+                    <SelectValue placeholder="Selecione a Regra" />
                   </SelectTrigger>
                   <SelectContent>
-                    {clients.map((client) => (
-                      <SelectItem key={client.id} value={client.id}>
-                        {client.name}
+                    {weekendRuleOptions.map((option) => (
+                      <SelectItem key={option.value} value={option.value}>
+                        {option.label}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -138,239 +236,57 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
               </div>
             </div>
 
-            {/* Valores e Parcelas */}
-            <div className="space-y-4 border-t pt-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Controle de Parcelas
-              </h3>
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="installmentNumber">Número da Parcela *</Label>
-                  <Input
-                    id="installmentNumber"
-                    type="number"
-                    min="1"
-                    value={formData.installmentNumber || ""}
-                    onChange={(e) => setFormData({ ...formData, installmentNumber: Number(e.target.value) })}
-                    required
-                  />
-                </div>
-                <div className="grid gap-2">
-                  <Label htmlFor="totalInstallments">Total de Parcelas *</Label>
-                  <Input
-                    id="totalInstallments"
-                    type="number"
-                    min="1"
-                    value={formData.totalInstallments || ""}
-                    onChange={(e) => setFormData({ ...formData, totalInstallments: Number(e.target.value) })}
-                    required
-                  />
-                </div>
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="description">Descrição</Label>
+              <Textarea
+                id="description"
+                value={formData.description || ""}
+                onChange={(e) => handleChange("description", e.target.value)}
+              />
             </div>
 
-            {/* Gestão e Controle */}
-            <div className="space-y-4 border-t pt-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Gestão e Controle</h3>
-              <div className="grid gap-2">
-                <Label htmlFor="status">Status *</Label>
-                <Select
-                  value={formData.status}
-                  onValueChange={(value) => setFormData({ ...formData, status: value as any })}
-                >
-                  <SelectTrigger id="status">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="pending">Pendente</SelectItem>
-                    <SelectItem value="in_progress">Em Andamento</SelectItem>
-                    <SelectItem value="completed">Concluído</SelectItem>
-                    <SelectItem value="overdue">Atrasado</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </div>
-
-            {/* Configuração de Recorrência */}
-            <div className="border rounded-lg p-4 space-y-4 bg-muted/30">
-              <h3 className="text-sm font-semibold">Configuração de Recorrência</h3>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label htmlFor="recurrence">Tipo de Recorrência *</Label>
-                  <Select
-                    value={formData.recurrence}
-                    onValueChange={(value) => {
-                      const newRecurrence = value as any;
-                      let dueMonth = formData.dueMonth;
-                      if (initialDueDate) {
-                          const [, month] = initialDueDate.split('-').map(Number);
-                          dueMonth = newRecurrence === 'annual' ? month : undefined;
-                      }
-                      setFormData({ 
-                          ...formData, 
-                          recurrence: newRecurrence,
-                          dueMonth: dueMonth
-                      });
-                    }}
-                  >
-                    <SelectTrigger id="recurrence">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="monthly">Mensal</SelectItem>
-                      <SelectItem value="bimonthly">Bimestral</SelectItem>
-                      <SelectItem value="quarterly">Trimestral</SelectItem>
-                      <SelectItem value="semiannual">Semestral</SelectItem>
-                      <SelectItem value="annual">Anual</SelectItem>
-                      <SelectItem value="custom">Personalizado</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-
-                {formData.recurrence === "custom" && (
-                  <div className="grid gap-2">
-                    <Label htmlFor="recurrenceInterval">Intervalo (meses)</Label>
-                    <Input
-                      id="recurrenceInterval"
-                      type="number"
-                      min="1"
-                      value={formData.recurrenceInterval || 1}
-                      onChange={(e) => setFormData({ ...formData, recurrenceInterval: Number(e.target.value) })}
-                    />
-                  </div>
-                )}
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label htmlFor="autoGenerate">Gerar Automaticamente</Label>
-                  <p className="text-xs text-muted-foreground">Criar próximas ocorrências automaticamente</p>
-                </div>
-                <Switch
-                  id="autoGenerate"
-                  checked={formData.autoGenerate}
-                  onCheckedChange={(checked) => setFormData({ ...formData, autoGenerate: checked })}
+            <div className="space-y-2">
+              <Label htmlFor="tags">Tags</Label>
+              <div className="flex gap-2">
+                <Input
+                  id="tags"
+                  placeholder="Adicionar tag (ex: REFIS, PGFN)"
+                  value={newTag}
+                  onChange={(e) => setNewTag(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      addTag();
+                    }
+                  }}
                 />
+                <Button type="button" onClick={addTag} variant="outline" size="icon">
+                  <Plus className="size-4" />
+                </Button>
               </div>
-
-              {formData.autoGenerate && (
-                <div className="grid gap-2">
-                  <Label htmlFor="recurrenceEndDate">Data Final (Opcional)</Label>
-                  <Input
-                    id="recurrenceEndDate"
-                    type="date"
-                    value={formData.recurrenceEndDate || ""}
-                    onChange={(e) => setFormData({ ...formData, recurrenceEndDate: e.target.value })}
-                  />
-                  <p className="text-xs text-muted-foreground">Deixe em branco para recorrência indefinida</p>
+              {formData.tags && formData.tags.length > 0 && (
+                <div className="flex flex-wrap gap-2 mt-2">
+                  {formData.tags.map((tag) => (
+                    <Badge key={tag} variant="secondary" className="gap-1">
+                      {tag}
+                      <X className="size-3 cursor-pointer" onClick={() => removeTag(tag)} />
+                    </Badge>
+                  ))}
                 </div>
               )}
             </div>
 
-            {/* Vencimentos e Status */}
-            <div className="space-y-4 border-t pt-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">Vencimentos</h3>
-
-              <div className="grid sm:grid-cols-2 gap-4">
-                <div className="grid gap-2">
-                  <Label>Data de Vencimento Inicial *</Label>
-                  <Input
-                      type="date"
-                      value={initialDueDate}
-                      onChange={(e) => {
-                          const newDateValue = e.target.value;
-                          setInitialDueDate(newDateValue);
-                          if (newDateValue) {
-                              const [year, month, day] = newDateValue.split('-').map(Number);
-                              setFormData({
-                                  ...formData,
-                                  dueDay: day,
-                                  dueMonth: formData.recurrence === 'annual' ? month : undefined,
-                              });
-                          }
-                      }}
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    Selecione a data para o primeiro vencimento.
-                  </p>
-                </div>
-
-                <div className="grid gap-2">
-                  <Label htmlFor="weekendRule">Regra de Final de Semana *</Label>
-                  <Select
-                    value={formData.weekendRule}
-                    onValueChange={(value) => setFormData({ ...formData, weekendRule: value as any })}
-                  >
-                    <SelectTrigger id="weekendRule">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="postpone">Postergar</SelectItem>
-                      <SelectItem value="anticipate">Antecipar</SelectItem>
-                      <SelectItem value="keep">Manter</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              </div>
-            </div>
-
-            {/* Informações Adicionais */}
-            <div className="space-y-4 border-t pt-4">
-              <h3 className="text-sm font-semibold text-muted-foreground uppercase tracking-wide">
-                Informações Adicionais
-              </h3>
-
-              <div className="grid gap-2">
-                <Label htmlFor="notes">Observações</Label>
-                <Textarea
-                  id="notes"
-                  value={formData.notes || ""}
-                  onChange={(e) => setFormData({ ...formData, notes: e.target.value })}
-                  placeholder="Observações adicionais, comentários internos..."
-                  rows={3}
-                />
-              </div>
-
-              <div className="grid gap-2">
-                <Label htmlFor="tags">Tags</Label>
-                <div className="flex gap-2">
-                  <Input
-                    id="tags"
-                    value={newTag}
-                    onChange={(e) => setNewTag(e.target.value)}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter") {
-                        e.preventDefault()
-                        addTag()
-                      }
-                    }}
-                    placeholder="Adicionar tag..."
-                  />
-                  <Button type="button" variant="outline" onClick={addTag}>
-                    Adicionar
-                  </Button>
-                </div>
-                {formData.tags && formData.tags.length > 0 && (
-                  <div className="flex flex-wrap gap-2 mt-2">
-                    {formData.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="gap-1">
-                        {tag}
-                        <button type="button" onClick={() => removeTag(tag)} className="ml-1 hover:text-destructive">
-                          <X className="size-3" />
-                        </button>
-                      </Badge>
-                    ))}
-                  </div>
-                )}
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="notes">Notas Internas</Label>
+              <Textarea
+                id="notes"
+                value={formData.notes || ""}
+                onChange={(e) => handleChange("notes", e.target.value)}
+              />
             </div>
           </div>
           <DialogFooter>
-            <Button type="button" variant="outline" onClick={() => onOpenChange(false)}>
-              Cancelar
-            </Button>
-            <Button type="submit">Salvar Parcelamento</Button>
+            <Button type="submit">{installment ? "Salvar Alterações" : "Criar Parcelamento"}</Button>
           </DialogFooter>
         </form>
       </DialogContent>

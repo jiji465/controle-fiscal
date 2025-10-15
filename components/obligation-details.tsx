@@ -1,174 +1,186 @@
-"use client"
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Calendar, Clock, User, FileText, DollarSign, Building2, Receipt, Paperclip } from "lucide-react" // Added Paperclip icon
-import type { ObligationWithDetails } from "@/lib/types"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { ObligationWithDetails } from "@/lib/types"
 import { formatDate } from "@/lib/date-utils"
+import { Calendar, Clock, Tag, User, FileText, Link, Hash, TrendingUp, CheckCircle } from "lucide-react"
 
-type ObligationDetailsProps = {
+interface ObligationDetailsProps {
   obligation: ObligationWithDetails
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
 export function ObligationDetails({ obligation, open, onOpenChange }: ObligationDetailsProps) {
-  const getStatusColor = () => {
-    switch (obligation.status) {
-      case "completed":
-        return "bg-green-600"
-      case "in_progress":
-        return "bg-blue-600"
-      case "overdue":
-        return "bg-red-600"
+  const getStatusVariant = (status: ObligationWithDetails['status']) => {
+    switch (status) {
+      case 'completed':
+        return 'success'
+      case 'overdue':
+        return 'destructive'
+      case 'in_progress':
+        return 'warning'
       default:
-        return "bg-gray-600"
+        return 'secondary'
     }
   }
 
-  const getStatusLabel = () => {
-    switch (obligation.status) {
-      case "completed":
-        return "Concluída"
-      case "in_progress":
-        return "Em Andamento"
-      case "overdue":
-        return "Atrasada"
+  const getPriorityVariant = (priority: ObligationWithDetails['priority']) => {
+    switch (priority) {
+      case 'urgent':
+        return 'destructive'
+      case 'high':
+        return 'warning'
+      case 'medium':
+        return 'default'
       default:
-        return "Pendente"
+        return 'secondary'
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-start justify-between">
-            <div>
-              <DialogTitle className="text-2xl">{obligation.name}</DialogTitle>
-              {obligation.description && (
-                <DialogDescription className="text-sm text-muted-foreground mt-1">
-                  {obligation.description}
-                </DialogDescription>
-              )}
-            </div>
-            <Badge className={getStatusColor()}>{getStatusLabel()}</Badge>
-          </div>
-        </DialogHeader>
+      <DialogContent className="sm:max-w-[700px] p-0">
+        <ScrollArea className="max-h-[90vh]">
+          <div className="p-6">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold">{obligation.name}</DialogTitle>
+              <DialogDescription>
+                Detalhes da obrigação acessória para {obligation.client.name}
+              </DialogDescription>
+            </DialogHeader>
 
-        <div className="space-y-6 py-4">
-          {/* Informações principais */}
-          <div className="grid gap-4">
-            <div className="flex items-center gap-3">
-              <Building2 className="size-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Cliente</p>
-                <p className="text-sm text-muted-foreground">{obligation.client.name}</p>
-              </div>
-            </div>
-
-            {obligation.tax && (
-              <div className="flex items-center gap-3">
-                <Receipt className="size-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">Imposto</p>
-                  <p className="text-sm text-muted-foreground">{obligation.tax.name}</p>
+            <div className="mt-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                    <Calendar className="size-4" /> Vencimento
+                  </p>
+                  <p className="text-lg font-semibold">{formatDate(obligation.calculatedDueDate)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                    <Clock className="size-4" /> Status
+                  </p>
+                  <Badge variant={getStatusVariant(obligation.status)} className="text-lg">
+                    {obligation.status.charAt(0).toUpperCase() + obligation.status.slice(1).replace('_', ' ')}
+                  </Badge>
                 </div>
               </div>
-            )}
 
-            <div className="flex items-center gap-3">
-              <Calendar className="size-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Vencimento</p>
-                <p className="text-sm text-muted-foreground font-mono">{formatDate(obligation.calculatedDueDate)}</p>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                    <TrendingUp className="size-4" /> Prioridade
+                  </p>
+                  <Badge variant={getPriorityVariant(obligation.priority)}>
+                    {obligation.priority.charAt(0).toUpperCase() + obligation.priority.slice(1)}
+                  </Badge>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                    <User className="size-4" /> Responsável
+                  </p>
+                  <p className="text-base">{obligation.assignedTo || 'N/A'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                    <Hash className="size-4" /> Protocolo
+                  </p>
+                  <p className="text-base">{obligation.protocol || 'N/A'}</p>
+                </div>
               </div>
-            </div>
 
-            <div className="flex items-center gap-3">
-              <Clock className="size-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Criada em</p>
-                <p className="text-sm text-muted-foreground">{formatDate(obligation.createdAt)}</p>
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                  <FileText className="size-4" /> Descrição
+                </p>
+                <p className="text-base">{obligation.description || "Nenhuma descrição fornecida."}</p>
               </div>
-            </div>
 
-            {obligation.completedAt && (
-              <div className="flex items-center gap-3">
-                <User className="size-5 text-muted-foreground" />
-                <div>
-                  <p className="text-sm font-medium">Concluída em</p>
-                  <p className="text-sm text-muted-foreground">
-                    {formatDate(obligation.completedAt)}
-                    {obligation.completedBy && ` por ${obligation.completedBy}`}
+              {/* Attachments Section */}
+              {obligation.attachments && obligation.attachments.length > 0 && (
+                <>
+                  <div className="space-y-1 pt-4">
+                    <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                      <Link className="size-4" /> Anexos
+                    </p>
+                    <div className="space-y-2">
+                      {obligation.attachments.map((url, index) => (
+                        <a
+                          key={index}
+                          href={url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-2 text-blue-600 hover:underline text-sm truncate"
+                        >
+                          <Link className="size-4 flex-shrink-0" />
+                          Anexo {index + 1}: {url}
+                        </a>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Tags Section */}
+              {obligation.tags && obligation.tags.length > 0 && (
+                <>
+                  <div className="space-y-1 pt-4">
+                    <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                      <Tag className="size-4" /> Tags
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {obligation.tags.map((tag, index) => (
+                        <Badge key={index} variant="secondary">{tag}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Completion Info */}
+              {obligation.status === 'completed' && (
+                <div className="space-y-1 pt-4 border-t pt-4">
+                  <p className="text-sm font-medium text-green-600 flex items-center gap-1">
+                    <CheckCircle className="size-4" /> Conclusão
+                  </p>
+                  <p className="text-base">
+                    Realizado em: {formatDate(obligation.realizationDate || obligation.completedAt || 'N/A')}
+                  </p>
+                  <p className="text-base">
+                    Concluído por: {obligation.completedBy || 'Sistema'}
                   </p>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
 
-          {obligation.notes && (
-            <>
-              <Separator />
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <FileText className="size-4 text-muted-foreground" />
-                  <p className="text-sm font-medium">Observações</p>
-                </div>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{obligation.notes}</p>
-              </div>
-            </>
-          )}
-
-          {/* Attachments Section */}
-          {obligation.attachments && obligation.attachments.length > 0 && (
-            <>
-              <Separator />
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <Paperclip className="size-4 text-muted-foreground" />
-                  <p className="text-sm font-medium">Anexos</p>
-                </div>
-                <div className="space-y-2">
-                  {obligation.attachments.map((url, index) => (
-                    <a
-                      key={index}
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center gap-2 text-sm text-blue-600 hover:underline dark:text-blue-400"
-                    >
-                      <Paperclip className="size-4" />
-                      {url.split('/').pop() || `Anexo ${index + 1}`}
-                    </a>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Histórico de ações */}
-          {obligation.history && obligation.history.length > 0 && (
-            <>
-              <Separator />
-              <div>
-                <p className="text-sm font-medium mb-3">Histórico de Ações</p>
-                <div className="space-y-3">
-                  {obligation.history.map((entry) => (
-                    <div key={entry.id} className="flex gap-3 text-sm">
-                      <div className="size-2 rounded-full bg-primary mt-1.5 shrink-0" />
-                      <div className="flex-1">
-                        <p className="text-muted-foreground">{entry.description}</p>
-                        <p className="text-xs text-muted-foreground/70">{formatDate(entry.timestamp)}</p>
+              {/* History Section */}
+              {obligation.history && obligation.history.length > 0 && (
+                <div className="space-y-1 pt-4 border-t pt-4">
+                  <p className="text-sm font-medium text-muted-foreground">Histórico</p>
+                  <div className="space-y-2 text-sm max-h-40 overflow-y-auto p-2 border rounded-md">
+                    {obligation.history.map((entry, index) => (
+                      <div key={index} className="flex justify-between text-xs">
+                        <span className="text-muted-foreground">{formatDate(entry.timestamp.split('T')[0])}</span>
+                        <span>{entry.description}</span>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            </>
-          )}
-        </div>
+              )}
+
+              {/* Notes Section */}
+              {obligation.notes && (
+                <div className="space-y-1 pt-4">
+                  <p className="text-sm font-medium text-muted-foreground">Notas Internas</p>
+                  <div className="p-3 bg-muted/50 rounded-md text-sm whitespace-pre-wrap">
+                    {obligation.notes}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   )

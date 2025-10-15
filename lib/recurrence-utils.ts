@@ -8,18 +8,22 @@ import { v4 as uuidv4 } from "uuid"
  * @returns A próxima data de vencimento no formato 'YYYY-MM-DD'.
  */
 export function calculateNextDueDate(event: FiscalEvent, referenceDate: Date = new Date()): string {
-  // A propriedade calculatedDueDate existe em Obligation, Installment e Tax (após a correção em types.ts)
   const lastDueDate = new Date(event.calculatedDueDate)
   let nextDate = new Date(lastDueDate)
 
-  if (event.recurrence === "monthly") {
+  // Usa recurrenceInterval se for customizado
+  const interval = event.recurrenceInterval || 1;
+
+  if (event.recurrence === "monthly" || event.recurrence === "custom") {
     // Se a data de referência for posterior à última data de vencimento,
     // avançamos para o próximo mês.
     if (referenceDate > lastDueDate) {
-      nextDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, lastDueDate.getDate())
+      nextDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + interval, lastDueDate.getDate())
     } else {
-      nextDate = new Date(lastDueDate.getFullYear(), lastDueDate.getMonth() + 1, lastDueDate.getDate())
+      nextDate = new Date(lastDueDate.getFullYear(), lastDueDate.getMonth() + interval, lastDueDate.getDate())
     }
+  } else if (event.recurrence === "bimonthly") {
+    nextDate = new Date(lastDueDate.getFullYear(), lastDueDate.getMonth() + 2, lastDueDate.getDate())
   } else if (event.recurrence === "quarterly") {
     nextDate = new Date(lastDueDate.getFullYear(), lastDueDate.getMonth() + 3, lastDueDate.getDate())
   } else if (event.recurrence === "semiannual") {
@@ -30,7 +34,7 @@ export function calculateNextDueDate(event: FiscalEvent, referenceDate: Date = n
 
   // Ajuste para o último dia do mês, se necessário (ex: 31 de jan -> 28/29 de fev)
   const day = lastDueDate.getDate()
-  if (day > 28 && nextDate.getMonth() !== lastDueDate.getMonth() + 1) {
+  if (day > 28 && nextDate.getMonth() !== lastDueDate.getMonth() + interval) {
     nextDate = new Date(nextDate.getFullYear(), nextDate.getMonth(), 0) // Último dia do mês
   }
 
@@ -99,7 +103,7 @@ export function generateNextRecurrence(event: FiscalEvent, newDueDate: string): 
     } as Tax
   }
 
-  return baseEvent // Fallback, should not happen
+  return baseEvent as FiscalEvent // Fallback, should not happen
 }
 
 /**
@@ -109,12 +113,16 @@ export function getRecurrenceDescription(event: FiscalEvent): string {
   switch (event.recurrence) {
     case "monthly":
       return "Mensal"
+    case "bimonthly":
+      return "Bimestral"
     case "quarterly":
       return "Trimestral"
     case "semiannual":
       return "Semestral"
     case "annual":
       return "Anual"
+    case "custom":
+      return `Personalizada (${event.recurrenceInterval} meses)`
     case "none":
     default:
       return "Única"

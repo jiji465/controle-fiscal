@@ -117,6 +117,7 @@ export async function getTaxesDueDates(monthsAhead: number = 3): Promise<TaxDueD
         stateTaxCode: tax.stateTaxCode,
         municipalTaxCode: tax.municipalTaxCode,
         notes: tax.notes,
+        tags: tax.tags,
       })
 
       // Calculate the next date based on recurrence
@@ -137,13 +138,19 @@ export async function getTaxesDueDates(monthsAhead: number = 3): Promise<TaxDueD
 export async function calculateDashboardStats(): Promise<DashboardStats> {
   const obligations = await getObligations()
   const installments = await getInstallments()
+  const clients = await getClients()
 
   const totalObligations = obligations.length
   const totalInstallments = installments.length
-  const totalClients = (await getClients()).length
+  const totalClients = clients.length
+  const activeClients = clients.filter(c => c.status === 'active').length
+
+  const allEvents = [...obligations, ...installments]
+  const totalEvents = allEvents.length
 
   const completedObligations = obligations.filter((o) => o.status === "completed").length
   const completedInstallments = installments.filter((i) => i.status === "completed").length
+  const completedTotal = completedObligations + completedInstallments
 
   const overdueObligations = obligations.filter(
     (o) => o.status !== "completed" && isOverdue(o.calculatedDueDate),
@@ -151,17 +158,36 @@ export async function calculateDashboardStats(): Promise<DashboardStats> {
   const overdueInstallments = installments.filter(
     (i) => i.status !== "completed" && isOverdue(i.calculatedDueDate),
   ).length
+  const overdueTotal = overdueObligations + overdueInstallments
+
+  const pendingEvents = totalEvents - completedTotal
+
+  const today = new Date()
+  const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1)
+  const completedThisMonth = allEvents.filter(e => e.completedAt && new Date(e.completedAt) >= startOfMonth).length
+
+  const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
+  const upcomingThisWeek = allEvents.filter(e => {
+    const dueDate = new Date(e.calculatedDueDate)
+    return e.status !== 'completed' && dueDate >= today && dueDate <= nextWeek
+  }).length
 
   const completionRate =
-    totalObligations + totalInstallments > 0
-      ? Math.round(((completedObligations + completedInstallments) / (totalObligations + totalInstallments)) * 100)
+    totalEvents > 0
+      ? Math.round((completedTotal / totalEvents) * 100)
       : 0
 
   return {
     totalClients,
-    totalObligations: totalObligations + totalInstallments,
-    completed: completedObligations + completedInstallments,
-    overdue: overdueObligations + overdueInstallments,
+    activeClients,
+    totalEvents,
+    pendingEvents,
+    completedThisMonth,
+    overdueEvents: overdueTotal,
+    upcomingThisWeek,
+    totalObligations: totalEvents,
+    completed: completedTotal,
+    overdue: overdueTotal,
     completionRate,
   }
 }

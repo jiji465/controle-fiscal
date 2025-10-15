@@ -1,139 +1,117 @@
-"use client"
-
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog"
 import { Badge } from "@/components/ui/badge"
-import { Separator } from "@/components/ui/separator"
-import { Calendar, Clock, User, FileText, DollarSign, Building2, Receipt } from "lucide-react"
-import type { TaxDueDate } from "@/lib/types"
+import { ScrollArea } from "@/components/ui/scroll-area"
+import { TaxDueDate } from "@/lib/types"
 import { formatDate } from "@/lib/date-utils"
-import { getRecurrenceDescription } from "@/lib/recurrence-utils"
+import { Calendar, Clock, DollarSign, FileText, Tag, User } from "lucide-react"
 
-type TaxDetailsProps = {
+interface TaxDetailsProps {
   tax: TaxDueDate
   open: boolean
   onOpenChange: (open: boolean) => void
 }
 
 export function TaxDetails({ tax, open, onOpenChange }: TaxDetailsProps) {
-  const getStatusColor = () => {
-    switch (tax.status) {
-      case "completed": // Taxes don't typically have 'completed' status, but mirroring obligation
-        return "bg-green-600"
-      case "in_progress": // Taxes don't typically have 'in_progress' status, but mirroring obligation
-        return "bg-blue-600"
-      case "overdue":
-        return "bg-red-600"
+  const getStatusVariant = (status: TaxDueDate['status']) => {
+    switch (status) {
+      case 'completed':
+        return 'success'
+      case 'overdue':
+        return 'destructive'
+      case 'in_progress':
+        return 'warning'
       default:
-        return "bg-gray-600"
-    }
-  }
-
-  const getStatusLabel = () => {
-    switch (tax.status) {
-      case "completed":
-        return "Processado" // Changed label for tax
-      case "in_progress":
-        return "Em Processamento" // Changed label for tax
-      case "overdue":
-        return "Atrasado"
-      default:
-        return "Pendente"
+        return 'secondary'
     }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[600px] max-h-[90vh] overflow-y-auto">
-        <DialogHeader>
-          <div className="flex items-start justify-between">
-            <div>
-              <DialogTitle className="text-2xl">{tax.name}</DialogTitle>
-              {tax.description && (
-                <DialogDescription className="text-sm text-muted-foreground mt-1">
-                  {tax.description}
-                </DialogDescription>
+      <DialogContent className="sm:max-w-[600px] p-0">
+        <ScrollArea className="max-h-[90vh]">
+          <div className="p-6">
+            <DialogHeader>
+              <DialogTitle className="text-2xl font-bold">{tax.name}</DialogTitle>
+              <DialogDescription>
+                Detalhes do evento fiscal para {tax.client.name}
+              </DialogDescription>
+            </DialogHeader>
+
+            <div className="mt-6 space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                    <Calendar className="size-4" /> Vencimento
+                  </p>
+                  <p className="text-lg font-semibold">{formatDate(tax.calculatedDueDate)}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                    <Clock className="size-4" /> Status
+                  </p>
+                  <Badge variant={getStatusVariant(tax.status)} className="text-lg">
+                    {tax.status.charAt(0).toUpperCase() + tax.status.slice(1).replace('_', ' ')}
+                  </Badge>
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                  <User className="size-4" /> Cliente
+                </p>
+                <p className="text-base">{tax.client.name} ({tax.client.cnpj})</p>
+              </div>
+
+              <div className="space-y-1">
+                <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                  <FileText className="size-4" /> Descrição
+                </p>
+                <p className="text-base">{tax.description || "Nenhuma descrição fornecida."}</p>
+              </div>
+
+              <div className="grid grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Cód. Federal</p>
+                  <p className="text-base">{tax.federalTaxCode || 'N/A'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Cód. Estadual</p>
+                  <p className="text-base">{tax.stateTaxCode || 'N/A'}</p>
+                </div>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium text-muted-foreground">Cód. Municipal</p>
+                  <p className="text-base">{tax.municipalTaxCode || 'N/A'}</p>
+                </div>
+              </div>
+
+              {/* Tags Section */}
+              {tax.tags && tax.tags.length > 0 && (
+                <>
+                  <div className="space-y-1 pt-4">
+                    <p className="text-sm font-medium text-muted-foreground flex items-center gap-1">
+                      <Tag className="size-4" /> Tags
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {tax.tags.map((tag, index) => (
+                        <Badge key={index} variant="secondary">{tag}</Badge>
+                      ))}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              {/* Notes Section */}
+              {tax.notes && (
+                <div className="space-y-1 pt-4">
+                  <p className="text-sm font-medium text-muted-foreground">Notas</p>
+                  <div className="p-3 bg-muted/50 rounded-md text-sm whitespace-pre-wrap">
+                    {tax.notes}
+                  </div>
+                </div>
               )}
             </div>
-            <Badge className={getStatusColor()}>{getStatusLabel()}</Badge>
           </div>
-        </DialogHeader>
-
-        <div className="space-y-6 py-4">
-          {/* Informações principais */}
-          <div className="grid gap-4">
-            <div className="flex items-center gap-3">
-              <Building2 className="size-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Cliente</p>
-                <p className="text-sm text-muted-foreground">{tax.client.name}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Receipt className="size-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Imposto</p>
-                <p className="text-sm text-muted-foreground">{tax.name}</p>
-                {tax.federalTaxCode && <p className="text-xs text-muted-foreground">Código: {tax.federalTaxCode}</p>}
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Calendar className="size-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Vencimento</p>
-                <p className="text-sm text-muted-foreground font-mono">{formatDate(tax.calculatedDueDate)}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <Clock className="size-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Criado em</p>
-                <p className="text-sm text-muted-foreground">{formatDate(tax.createdAt)}</p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <FileText className="size-5 text-muted-foreground" />
-              <div>
-                <p className="text-sm font-medium">Recorrência</p>
-                <p className="text-sm text-muted-foreground">{getRecurrenceDescription(tax)}</p>
-              </div>
-            </div>
-          </div>
-
-          {tax.notes && (
-            <>
-              <Separator />
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <FileText className="size-4 text-muted-foreground" />
-                  <p className="text-sm font-medium">Observações</p>
-                </div>
-                <p className="text-sm text-muted-foreground whitespace-pre-wrap">{tax.notes}</p>
-              </div>
-            </>
-          )}
-
-          {/* Tags Section */}
-          {tax.tags && tax.tags.length > 0 && (
-            <>
-              <Separator />
-              <div>
-                <div className="flex items-center gap-2 mb-2">
-                  <FileText className="size-4 text-muted-foreground" />
-                  <p className="text-sm font-medium">Tags</p>
-                </div>
-                <div className="flex flex-wrap gap-2">
-                  {tax.tags.map((tag, index) => (
-                    <Badge key={index} variant="secondary">{tag}</Badge>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        </ScrollArea>
       </DialogContent>
     </Dialog>
   )
