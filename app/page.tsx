@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import { useRouter } from "next/navigation"
 import { supabase } from "@/integrations/supabase/client"
 import { Navigation } from "@/components/navigation"
@@ -10,12 +10,11 @@ import { UpcomingFiscalEvents } from "@/components/upcoming-fiscal-events"
 import { ClientOverview } from "@/components/client-overview"
 import { TaxCalendar } from "@/components/tax-calendar"
 import { QuickActions } from "@/components/quick-actions"
-import { getClients, getTaxes } from "@/lib/storage"
 import { getObligationsWithDetails, calculateDashboardStats, getTaxesDueDates, getInstallmentsWithDetails, runRecurrenceCheckAndGeneration } from "@/lib/dashboard-utils"
-import { TrendingUp, CalendarIcon, AlertCircle, DollarSign } from "lucide-react"
+import { CalendarIcon, AlertCircle } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import type { Client, Tax, ObligationWithDetails, DashboardStats, TaxDueDate, InstallmentWithDetails } from "@/lib/types"
+import type { Client, ObligationWithDetails, DashboardStats, TaxDueDate, InstallmentWithDetails } from "@/lib/types"
 import { defaultDashboardStats } from "@/lib/types"
 import { isOverdue } from "@/lib/date-utils"
 import { Skeleton } from "@/components/ui/skeleton"
@@ -29,17 +28,17 @@ export default function DashboardPage() {
   const [taxesDueDates, setTaxesDueDates] = useState<TaxDueDate[]>([])
   const [installments, setInstallments] = useState<InstallmentWithDetails[]>([])
 
-  const updateData = async () => {
+  const updateData = useCallback(async () => {
     setLoading(true)
-    // 1. Executa a verificação de recorrência e gera novos eventos se necessário
-    await runRecurrenceCheckAndGeneration()
     
-    // 2. Carrega os dados atualizados
-    const statsData = await calculateDashboardStats()
-    const obligationsData = await getObligationsWithDetails()
-    const clientsData = await getClients()
-    const taxesData = await getTaxesDueDates(6)
-    const installmentsData = await getInstallmentsWithDetails()
+    // 1. Carrega os dados atualizados
+    const [statsData, obligationsData, clientsData, taxesData, installmentsData] = await Promise.all([
+      calculateDashboardStats(),
+      getObligationsWithDetails(),
+      getClients(),
+      getTaxesDueDates(6),
+      getInstallmentsWithDetails(),
+    ])
 
     setStats(statsData)
     setObligations(obligationsData)
@@ -47,19 +46,25 @@ export default function DashboardPage() {
     setTaxesDueDates(taxesData)
     setInstallments(installmentsData)
     setLoading(false)
-  }
+  }, [])
 
   useEffect(() => {
-    const checkSession = async () => {
+    const initialize = async () => {
       const { data: { session } } = await supabase.auth.getSession()
       if (!session) {
         router.push('/login')
-      } else {
-        updateData()
+        return
       }
+      
+      // 1. Executa a verificação de recorrência e gera novos eventos se necessário
+      // Esta é a única chamada que pode alterar o storage e deve ser feita antes do carregamento.
+      await runRecurrenceCheckAndGeneration()
+      
+      // 2. Carrega os dados iniciais
+      updateData()
     }
-    checkSession()
-  }, [router])
+    initialize()
+  }, [router, updateData]) // Adicionando updateData como dependência, mas é um useCallback estável
 
   if (loading) {
     return (
