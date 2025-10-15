@@ -8,9 +8,13 @@ const STORAGE_KEYS = {
 
 // --- Helper para obter o ID do usuário logado ---
 async function getUserId(): Promise<string> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user }, error } = await supabase.auth.getUser()
+  if (error) {
+    console.error("Supabase Auth Error:", error);
+    throw new Error(`Falha ao obter usuário autenticado: ${error.message}`);
+  }
   if (!user) {
-    throw new Error("User not authenticated.")
+    throw new Error("User not authenticated.");
   }
   return user.id
 }
@@ -19,7 +23,10 @@ async function getUserId(): Promise<string> {
 
 export async function getClients(): Promise<Client[]> {
   const { data, error } = await supabase.from("clients").select("*").order("name", { ascending: true })
-  if (error) throw error
+  if (error) {
+    console.error("Supabase Error (getClients):", error);
+    throw new Error(`Falha ao carregar clientes: ${error.message}`);
+  }
   return data as Client[]
 }
 
@@ -30,24 +37,36 @@ export async function saveClient(client: Client) {
   if (client.id && client.createdAt) {
     // Update
     const { error } = await supabase.from("clients").update(clientData).eq("id", client.id)
-    if (error) throw error
+    if (error) {
+      console.error("Supabase Error (saveClient update):", error);
+      throw new Error(`Falha ao atualizar cliente: ${error.message}`);
+    }
   } else {
     // Insert
     const { error } = await supabase.from("clients").insert(clientData)
-    if (error) throw error
+    if (error) {
+      console.error("Supabase Error (saveClient insert):", error);
+      throw new Error(`Falha ao inserir cliente: ${error.message}`);
+    }
   }
 }
 
 export async function deleteClient(id: string) {
   const { error } = await supabase.from("clients").delete().eq("id", id)
-  if (error) throw error
+  if (error) {
+    console.error("Supabase Error (deleteClient):", error);
+    throw new Error(`Falha ao deletar cliente: ${error.message}`);
+  }
 }
 
 // --- Obrigações ---
 
 export async function getObligations(): Promise<Obligation[]> {
   const { data, error } = await supabase.from("obligations").select("*").eq("isArchived", false).order("calculatedDueDate", { ascending: true })
-  if (error) throw error
+  if (error) {
+    console.error("Supabase Error (getObligations):", error);
+    throw new Error(`Falha ao carregar obrigações: ${error.message}`);
+  }
   return data as Obligation[]
 }
 
@@ -59,7 +78,10 @@ export async function saveAllObligations(obligations: Obligation[]) {
 
   // Usamos `upsert` para lidar com inserts e updates em massa
   const { error } = await supabase.from("obligations").upsert(obligationsWithUserId, { onConflict: 'id' })
-  if (error) throw error
+  if (error) {
+    console.error("Supabase Error (saveAllObligations):", error);
+    throw new Error(`Falha ao salvar todas as obrigações: ${error.message}`);
+  }
 }
 
 export async function saveObligation(obligation: Obligation) {
@@ -69,24 +91,36 @@ export async function saveObligation(obligation: Obligation) {
   if (obligation.id && obligation.createdAt) {
     // Update
     const { error } = await supabase.from("obligations").update(obligationData).eq("id", obligation.id)
-    if (error) throw error
+    if (error) {
+      console.error("Supabase Error (saveObligation update):", error);
+      throw new Error(`Falha ao atualizar obrigação: ${error.message}`);
+    }
   } else {
     // Insert
     const { error } = await supabase.from("obligations").insert(obligationData)
-    if (error) throw error
+    if (error) {
+      console.error("Supabase Error (saveObligation insert):", error);
+      throw new Error(`Falha ao inserir obrigação: ${error.message}`);
+    }
   }
 }
 
 export async function deleteObligation(id: string) {
   const { error } = await supabase.from("obligations").delete().eq("id", id)
-  if (error) throw error
+  if (error) {
+    console.error("Supabase Error (deleteObligation):", error);
+    throw new Error(`Falha ao deletar obrigação: ${error.message}`);
+  }
 }
 
 // --- Impostos (Templates) ---
 
 export async function getTaxes(): Promise<Tax[]> {
   const { data, error } = await supabase.from("taxes").select("*").eq("isArchived", false).order("name", { ascending: true })
-  if (error) throw error
+  if (error) {
+    console.error("Supabase Error (getTaxes):", error);
+    throw new Error(`Falha ao carregar impostos: ${error.message}`);
+  }
   return data as Tax[]
 }
 
@@ -95,7 +129,10 @@ export async function saveAllTaxes(taxes: Tax[]) {
   const taxesWithUserId = taxes.map(t => ({ ...t, user_id }))
 
   const { error } = await supabase.from("taxes").upsert(taxesWithUserId, { onConflict: 'id' })
-  if (error) throw error
+  if (error) {
+    console.error("Supabase Error (saveAllTaxes):", error);
+    throw new Error(`Falha ao salvar todos os impostos: ${error.message}`);
+  }
 }
 
 export async function saveTax(tax: Tax) {
@@ -105,24 +142,36 @@ export async function saveTax(tax: Tax) {
   if (tax.id && tax.createdAt) {
     // Update
     const { error } = await supabase.from("taxes").update(taxData).eq("id", tax.id)
-    if (error) throw error
+    if (error) {
+      console.error("Supabase Error (saveTax update):", error);
+      throw new Error(`Falha ao atualizar imposto: ${error.message}`);
+    }
   } else {
     // Insert
     const { error } = await supabase.from("taxes").insert(taxData)
-    if (error) throw error
+    if (error) {
+      console.error("Supabase Error (saveTax insert):", error);
+      throw new Error(`Falha ao inserir imposto: ${error.message}`);
+    }
   }
 }
 
 export async function deleteTax(id: string) {
   const { error } = await supabase.from("taxes").delete().eq("id", id)
-  if (error) throw error
+  if (error) {
+    console.error("Supabase Error (deleteTax):", error);
+    throw new Error(`Falha ao deletar imposto: ${error.message}`);
+  }
 }
 
 // --- Parcelamentos ---
 
 export async function getInstallments(): Promise<Installment[]> {
   const { data, error } = await supabase.from("installments").select("*").eq("isArchived", false).order("calculatedDueDate", { ascending: true })
-  if (error) throw error
+  if (error) {
+    console.error("Supabase Error (getInstallments):", error);
+    throw new Error(`Falha ao carregar parcelamentos: ${error.message}`);
+  }
   return data as Installment[]
 }
 
@@ -131,7 +180,10 @@ export async function saveAllInstallments(installments: Installment[]) {
   const installmentsWithUserId = installments.map(i => ({ ...i, user_id }))
 
   const { error } = await supabase.from("installments").upsert(installmentsWithUserId, { onConflict: 'id' })
-  if (error) throw error
+  if (error) {
+    console.error("Supabase Error (saveAllInstallments):", error);
+    throw new Error(`Falha ao salvar todos os parcelamentos: ${error.message}`);
+  }
 }
 
 export async function saveInstallment(installment: Installment) {
@@ -141,17 +193,26 @@ export async function saveInstallment(installment: Installment) {
   if (installment.id && installment.createdAt) {
     // Update
     const { error } = await supabase.from("installments").update(installmentData).eq("id", installment.id)
-    if (error) throw error
+    if (error) {
+      console.error("Supabase Error (saveInstallment update):", error);
+      throw new Error(`Falha ao atualizar parcelamento: ${error.message}`);
+    }
   } else {
     // Insert
     const { error } = await supabase.from("installments").insert(installmentData)
-    if (error) throw error
+    if (error) {
+      console.error("Supabase Error (saveInstallment insert):", error);
+      throw new Error(`Falha ao inserir parcelamento: ${error.message}`);
+    }
   }
 }
 
 export async function deleteInstallment(id: string) {
   const { error } = await supabase.from("installments").delete().eq("id", id)
-  if (error) throw error
+  if (error) {
+    console.error("Supabase Error (deleteInstallment):", error);
+    throw new Error(`Falha ao deletar parcelamento: ${error.message}`);
+  }
 }
 
 // --- Recorrência Log (Mantido no LocalStorage por simplicidade de execução única por cliente) ---
