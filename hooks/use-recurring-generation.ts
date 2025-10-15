@@ -15,7 +15,7 @@ import { addNotification } from "@/lib/storage"
 
 export function useRecurringGeneration() {
   useEffect(() => {
-    const runGeneration = () => {
+    const runGeneration = async () => {
       console.log("Verificando necessidade de gerar recorrências...")
       const lastRun = getLastGenerationRun()
       const now = new Date()
@@ -34,8 +34,9 @@ export function useRecurringGeneration() {
       console.log("Iniciando geração de recorrências...")
       let generatedCount = 0
 
-      const allObligations = getObligations()
-      const allInstallments = getInstallments()
+      // AWAITING the asynchronous calls to get the actual arrays
+      const allObligations = await getObligations()
+      const allInstallments = await getInstallments()
 
       // Generate Obligations
       const obligationTemplates = allObligations.filter(
