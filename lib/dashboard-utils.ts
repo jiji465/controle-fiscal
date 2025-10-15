@@ -26,7 +26,6 @@ import type {
 from "./types"
 import { isOverdue } from "./date-utils"
 import { calculateNextDueDate, generateNextRecurrence } from "./recurrence-utils"
-import { v4 as uuidv4 } from "uuid"
 
 // --- Funções de Geração de Dados (Mantidas) ---
 

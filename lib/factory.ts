@@ -1,5 +1,4 @@
-import type { Client, Obligation, Tax, Installment, ClientStatus, ObligationCategory, FiscalEventStatus, RecurrenceType } from "./types"
-import { v4 as uuidv4 } from "uuid"
+import type { Client, Obligation, Tax, Installment, ClientStatus, ObligationCategory, FiscalEventStatus, RecurrenceType, Priority } from "./types"
 
 export const createClient = (overrides: Partial<Client> = {}): Client => ({
   id: crypto.randomUUID(),

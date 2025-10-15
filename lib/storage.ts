@@ -1,5 +1,4 @@
 import type { Client, Obligation, Tax, Installment, RecurrenceLog, Notification } from "./types"
-import { v4 as uuidv4 } from "uuid"
 
 const STORAGE_KEYS = {
   CLIENTS: "fiscal_clients",
@@ -26,7 +25,7 @@ export function saveClient(client: Client) {
   if (index > -1) {
     clients[index] = { ...client, updatedAt: now }
   } else {
-    clients.push({ ...client, id: uuidv4(), createdAt: now, updatedAt: now, status: client.status || "active" })
+    clients.push({ ...client, id: crypto.randomUUID(), createdAt: now, updatedAt: now, status: client.status || "active" })
   }
   localStorage.setItem(STORAGE_KEYS.CLIENTS, JSON.stringify(clients))
 }
@@ -60,7 +59,7 @@ export function saveObligation(obligation: Obligation) {
   } else {
     obligations.push({
       ...obligation,
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       createdAt: now,
       updatedAt: now,
       status: obligation.status || "pending",
@@ -99,7 +98,7 @@ export function saveTax(tax: Tax) {
   } else {
     taxes.push({
       ...tax,
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       createdAt: now,
       updatedAt: now,
       recurrence: tax.recurrence || "none",
@@ -137,7 +136,7 @@ export function saveInstallment(installment: Installment) {
   } else {
     installments.push({
       ...installment,
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       createdAt: now,
       updatedAt: now,
       status: installment.status || "pending",
@@ -188,7 +187,7 @@ export function saveNotification(notification: Notification) {
   } else {
     notifications.push({
       ...notification,
-      id: uuidv4(),
+      id: crypto.randomUUID(),
       createdAt: now,
       updatedAt: now,
       read: notification.read || false,

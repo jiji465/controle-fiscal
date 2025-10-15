@@ -1,5 +1,5 @@
 import type { Obligation, Installment, Tax, FiscalEvent } from "./types"
-import { v4 as uuidv4 } from "uuid"
+import { isAfter, parseISO } from "date-fns"
 
 /**
  * Calcula a próxima data de vencimento com base na recorrência.
@@ -48,7 +48,7 @@ export function calculateNextDueDate(event: FiscalEvent, referenceDate: Date = n
  * @returns A nova ocorrência do evento.
  */
 export function generateNextRecurrence(event: FiscalEvent, newDueDate: string): FiscalEvent {
-  const newId = uuidv4()
+  const newId = crypto.randomUUID()
   const now = new Date().toISOString()
 
   const baseEvent = {
@@ -63,7 +63,7 @@ export function generateNextRecurrence(event: FiscalEvent, newDueDate: string): 
     realizationDate: undefined,
     history: [
       {
-        id: uuidv4(),
+        id: crypto.randomUUID(),
         action: "created" as const,
         description: "Ocorrência gerada automaticamente por recorrência",
         timestamp: now,
