@@ -12,7 +12,7 @@ interface ObligationDetailsProps {
 }
 
 export function ObligationDetails({ obligation, open, onOpenChange }: ObligationDetailsProps) {
-  const getStatusVariant = (status: ObligationWithDetails['status']) => {
+  const getStatusVariant = (status: ObligationWithDetails['status']): 'success' | 'destructive' | 'warning' | 'secondary' => {
     switch (status) {
       case 'completed':
         return 'success'
@@ -25,7 +25,7 @@ export function ObligationDetails({ obligation, open, onOpenChange }: Obligation
     }
   }
 
-  const getPriorityVariant = (priority: ObligationWithDetails['priority']) => {
+  const getPriorityVariant = (priority: ObligationWithDetails['priority']): 'destructive' | 'warning' | 'default' | 'secondary' => {
     switch (priority) {
       case 'urgent':
         return 'destructive'

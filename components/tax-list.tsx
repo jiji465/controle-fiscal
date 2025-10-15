@@ -39,7 +39,7 @@ export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate, onEdit
     setIsDetailsOpen(true)
   }
 
-  const getStatusVariant = (status: TaxDueDate['status']) => {
+  const getStatusVariant = (status: TaxDueDate['status']): 'success' | 'destructive' | 'warning' | 'secondary' => {
     switch (status) {
       case 'completed':
         return 'success'
@@ -184,7 +184,15 @@ export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate, onEdit
                           </DropdownMenuItem>
                         )}
                         <DropdownMenuSeparator />
-                        <DropdownMenuItem onClick={() => onEdit(taxTemplates.find(t => t.id === tax.id.split('-')[0]) || tax as Tax)}>
+                        <DropdownMenuItem onClick={() => {
+                          const taxTemplate = taxTemplates.find(t => t.id === tax.id.split('-')[0])
+                          if (taxTemplate) {
+                            onEdit(taxTemplate)
+                          } else {
+                            // Fallback: se não encontrar o template, usa o TaxDueDate como base (com risco de dados incompletos)
+                            onEdit(tax as unknown as Tax)
+                          }
+                        }}>
                           <Pencil className="size-4 mr-2" />
                           Editar Template
                         </DropdownMenuItem>

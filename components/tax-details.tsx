@@ -12,7 +12,7 @@ interface TaxDetailsProps {
 }
 
 export function TaxDetails({ tax, open, onOpenChange }: TaxDetailsProps) {
-  const getStatusVariant = (status: TaxDueDate['status']) => {
+  const getStatusVariant = (status: TaxDueDate['status']): 'success' | 'destructive' | 'warning' | 'secondary' => {
     switch (status) {
       case 'completed':
         return 'success'

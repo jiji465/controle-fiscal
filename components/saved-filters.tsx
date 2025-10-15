@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button"
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
+import { ScrollArea } from "@/components/ui/scroll-area" // Adicionado
 import { Star, Trash2, Filter } from "lucide-react"
 import type { SavedFilter } from "@/lib/types"
 import { toast } from "@/hooks/use-toast"
@@ -35,7 +36,7 @@ export function SavedFilters({ currentFilters, onApply }: SavedFiltersProps) {
     setSavedFilters([...savedFilters, newFilter])
     setIsSaveDialogOpen(false)
     setNewFilterName("")
-    toast({ title: "Filtro Salvo", description: `O filtro "${newFilter.name}" foi salvo com sucesso.` })
+    toast({ title: "Filtro Salvo", description: `O filtro "${newFilter.name}" foi salvo com sucesso.`, variant: "success" })
   }
 
   const handleDeleteFilter = (id: string) => {

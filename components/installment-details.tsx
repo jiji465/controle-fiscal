@@ -12,7 +12,7 @@ interface InstallmentDetailsProps {
 }
 
 export function InstallmentDetails({ installment, open, onOpenChange }: InstallmentDetailsProps) {
-  const getStatusVariant = (status: InstallmentWithDetails['status']) => {
+  const getStatusVariant = (status: InstallmentWithDetails['status']): 'success' | 'destructive' | 'warning' | 'secondary' => {
     switch (status) {
       case 'completed':
         return 'success'

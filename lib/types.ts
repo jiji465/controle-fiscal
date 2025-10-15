@@ -1,6 +1,6 @@
 export type RecurrenceType = "monthly" | "quarterly" | "semiannual" | "annual" | "none" | "custom" | "bimonthly"
 
-export type WeekendRule = "none" | "advance" | "postpone" // Adicionado
+export type WeekendRule = "none" | "advance" | "postpone"
 
 export type FiscalEventStatus = "pending" | "in_progress" | "completed" | "overdue"
 
@@ -18,6 +18,8 @@ export type Client = {
   updatedAt: string
 }
 
+export type Priority = "low" | "medium" | "high" | "urgent" // Adicionado
+
 export type Tax = {
   id: string
   name: string
@@ -26,20 +28,20 @@ export type Tax = {
   stateTaxCode?: string
   municipalTaxCode?: string
   recurrence: RecurrenceType
-  recurrenceInterval?: number // Adicionado
-  recurrenceEndDate?: string // Adicionado
-  autoGenerate?: boolean // Adicionado
-  weekendRule?: WeekendRule // Adicionado
-  dueDay: number // Adicionado
-  dueMonth?: number // Adicionado
+  recurrenceInterval?: number
+  recurrenceEndDate?: string
+  autoGenerate?: boolean
+  weekendRule?: WeekendRule
+  dueDay: number
+  dueMonth?: number
   clientId: string
   createdAt: string
   updatedAt: string
   notes?: string
   isArchived?: boolean
   calculatedDueDate: string
-  tags?: string[] // Adicionado
-  type: "tax" // Adicionado discriminador
+  tags?: string[]
+  type: "tax"
 }
 
 export type TaxDueDate = {
@@ -58,7 +60,7 @@ export type TaxDueDate = {
   stateTaxCode?: string
   municipalTaxCode?: string
   notes?: string
-  tags?: string[] // Adicionado
+  tags?: string[]
 }
 
 export type ObligationCategory = "federal" | "state" | "municipal" | "other"
@@ -81,13 +83,13 @@ export type Obligation = {
   dueMonth?: number // For annual/semiannual/quarterly
   frequency: "monthly" | "quarterly" | "annual" | "custom"
   recurrence: RecurrenceType
-  recurrenceInterval?: number // Adicionado
-  recurrenceEndDate?: string // Adicionado
-  autoGenerate?: boolean // Adicionado
-  weekendRule?: WeekendRule // Adicionado
+  recurrenceInterval?: number
+  recurrenceEndDate?: string
+  autoGenerate?: boolean
+  weekendRule?: WeekendRule
   calculatedDueDate: string
   status: FiscalEventStatus
-  priority: "low" | "medium" | "high" | "urgent"
+  priority: Priority // Usando o tipo exportado
   assignedTo?: string
   protocol?: string
   realizationDate?: string // Date when the obligation was actually done
@@ -97,10 +99,10 @@ export type Obligation = {
   updatedAt: string
   notes?: string
   history?: ObligationHistoryEntry[]
-  tags?: string[] // Adicionado
-  attachments?: string[] // Adicionado
+  tags?: string[]
+  attachments?: string[]
   isArchived?: boolean
-  type: "obligation" // Adicionado discriminador
+  type: "obligation"
 }
 
 export type ObligationWithDetails = Obligation & {
@@ -118,10 +120,10 @@ export type Installment = {
   dueDay: number
   dueMonth?: number
   recurrence: RecurrenceType
-  recurrenceInterval?: number // Adicionado
-  recurrenceEndDate?: string // Adicionado
-  autoGenerate?: boolean // Adicionado
-  weekendRule?: WeekendRule // Adicionado
+  recurrenceInterval?: number
+  recurrenceEndDate?: string
+  autoGenerate?: boolean
+  weekendRule?: WeekendRule
   calculatedDueDate: string
   status: FiscalEventStatus
   completedAt?: string
@@ -131,8 +133,8 @@ export type Installment = {
   notes?: string
   generatedFor?: string // Reference to the original installment series
   isArchived?: boolean
-  tags?: string[] // Adicionado
-  type: "installment" // Adicionado discriminador
+  tags?: string[]
+  type: "installment"
 }
 
 export type InstallmentWithDetails = Installment & {
@@ -142,16 +144,16 @@ export type InstallmentWithDetails = Installment & {
 // Union type for all fiscal events
 export type FiscalEvent = Obligation | Installment | Tax
 
-export type FiscalEventType = "obligation" | "installment" | "tax" // Adicionado
+export type FiscalEventType = "obligation" | "installment" | "tax"
 
 export type DashboardStats = {
   totalClients: number
-  activeClients: number // Adicionado
-  totalEvents: number // Adicionado
-  pendingEvents: number // Adicionado
-  completedThisMonth: number // Adicionado
-  overdueEvents: number // Adicionado
-  upcomingThisWeek: number // Adicionado
+  activeClients: number
+  totalEvents: number
+  pendingEvents: number
+  completedThisMonth: number
+  overdueEvents: number
+  upcomingThisWeek: number
   totalObligations: number // Includes obligations and installments
   completed: number
   overdue: number
@@ -198,9 +200,9 @@ export type RecurrenceLog = {
   generatedCount: number
 }
 
-export type ExportFormat = "csv" | "json" | "pdf" // Adicionado
+export type ExportFormat = "csv" | "json" | "pdf"
 
-export type SavedFilter = { // Adicionado
+export type SavedFilter = {
   id: string
   name: string
   filters: Record<string, any>
