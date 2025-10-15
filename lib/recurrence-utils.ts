@@ -2,6 +2,13 @@ import type { Obligation, RecurrenceType, Tax, Installment } from "./types"
 import { adjustForWeekend } from "./date-utils"
 
 /**
+ * Type guard to check if an entity is an Obligation
+ */
+function isObligation(entity: Obligation | Installment): entity is Obligation {
+  return 'priority' in entity;
+}
+
+/**
  * Calcula a próxima data de vencimento para um mês específico
  */
 function calculateDueDateForMonth(entity: Obligation | Installment, targetDate: Date): Date {
@@ -36,9 +43,15 @@ export function generateOccurrenceForMonth(
 
   // 3. Check if an occurrence for this period already exists
   const alreadyExists = existingItems.some(
-    (item) =>
-      (item.parentObligationId === template.id || (item as Installment).parentInstallmentId === template.id) &&
-      item.generatedFor === periodKey,
+    (item) => {
+      if (isObligation(item) && isObligation(template)) {
+        return item.parentObligationId === template.id && item.generatedFor === periodKey;
+      }
+      if (!isObligation(item) && !isObligation(template)) {
+        return item.parentInstallmentId === template.id && item.generatedFor === periodKey;
+      }
+      return false;
+    }
   )
   if (alreadyExists) return null
 
@@ -47,7 +60,7 @@ export function generateOccurrenceForMonth(
   
   const newId = crypto.randomUUID();
   
-  if ('priority' in template) { // It's an Obligation
+  if (isObligation(template)) { // It's an Obligation
     const newObligation: Obligation = {
       ...template,
       id: newId,
@@ -69,6 +82,7 @@ export function generateOccurrenceForMonth(
     }
     return newObligation;
   } else { // It's an Installment
+    const installmentItems = existingItems.filter(i => !isObligation(i)) as Installment[];
     const newInstallment: Installment = {
         ...template,
         id: newId,
@@ -78,7 +92,7 @@ export function generateOccurrenceForMonth(
         parentInstallmentId: template.id,
         generatedFor: periodKey,
         createdAt: new Date().toISOString(),
-        installmentNumber: template.installmentNumber + (existingItems.filter(i => i.parentInstallmentId === template.id).length),
+        installmentNumber: template.installmentNumber + (installmentItems.filter(i => i.parentInstallmentId === template.id).length),
     }
     return newInstallment;
   }

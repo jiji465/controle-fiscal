@@ -82,7 +82,7 @@ export const createInstallment = (overrides: Partial<Installment> = {}): Install
   createdAt: new Date().toISOString(),
   completedAt: undefined,
   completedBy: undefined,
-  parentObligationId: undefined,
+  parentInstallmentId: undefined,
   generatedFor: undefined,
   ...overrides,
 });

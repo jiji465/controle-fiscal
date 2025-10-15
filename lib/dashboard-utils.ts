@@ -2,9 +2,10 @@ import type { DashboardStats, ObligationWithDetails, TaxDueDate, Tax, Client, In
 import { getClients, getTaxes, getObligations, getInstallments, getTaxStatuses } from "./storage"
 import { calculateDueDate, isOverdue, isUpcomingThisWeek, calculateTaxDueDate, calculateInstallmentDueDate } from "./date-utils"
 
-export const getObligationsWithDetails = (): ObligationWithDetails[] => {
-  const obligations = getObligations()
-  const clients = getClients()
+export const getObligationsWithDetails = async (): Promise<ObligationWithDetails[]> => {
+  const obligations = await getObligations()
+  const clients = await getClients()
+  const taxes = await getTaxes(); // Fetch taxes here to link
 
   const unknownClient: Client = {
     id: "unknown",
@@ -18,7 +19,6 @@ export const getObligationsWithDetails = (): ObligationWithDetails[] => {
 
   return obligations.map((obligation) => {
     const client = clients.find((c) => c.id === obligation.clientId) || unknownClient;
-    const taxes = getTaxes(); // Fetch taxes here to link
     const tax = obligation.taxId ? taxes.find((t) => t.id === obligation.taxId) : undefined;
 
     const calculatedDueDate = calculateDueDate(
@@ -39,12 +39,12 @@ export const getObligationsWithDetails = (): ObligationWithDetails[] => {
   })
 }
 
-export const getTaxesDueDates = (monthsAhead: number = 3): TaxDueDate[] => {
-  const taxes = getTaxes();
-  const clients = getClients();
+export const getTaxesDueDates = async (monthsAhead: number = 3): Promise<TaxDueDate[]> => {
+  const taxes = await getTaxes();
+  const clients = await getClients();
   const today = new Date();
   const taxDueDates: TaxDueDate[] = [];
-  const taxStatuses = getTaxStatuses();
+  const taxStatuses = await getTaxStatuses();
 
   const unknownClient: Client = {
     id: "unknown",
@@ -95,9 +95,9 @@ export const getTaxesDueDates = (monthsAhead: number = 3): TaxDueDate[] => {
     .sort((a, b) => new Date(a.calculatedDueDate).getTime() - new Date(b.calculatedDueDate).getTime());
 };
 
-export const getInstallmentsWithDetails = (): InstallmentWithDetails[] => {
-  const installments = getInstallments();
-  const clients = getClients();
+export const getInstallmentsWithDetails = async (): Promise<InstallmentWithDetails[]> => {
+  const installments = await getInstallments();
+  const clients = await getClients();
 
   const unknownClient: Client = {
     id: "unknown",
@@ -124,11 +124,11 @@ export const getInstallmentsWithDetails = (): InstallmentWithDetails[] => {
 };
 
 
-export const calculateDashboardStats = (): DashboardStats => {
-  const clients = getClients()
-  const obligations = getObligationsWithDetails()
-  const installments = getInstallmentsWithDetails();
-  const taxesDueDates = getTaxesDueDates(1); // Only current month for stats
+export const calculateDashboardStats = async (): Promise<DashboardStats> => {
+  const clients = await getClients()
+  const obligations = await getObligationsWithDetails()
+  const installments = await getInstallmentsWithDetails();
+  const taxesDueDates = await getTaxesDueDates(1); // Only current month for stats
 
   const activeClients = clients.filter((c) => c.status === "active").length
 

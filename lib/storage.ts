@@ -200,6 +200,11 @@ export const saveInstallment = async (installment: Partial<Installment>): Promis
   return { ...data, clientId: data.client_id, installmentNumber: data.installment_number, totalInstallments: data.total_installments, dueDay: data.due_day, dueMonth: data.due_month, recurrenceInterval: data.recurrence_interval, recurrenceEndDate: data.recurrence_end_date, autoGenerate: data.auto_generate, weekendRule: data.weekend_rule, createdAt: data.created_at, completedAt: data.completed_at, completedBy: data.completed_by, parentInstallmentId: data.parent_installment_id, generatedFor: data.generated_for }
 }
 
+export const deleteInstallment = async (id: string): Promise<void> => {
+  const { error } = await supabase.from("installments").delete().eq("id", id)
+  if (error) console.error("Error deleting installment:", error)
+}
+
 // --- Tax Status Storage ---
 export const getTaxStatuses = async (): Promise<Record<string, FiscalEventStatus>> => {
   const { data, error } = await supabase.from("tax_statuses").select("id, status")
