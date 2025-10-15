@@ -1,187 +1,366 @@
-import type { DashboardStats, ObligationWithDetails, TaxDueDate, Tax, Client, Installment, InstallmentWithDetails, FiscalEventStatus, FiscalEventType } from "./types"
-import { getClients, getTaxes, getObligations, getInstallments, getTaxStatuses } from "./storage"
-import { calculateDueDate, isOverdue, isUpcomingThisWeek, calculateTaxDueDate, calculateInstallmentDueDate } from "./date-utils"
+import {
+  getClients,
+  getObligations,
+  getTaxes,
+  getInstallments,
+  saveObligation,
+  saveInstallment,
+  saveTax,
+  saveRecurrenceLog,
+  getRecurrenceLog,
+  saveAllObligations,
+  saveAllInstallments,
+  saveAllTaxes,
+} from "./storage"
+import type {
+  Client,
+  Obligation,
+  Tax,
+  DashboardStats,
+  ObligationWithDetails,
+  TaxDueDate,
+  Installment,
+  InstallmentWithDetails,
+  FiscalEvent,
+} from "./types"
+import { isOverdue } from "./date-utils"
+import { calculateNextDueDate, generateNextRecurrence } from "./recurrence-utils"
+import { v4 as uuidv4 } from "uuid"
 
-export const getObligationsWithDetails = async (): Promise<ObligationWithDetails[]> => {
+// --- Funções de Geração de Dados (Mantidas) ---
+
+export async function getObligationsWithDetails(): Promise<ObligationWithDetails[]> {
   const obligations = await getObligations()
   const clients = await getClients()
-  const taxes = await getTaxes(); // Fetch taxes here to link
+  const taxes = await getTaxes()
 
-  const unknownClient: Client = {
-    id: "unknown",
-    name: "Cliente Desconhecido",
-    cnpj: "00.000.000/0000-00",
-    email: "",
-    phone: "",
-    status: "inactive",
-    createdAt: new Date().toISOString(),
-  };
+  const clientMap = new Map(clients.map((c) => [c.id, c]))
+  const taxMap = new Map(taxes.map((t) => [t.id, t]))
 
-  return obligations.map((obligation) => {
-    const client = clients.find((c) => c.id === obligation.clientId) || unknownClient;
-    const tax = obligation.taxId ? taxes.find((t) => t.id === obligation.taxId) : undefined;
+  return obligations
+    .map((obl) => {
+      const client = clientMap.get(obl.clientId)
+      const tax = obl.taxId ? taxMap.get(obl.taxId) : undefined
 
-    const calculatedDueDate = calculateDueDate(
-      obligation.dueDay,
-      obligation.dueMonth,
-      obligation.frequency,
-      obligation.weekendRule,
-    ).toISOString();
+      if (!client) return null
 
-    return {
-      ...obligation,
-      client,
-      tax,
-      calculatedDueDate,
-      type: "obligation", // Explicitly add the type from FiscalEventBase
-      status: obligation.status, // Ensure status is explicitly set from obligation
-    } as ObligationWithDetails;
-  })
+      return {
+        ...obl,
+        client,
+        tax,
+        type: "obligation",
+        status: isOverdue(obl.calculatedDueDate) && obl.status !== "completed" ? "overdue" : obl.status,
+      } as ObligationWithDetails
+    })
+    .filter((obl): obl is ObligationWithDetails => obl !== null)
+    .sort((a, b) => new Date(a.calculatedDueDate).getTime() - new Date(b.calculatedDueDate).getTime())
 }
 
-export const getTaxesDueDates = async (monthsAhead: number = 3): Promise<TaxDueDate[]> => {
-  const taxes = await getTaxes();
-  const clients = await getClients();
-  const today = new Date();
-  const taxDueDates: TaxDueDate[] = [];
-  const taxStatuses = await getTaxStatuses();
-
-  const unknownClient: Client = {
-    id: "unknown",
-    name: "Cliente Desconhecido",
-    cnpj: "00.000.000/0000-00",
-    email: "",
-    phone: "",
-    status: "inactive",
-    createdAt: new Date().toISOString(),
-  };
-
-  taxes.forEach(tax => {
-    // Determine the initial reference date based on the tax's creation date
-    const initialReferenceDate = new Date(tax.createdAt);
-    
-    // Calculate the first due date based on the initial reference date
-    let calculatedDueDate = calculateTaxDueDate(tax, initialReferenceDate);
-    
-    // If the calculated date is in the past, advance it to the current month/period
-    while (calculatedDueDate < today) {
-        calculatedDueDate.setMonth(calculatedDueDate.getMonth() + (tax.recurrenceInterval || 1));
-        calculatedDueDate = calculateTaxDueDate(tax, calculatedDueDate);
-    }
-
-    // Generate occurrences for the next 'monthsAhead' periods starting from the calculated date
-    for (let i = 0; i < monthsAhead; i++) {
-      const referenceDate = new Date(calculatedDueDate.getFullYear(), calculatedDueDate.getMonth() + i, 1);
-      let occurrenceDate = calculateTaxDueDate(tax, referenceDate);
-
-      const client = tax.clientId ? clients.find(c => c.id === tax.clientId) || unknownClient : unknownClient;
-      
-      const uniqueId = `${tax.id}-${occurrenceDate.toISOString().split("T")[0]}`;
-      const storedStatus = taxStatuses[uniqueId];
-      const isEventOverdue = isOverdue(occurrenceDate.toISOString());
-      
-      let status: FiscalEventStatus = "pending";
-      if (storedStatus) {
-        status = storedStatus;
-      } else if (isEventOverdue) {
-        status = "overdue";
-      }
-
-      taxDueDates.push({
-        ...tax,
-        id: uniqueId,
-        client,
-        calculatedDueDate: occurrenceDate.toISOString(),
-        status,
-        type: "tax",
-      } as TaxDueDate);
-    }
-  });
-
-  return taxDueDates
-    .filter(item => new Date(item.calculatedDueDate) >= today || isOverdue(item.calculatedDueDate))
-    .sort((a, b) => new Date(a.calculatedDueDate).getTime() - new Date(b.calculatedDueDate).getTime());
-};
-
-export const getInstallmentsWithDetails = async (): Promise<InstallmentWithDetails[]> => {
-  const installments = await getInstallments();
-  const clients = await getClients();
-
-  const unknownClient: Client = {
-    id: "unknown",
-    name: "Cliente Desconhecido",
-    cnpj: "00.000.000/0000-00",
-    email: "",
-    phone: "",
-    status: "inactive",
-    createdAt: new Date().toISOString(),
-  };
-
-  return installments.map((installment) => {
-    const client = clients.find((c) => c.id === installment.clientId) || unknownClient;
-    
-    // Use the installment's creation date as the reference for the first calculation
-    const initialReferenceDate = new Date(installment.createdAt);
-    const calculatedDueDate = calculateInstallmentDueDate(installment, initialReferenceDate).toISOString();
-
-    return {
-      ...installment,
-      client,
-      calculatedDueDate,
-      type: "installment", // Explicitly add the type from FiscalEventBase
-      status: installment.status, // Ensure status is explicitly set from installment
-    } as InstallmentWithDetails;
-  });
-};
-
-
-export const calculateDashboardStats = async (): Promise<DashboardStats> => {
+export async function getInstallmentsWithDetails(): Promise<InstallmentWithDetails[]> {
+  const installments = await getInstallments()
   const clients = await getClients()
-  const obligations = await getObligationsWithDetails()
-  const installments = await getInstallmentsWithDetails();
-  const taxesDueDates = await getTaxesDueDates(1); // Only current month for stats
 
-  const activeClients = clients.filter((c) => c.status === "active").length
+  const clientMap = new Map(clients.map((c) => [c.id, c]))
 
-  const pendingObligations = obligations.filter((o) => o.status === "pending" && !isOverdue(o.calculatedDueDate))
-  const overdueObligations = obligations.filter(o => o.status === 'overdue' || (o.status === 'pending' && isOverdue(o.calculatedDueDate)))
-  const upcomingObligationsThisWeek = obligations.filter((o) => isUpcomingThisWeek(o.calculatedDueDate) && o.status !== 'completed')
+  return installments
+    .map((inst) => {
+      const client = clientMap.get(inst.clientId)
 
-  const pendingInstallments = installments.filter(i => i.status === "pending" && !isOverdue(i.calculatedDueDate));
-  const overdueInstallments = installments.filter(i => i.status === 'overdue' || (i.status === 'pending' && isOverdue(i.calculatedDueDate)));
-  const upcomingInstallmentsThisWeek = installments.filter(i => isUpcomingThisWeek(i.calculatedDueDate) && i.status !== 'completed');
+      if (!client) return null
 
-  const pendingTaxes = taxesDueDates.filter(t => !isOverdue(t.calculatedDueDate));
-  const overdueTaxes = taxesDueDates.filter(t => isOverdue(t.calculatedDueDate));
-  const upcomingTaxesThisWeek = taxesDueDates.filter(t => isUpcomingThisWeek(t.calculatedDueDate) && !isOverdue(t.calculatedDueDate));
+      return {
+        ...inst,
+        client,
+        type: "installment",
+        status: isOverdue(inst.calculatedDueDate) && inst.status !== "completed" ? "overdue" : inst.status,
+      } as InstallmentWithDetails
+    })
+    .filter((inst): inst is InstallmentWithDetails => inst !== null)
+    .sort((a, b) => new Date(a.calculatedDueDate).getTime() - new Date(b.calculatedDueDate).getTime())
+}
 
+export async function getTaxesDueDates(monthsAhead: number = 3): Promise<TaxDueDate[]> {
+  const taxes = await getTaxes()
+  const clients = await getClients()
+
+  const clientMap = new Map(clients.map((c) => [c.id, c]))
   const today = new Date()
-  const completedObligationsThisMonth = obligations.filter((o) => {
-    if (!o.completedAt) return false
-    const completed = new Date(o.completedAt)
-    return (
-      completed.getMonth() === today.getMonth() &&
-      completed.getFullYear() === today.getFullYear() &&
-      o.status === "completed"
-    )
-  }).length
-  const completedInstallmentsThisMonth = installments.filter((i) => {
-    if (!i.completedAt) return false
-    const completed = new Date(i.completedAt)
-    return (
-      completed.getMonth() === today.getMonth() &&
-      completed.getFullYear() === today.getFullYear() &&
-      i.status === "completed"
-    )
-  }).length
+  const endDate = new Date(today.getFullYear(), today.getMonth() + monthsAhead, 0)
+
+  const allDueDates: TaxDueDate[] = []
+
+  taxes.forEach((tax) => {
+    const client = clientMap.get(tax.clientId)
+    if (!client) return
+
+    let currentDate = new Date(tax.calculatedDueDate)
+
+    // Generate occurrences until the end date
+    while (currentDate <= endDate) {
+      const dueDateStr = currentDate.toISOString().split("T")[0]
+      const status = isOverdue(dueDateStr) ? "overdue" : "pending"
+
+      allDueDates.push({
+        id: `${tax.id}-${dueDateStr}`, // Unique ID for this occurrence
+        name: tax.name,
+        description: tax.description,
+        calculatedDueDate: dueDateStr,
+        clientId: tax.clientId,
+        client: client,
+        type: "tax",
+        status: status,
+        recurrence: tax.recurrence,
+        createdAt: tax.createdAt,
+        updatedAt: tax.updatedAt,
+        federalTaxCode: tax.federalTaxCode,
+        stateTaxCode: tax.stateTaxCode,
+        municipalTaxCode: tax.municipalTaxCode,
+        notes: tax.notes,
+      })
+
+      // Calculate the next date based on recurrence
+      if (tax.recurrence === "none") break
+
+      const nextDateStr = calculateNextDueDate(tax, currentDate)
+      currentDate = new Date(nextDateStr)
+      if (currentDate.toISOString().split("T")[0] === dueDateStr) {
+        // Prevent infinite loop if recurrence calculation fails
+        break
+      }
+    }
+  })
+
+  return allDueDates.sort((a, b) => new Date(a.calculatedDueDate).getTime() - new Date(b.calculatedDueDate).getTime())
+}
+
+export async function calculateDashboardStats(): Promise<DashboardStats> {
+  const obligations = await getObligations()
+  const installments = await getInstallments()
+
+  const totalObligations = obligations.length
+  const totalInstallments = installments.length
+  const totalClients = (await getClients()).length
+
+  const completedObligations = obligations.filter((o) => o.status === "completed").length
+  const completedInstallments = installments.filter((i) => i.status === "completed").length
+
+  const overdueObligations = obligations.filter(
+    (o) => o.status !== "completed" && isOverdue(o.calculatedDueDate),
+  ).length
+  const overdueInstallments = installments.filter(
+    (i) => i.status !== "completed" && isOverdue(i.calculatedDueDate),
+  ).length
+
+  const completionRate =
+    totalObligations + totalInstallments > 0
+      ? Math.round(((completedObligations + completedInstallments) / (totalObligations + totalInstallments)) * 100)
+      : 0
 
   return {
-    totalClients: clients.length,
-    activeClients,
-    totalEvents: obligations.length + installments.length + taxesDueDates.length,
-    pendingEvents: pendingObligations.length + pendingInstallments.length + pendingTaxes.length,
-    completedThisMonth: completedObligationsThisMonth + completedInstallmentsThisMonth,
-    overdueEvents: overdueObligations.length + overdueInstallments.length + overdueTaxes.length,
-    upcomingThisWeek: upcomingObligationsThisWeek.length + upcomingInstallmentsThisWeek.length + upcomingTaxesThisWeek.length,
+    totalClients,
+    totalObligations: totalObligations + totalInstallments,
+    completed: completedObligations + completedInstallments,
+    overdue: overdueObligations + overdueInstallments,
+    completionRate,
   }
+}
+
+// --- Lógica de Recorrência e Arquivamento (Nova) ---
+
+/**
+ * Verifica se a geração de recorrência para o mês atual já foi executada.
+ * Se não, gera novas ocorrências e arquiva as antigas.
+ */
+export async function runRecurrenceCheckAndGeneration() {
+  const now = new Date()
+  const currentMonthYear = `${now.getFullYear()}-${now.getMonth() + 1}`
+  const log = getRecurrenceLog()
+
+  // 1. Verifica se a geração já foi feita para este mês/ano
+  if (log.lastRunMonthYear === currentMonthYear) {
+    console.log(`Recorrência já executada para ${currentMonthYear}. Pulando geração.`)
+    return
+  }
+
+  console.log(`Executando verificação de recorrência para ${currentMonthYear}...`)
+
+  const allObligations = await getObligations()
+  const allInstallments = await getInstallments()
+  const allTaxes = await getTaxes()
+
+  const newObligations: Obligation[] = []
+  const newInstallments: Installment[] = []
+  const newTaxes: Tax[] = []
+
+  const updatedObligations: Obligation[] = []
+  const updatedInstallments: Installment[] = []
+  const updatedTaxes: Tax[] = []
+
+  const todayStr = now.toISOString().split("T")[0]
+
+  // --- Processamento de Obrigações ---
+  allObligations.forEach((obl) => {
+    if (obl.recurrence !== "none") {
+      const nextDueDate = calculateNextDueDate(obl, now)
+
+      // Se a próxima data de vencimento for para o mês atual ou anterior (e ainda não foi gerada)
+      if (nextDueDate <= todayStr) {
+        const newObligation = generateNextRecurrence(obl, nextDueDate) as Obligation
+        newObligations.push(newObligation)
+
+        // Atualiza a obrigação original para apontar para a nova data de vencimento
+        // e marca a antiga como 'arquivada' se estiver concluída.
+        const updatedObl = { ...obl }
+        updatedObl.calculatedDueDate = nextDueDate // Atualiza a data de vencimento da base para a próxima
+        
+        // Lógica de Arquivamento:
+        // Se a obrigação original (do mês anterior) foi concluída, ela é mantida no histórico.
+        // Se não foi concluída, ela é mantida como está (overdue ou pending) e a nova é gerada.
+        // Para fins de organização, vamos manter apenas a última ocorrência recorrente ativa.
+        // A nova ocorrência gerada é a que deve ser trabalhada.
+        
+        // Para evitar duplicação, vamos apenas gerar a nova e manter a antiga no array
+        // se ela ainda não foi concluída. Se foi concluída, ela não precisa ser atualizada.
+        
+        // A abordagem mais simples para o frontend é:
+        // 1. Gerar a nova ocorrência.
+        // 2. Manter a antiga no array, mas não a atualizar.
+        // 3. A lista de exibição deve filtrar/organizar para mostrar apenas as relevantes.
+        
+        // Para simular o "arquivamento" e manter a lista limpa, vamos *remover* as obrigações
+        // concluídas do mês anterior e *manter* as não concluídas (que se tornarão atrasadas).
+        
+        // Se a obrigação original (do mês anterior) foi concluída, ela é removida do array principal
+        // para simular o arquivamento. Se não foi concluída, ela permanece (e se torna overdue).
+        if (obl.status !== "completed") {
+            updatedObligations.push(obl); // Mantém a antiga (agora atrasada)
+        }
+        
+        // A nova obrigação gerada é a que deve ser trabalhada no futuro.
+        // Para simplificar, vamos apenas gerar a nova e deixar a lógica de filtro
+        // nas listas para lidar com as antigas.
+        
+        // Para o modelo atual, onde cada item é uma "série" recorrente, a lógica é mais complexa.
+        // Vamos adotar a abordagem de "Ocorrências":
+        
+        // Se a obrigação original (obl) tem uma data de vencimento no passado (mês anterior)
+        // e não foi concluída, ela deve ser mantida como 'overdue'.
+        // Se ela foi concluída, ela é mantida como 'completed'.
+        
+        // O que precisamos é de uma nova OBRIGAÇÃO para o mês atual.
+        
+        // Se a data de vencimento da obrigação original (obl.calculatedDueDate) for anterior ao mês atual,
+        // e ela for recorrente, criamos uma nova.
+        
+        const lastDueDate = new Date(obl.calculatedDueDate);
+        const lastDueMonthYear = `${lastDueDate.getFullYear()}-${lastDueDate.getMonth() + 1}`;
+        
+        if (lastDueMonthYear !== currentMonthYear && lastDueDate < now) {
+            // Cria uma nova ocorrência para o mês atual
+            const newRecurrence = generateNextRecurrence(obl, nextDueDate) as Obligation;
+            newRecurrences.push(newRecurrence);
+            
+            // A obrigação original (obl) é mantida no array, mas não é atualizada aqui.
+            // A lista de obrigações deve ser uma lista de OCORRÊNCIAS.
+            // Como o modelo atual trata cada Obligation como uma série, vamos mudar a abordagem:
+            
+            // 1. Se a data de vencimento da obrigação original for anterior ao mês atual,
+            //    e ela for recorrente, criamos uma nova OBRIGAÇÃO (com novo ID) para o mês atual.
+            // 2. A obrigação original (do mês anterior) é mantida no array, mas não é mais recorrente.
+            
+            // Para simplificar, vamos apenas gerar a nova e manter a antiga no array.
+            // O sistema de listagem deve filtrar as obrigações que já passaram do mês.
+            
+            // Vamos reverter para a lógica mais simples:
+            // Se a data de vencimento da obrigação original for anterior ao mês atual,
+            // e ela for recorrente, criamos uma nova OBRIGAÇÃO (com novo ID) para o mês atual.
+            
+            const lastDue = new Date(obl.calculatedDueDate);
+            const firstDayOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+            
+            if (lastDue < firstDayOfCurrentMonth) {
+                // 1. Cria a nova ocorrência
+                const newRecurrence = generateNextRecurrence(obl, nextDueDate) as Obligation;
+                newObligations.push(newRecurrence);
+                
+                // 2. Atualiza a obrigação original para que ela não gere mais recorrência
+                //    (ou a marca como 'arquivada' se estiver concluída)
+                if (obl.status === "completed") {
+                    // Se concluída, remove a recorrência para não gerar mais a partir dela
+                    const archivedObl = { ...obl, recurrence: "none" as const, isArchived: true };
+                    updatedObligations.push(archivedObl);
+                } else {
+                    // Se não concluída, ela permanece como está (agora overdue)
+                    updatedObligations.push(obl);
+                }
+            } else {
+                updatedObligations.push(obl);
+            }
+        } else {
+            updatedObligations.push(obl);
+        }
+    } else {
+      updatedObligations.push(obl)
+    }
+  })
+
+  // --- Processamento de Parcelamentos ---
+  allInstallments.forEach((inst) => {
+    if (inst.recurrence !== "none") {
+      const nextDueDate = calculateNextDueDate(inst, now)
+      
+      const lastDue = new Date(inst.calculatedDueDate);
+      const firstDayOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      
+      if (lastDue < firstDayOfCurrentMonth) {
+        // 1. Cria a nova ocorrência
+        const newRecurrence = generateNextRecurrence(inst, nextDueDate) as Installment;
+        newInstallments.push(newRecurrence);
+        
+        // 2. Atualiza o parcelamento original
+        if (inst.status === "completed") {
+            // Se concluído, remove a recorrência e marca como arquivado
+            const archivedInst = { ...inst, recurrence: "none" as const, isArchived: true };
+            updatedInstallments.push(archivedInst);
+        } else {
+            // Se não concluído, permanece como está (agora overdue)
+            updatedInstallments.push(inst);
+        }
+      } else {
+        updatedInstallments.push(inst);
+      }
+    } else {
+      updatedInstallments.push(inst)
+    }
+  })
+
+  // --- Processamento de Impostos (Templates) ---
+  // Impostos são gerados dinamicamente em getTaxesDueDates, mas precisamos garantir
+  // que o template base (Tax) não seja alterado, a menos que seja para arquivar.
+  allTaxes.forEach((tax) => {
+    // Impostos não precisam de geração de novas entidades, apenas o template base.
+    // A lógica de getTaxesDueDates já gera as datas futuras.
+    // Apenas garantimos que o template não seja arquivado.
+    updatedTaxes.push(tax);
+  });
+
+  // --- Salvamento e Log ---
+  
+  // Combina as obrigações antigas (atualizadas) com as novas ocorrências
+  const finalObligations = [...updatedObligations.filter(o => !o.isArchived), ...newObligations];
+  const finalInstallments = [...updatedInstallments.filter(i => !i.isArchived), ...newInstallments];
+  const finalTaxes = updatedTaxes; // Impostos não geram novas entidades, apenas datas
+
+  await saveAllObligations(finalObligations);
+  await saveAllInstallments(finalInstallments);
+  await saveAllTaxes(finalTaxes);
+
+  // Salva o log de execução
+  saveRecurrenceLog({
+    lastRunMonthYear: currentMonthYear,
+    timestamp: now.toISOString(),
+    generatedCount: newObligations.length + newInstallments.length,
+  })
+
+  console.log(`Geração de recorrência concluída. ${newObligations.length + newInstallments.length} novos eventos gerados.`)
 }

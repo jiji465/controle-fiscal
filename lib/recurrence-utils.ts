@@ -1,118 +1,121 @@
-import type { Obligation, RecurrenceType, Tax, Installment } from "./types"
-import { adjustForWeekend } from "./date-utils"
+import type { Obligation, Installment, Tax, FiscalEvent } from "./types"
+import { v4 as uuidv4 } from "uuid"
 
 /**
- * Type guard to check if an entity is an Obligation
+ * Calcula a próxima data de vencimento com base na recorrência.
+ * @param event O objeto FiscalEvent (Obligation, Installment ou Tax).
+ * @param referenceDate A data a partir da qual calcular (geralmente a data atual).
+ * @returns A próxima data de vencimento no formato 'YYYY-MM-DD'.
  */
-function isObligation(entity: Obligation | Installment): entity is Obligation {
-  return 'priority' in entity;
+export function calculateNextDueDate(event: FiscalEvent, referenceDate: Date = new Date()): string {
+  const lastDueDate = new Date(event.calculatedDueDate)
+  let nextDate = new Date(lastDueDate)
+
+  if (event.recurrence === "monthly") {
+    // Se a data de referência for posterior à última data de vencimento,
+    // avançamos para o próximo mês.
+    if (referenceDate > lastDueDate) {
+      nextDate = new Date(referenceDate.getFullYear(), referenceDate.getMonth() + 1, lastDueDate.getDate())
+    } else {
+      nextDate = new Date(lastDueDate.getFullYear(), lastDueDate.getMonth() + 1, lastDueDate.getDate())
+    }
+  } else if (event.recurrence === "quarterly") {
+    nextDate = new Date(lastDueDate.getFullYear(), lastDueDate.getMonth() + 3, lastDueDate.getDate())
+  } else if (event.recurrence === "semiannual") {
+    nextDate = new Date(lastDueDate.getFullYear(), lastDueDate.getMonth() + 6, lastDueDate.getDate())
+  } else if (event.recurrence === "annual") {
+    nextDate = new Date(lastDueDate.getFullYear() + 1, lastDueDate.getMonth(), lastDueDate.getDate())
+  }
+
+  // Ajuste para o último dia do mês, se necessário (ex: 31 de jan -> 28/29 de fev)
+  const day = lastDueDate.getDate()
+  if (day > 28 && nextDate.getMonth() !== lastDueDate.getMonth() + 1) {
+    nextDate = new Date(nextDate.getFullYear(), nextDate.getMonth(), 0) // Último dia do mês
+  }
+
+  return nextDate.toISOString().split("T")[0]
 }
 
 /**
- * Calcula a próxima data de vencimento para um mês específico
+ * Gera uma nova ocorrência de um evento recorrente para o mês atual.
+ * @param event O evento base (Obligation, Installment ou Tax).
+ * @param newDueDate A data de vencimento da nova ocorrência.
+ * @returns A nova ocorrência do evento.
  */
-function calculateDueDateForMonth(entity: Obligation | Installment, targetDate: Date): Date {
-  const targetYear = targetDate.getFullYear()
-  const targetMonth = targetDate.getMonth()
+export function generateNextRecurrence(event: FiscalEvent, newDueDate: string): FiscalEvent {
+  const newId = uuidv4()
+  const now = new Date().toISOString()
 
-  let dueMonth = targetMonth
-  if (entity.recurrence === "annual" && entity.dueMonth) {
-    dueMonth = entity.dueMonth - 1
+  const baseEvent = {
+    ...event,
+    id: newId,
+    calculatedDueDate: newDueDate,
+    createdAt: now,
+    updatedAt: now,
+    status: "pending" as const, // Sempre começa como pendente
+    completedAt: undefined,
+    completedBy: undefined,
+    realizationDate: undefined,
+    history: [
+      {
+        id: uuidv4(),
+        action: "created" as const,
+        description: "Ocorrência gerada automaticamente por recorrência",
+        timestamp: now,
+      },
+    ],
   }
-  
-  const newDueDate = new Date(targetYear, dueMonth, entity.dueDay)
 
-  return adjustForWeekend(newDueDate, entity.weekendRule)
+  if (event.type === "obligation") {
+    return {
+      ...baseEvent,
+      type: "obligation" as const,
+      // Mantém a referência ao imposto, se houver
+      taxId: (event as Obligation).taxId,
+    } as Obligation
+  }
+
+  if (event.type === "installment") {
+    const installment = event as Installment
+    return {
+      ...baseEvent,
+      type: "installment" as const,
+      // Incrementa o número da parcela
+      installmentNumber: installment.installmentNumber + 1,
+      // Mantém o total de parcelas
+      totalInstallments: installment.totalInstallments,
+    } as Installment
+  }
+
+  if (event.type === "tax") {
+    return {
+      ...baseEvent,
+      type: "tax" as const,
+      // Mantém as propriedades específicas de Tax
+      federalTaxCode: (event as Tax).federalTaxCode,
+      stateTaxCode: (event as Tax).stateTaxCode,
+      municipalTaxCode: (event as Tax).municipalTaxCode,
+    } as Tax
+  }
+
+  return baseEvent // Fallback, should not happen
 }
 
 /**
- * Gera a próxima ocorrência de uma obrigação ou parcelamento para um mês específico, se necessário.
+ * Retorna a descrição da recorrência em Português.
  */
-export function generateOccurrenceForMonth(
-  template: Obligation | Installment,
-  targetDate: Date,
-  existingItems: (Obligation | Installment)[],
-): Obligation | Installment | null {
-  // 1. Check if generation should happen
-  if (!template.autoGenerate) return null
-  const endDate = template.recurrenceEndDate ? new Date(template.recurrenceEndDate) : null
-  if (endDate && targetDate > endDate) return null
-
-  // 2. Define the period key (e.g., "2024-07")
-  const periodKey = `${targetDate.getFullYear()}-${String(targetDate.getMonth() + 1).padStart(2, "0")}`
-
-  // 3. Check if an occurrence for this period already exists
-  const alreadyExists = existingItems.some(
-    (item) => {
-      if (isObligation(item) && isObligation(template)) {
-        return item.parentObligationId === template.id && item.generatedFor === periodKey;
-      }
-      if (!isObligation(item) && !isObligation(template)) {
-        return item.parentInstallmentId === template.id && item.generatedFor === periodKey;
-      }
-      return false;
-    }
-  )
-  if (alreadyExists) return null
-
-  // 4. Create the new occurrence
-  const newDueDate = calculateDueDateForMonth(template, targetDate)
-  
-  const newId = crypto.randomUUID();
-  
-  if (isObligation(template)) { // It's an Obligation
-    const newObligation: Obligation = {
-      ...template,
-      id: newId,
-      status: "pending",
-      completedAt: undefined,
-      completedBy: undefined,
-      realizationDate: undefined,
-      parentObligationId: template.id,
-      generatedFor: periodKey,
-      createdAt: new Date().toISOString(),
-      history: [
-        {
-          id: crypto.randomUUID(),
-          action: "created",
-          description: `Obrigação gerada automaticamente para ${periodKey}`,
-          timestamp: new Date().toISOString(),
-        },
-      ],
-    }
-    return newObligation;
-  } else { // It's an Installment
-    const installmentItems = existingItems.filter(i => !isObligation(i)) as Installment[];
-    const newInstallment: Installment = {
-        ...template,
-        id: newId,
-        status: "pending",
-        completedAt: undefined,
-        completedBy: undefined,
-        parentInstallmentId: template.id,
-        generatedFor: periodKey,
-        createdAt: new Date().toISOString(),
-        installmentNumber: template.installmentNumber + (installmentItems.filter(i => i.parentInstallmentId === template.id).length),
-    }
-    return newInstallment;
+export function getRecurrenceDescription(event: FiscalEvent): string {
+  switch (event.recurrence) {
+    case "monthly":
+      return "Mensal"
+    case "quarterly":
+      return "Trimestral"
+    case "semiannual":
+      return "Semestral"
+    case "annual":
+      return "Anual"
+    case "none":
+    default:
+      return "Única"
   }
-}
-
-
-/**
- * Obtém descrição legível da recorrência
- */
-export function getRecurrenceDescription(entity: Obligation | Tax | Installment): string {
-  const descriptions: Record<RecurrenceType, string> = {
-    monthly: "Mensal",
-    bimonthly: "Bimestral",
-    quarterly: "Trimestral",
-    semiannual: "Semestral",
-    annual: "Anual",
-    custom: entity.recurrenceInterval
-      ? `A cada ${entity.recurrenceInterval} ${entity.recurrenceInterval === 1 ? "mês" : "meses"}`
-      : "Personalizado",
-  }
-
-  return descriptions[entity.recurrence]
 }

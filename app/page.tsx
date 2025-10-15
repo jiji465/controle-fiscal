@@ -11,7 +11,7 @@ import { ClientOverview } from "@/components/client-overview"
 import { TaxCalendar } from "@/components/tax-calendar"
 import { QuickActions } from "@/components/quick-actions"
 import { getClients, getTaxes } from "@/lib/storage"
-import { getObligationsWithDetails, calculateDashboardStats, getTaxesDueDates, getInstallmentsWithDetails } from "@/lib/dashboard-utils"
+import { getObligationsWithDetails, calculateDashboardStats, getTaxesDueDates, getInstallmentsWithDetails, runRecurrenceCheckAndGeneration } from "@/lib/dashboard-utils"
 import { TrendingUp, CalendarIcon, AlertCircle, DollarSign } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
@@ -31,6 +31,10 @@ export default function DashboardPage() {
 
   const updateData = async () => {
     setLoading(true)
+    // 1. Executa a verificação de recorrência e gera novos eventos se necessário
+    await runRecurrenceCheckAndGeneration()
+    
+    // 2. Carrega os dados atualizados
     const statsData = await calculateDashboardStats()
     const obligationsData = await getObligationsWithDetails()
     const clientsData = await getClients()
