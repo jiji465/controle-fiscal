@@ -23,8 +23,13 @@ async function getUserId(): Promise<string> {
 
 function mapClientToDB(client: Client, user_id: string) {
   return {
-    ...client,
+    id: client.id,
     user_id,
+    name: client.name,
+    cnpj: client.cnpj,
+    email: client.email,
+    phone: client.phone,
+    status: client.status,
     tax_regime: client.taxRegime,
     created_at: client.createdAt,
     updated_at: client.updatedAt,
@@ -33,35 +38,49 @@ function mapClientToDB(client: Client, user_id: string) {
 
 function mapObligationToDB(obligation: Obligation, user_id: string) {
   return {
-    ...obligation,
+    id: obligation.id,
     user_id,
+    name: obligation.name,
+    description: obligation.description,
+    category: obligation.category,
+    client_id: obligation.clientId,
     tax_id: obligation.taxId,
     due_day: obligation.dueDay,
     due_month: obligation.dueMonth,
+    frequency: obligation.frequency,
+    recurrence: obligation.recurrence,
     recurrence_interval: obligation.recurrenceInterval,
     recurrence_end_date: obligation.recurrenceEndDate,
     auto_generate: obligation.autoGenerate,
     weekend_rule: obligation.weekendRule,
     calculated_due_date: obligation.calculatedDueDate,
+    status: obligation.status,
+    priority: obligation.priority,
     assigned_to: obligation.assignedTo,
+    protocol: obligation.protocol,
     realization_date: obligation.realizationDate,
     completed_at: obligation.completedAt,
     completed_by: obligation.completedBy,
     created_at: obligation.createdAt,
     updated_at: obligation.updatedAt,
-    parent_obligation_id: undefined, // Removendo campos não mapeados
-    generated_for: undefined, // Removendo campos não mapeados
+    notes: obligation.notes,
+    history: obligation.history,
+    tags: obligation.tags,
+    attachments: obligation.attachments,
     is_archived: obligation.isArchived,
   }
 }
 
 function mapTaxToDB(tax: Tax, user_id: string) {
   return {
-    ...tax,
+    id: tax.id,
     user_id,
+    name: tax.name,
+    description: tax.description,
     federal_tax_code: tax.federalTaxCode,
     state_tax_code: tax.stateTaxCode,
     municipal_tax_code: tax.municipalTaxCode,
+    recurrence: tax.recurrence,
     recurrence_interval: tax.recurrenceInterval,
     recurrence_end_date: tax.recurrenceEndDate,
     auto_generate: tax.autoGenerate,
@@ -71,32 +90,41 @@ function mapTaxToDB(tax: Tax, user_id: string) {
     client_id: tax.clientId,
     created_at: tax.createdAt,
     updated_at: tax.updatedAt,
-    calculated_due_date: tax.calculatedDueDate,
+    notes: tax.notes,
     is_archived: tax.isArchived,
+    calculated_due_date: tax.calculatedDueDate,
+    tags: tax.tags,
+    type: tax.type,
   }
 }
 
 function mapInstallmentToDB(installment: Installment, user_id: string) {
   return {
-    ...installment,
+    id: installment.id,
     user_id,
+    name: installment.name,
+    description: installment.description,
     client_id: installment.clientId,
     installment_number: installment.installmentNumber,
     total_installments: installment.totalInstallments,
     due_day: installment.dueDay,
     due_month: installment.dueMonth,
+    recurrence: installment.recurrence,
     recurrence_interval: installment.recurrenceInterval,
     recurrence_end_date: installment.recurrenceEndDate,
     auto_generate: installment.autoGenerate,
     weekend_rule: installment.weekendRule,
     calculated_due_date: installment.calculatedDueDate,
+    status: installment.status,
     completed_at: installment.completedAt,
     completed_by: installment.completedBy,
     created_at: installment.createdAt,
     updated_at: installment.updatedAt,
-    parent_installment_id: undefined, // Removendo campos não mapeados
-    generated_for: undefined, // Removendo campos não mapeados
+    notes: installment.notes,
+    generated_for: installment.generatedFor,
     is_archived: installment.isArchived,
+    tags: installment.tags,
+    type: installment.type,
   }
 }
 
