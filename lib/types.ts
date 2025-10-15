@@ -1,12 +1,19 @@
+export type RecurrenceType = "monthly" | "quarterly" | "semiannual" | "annual" | "none"
+
+export type FiscalEventStatus = "pending" | "in_progress" | "completed" | "overdue"
+
+export type ClientStatus = "active" | "inactive"
+
 export type Client = {
   id: string
   name: string
   cnpj: string
   email: string
   phone: string
-  status: "active" | "inactive"
-  taxRegime?: "Simples Nacional" | "Lucro Presumido" | "Lucro Real" | "Outro"
-  createdAt: string
+  taxRegime: string
+  status: ClientStatus
+  createdAt: string // Adicionado
+  updatedAt: string // Adicionado
 }
 
 export type Tax = {
@@ -14,60 +21,42 @@ export type Tax = {
   name: string
   description: string
   federalTaxCode?: string
-  clientId?: string;
-  dueDay: number
-  dueMonth?: number // Added dueMonth to Tax type
+  stateTaxCode?: string // Adicionado
+  municipalTaxCode?: string // Adicionado
   recurrence: RecurrenceType
-  recurrenceInterval?: number
-  recurrenceEndDate?: string
-  autoGenerate: boolean
-  weekendRule: WeekendRule
-  notes?: string
-  tags?: string[]
-  createdAt: string
-}
-
-export type WeekendRule = "postpone" | "anticipate" | "keep"
-
-export type RecurrenceType = "monthly" | "bimonthly" | "quarterly" | "semiannual" | "annual" | "custom"
-
-export type Priority = "low" | "medium" | "high" | "urgent"
-
-export type CertificateType = "federal" | "state" | "municipal" | "fgts" | "labor"
-
-export type Certificate = {
-  id: string
   clientId: string
-  type: CertificateType
-  name: string
-  issueDate?: string
-  expiryDate: string
-  status: "valid" | "expired" | "pending"
-  documentNumber?: string
-  notes?: string
   createdAt: string
+  updatedAt: string
+  notes?: string
+  isArchived?: boolean // Adicionado
+  calculatedDueDate: string // Adicionado para templates de imposto
 }
 
-export type ObligationCategory = "sped" | "tax_guide" | "certificate" | "declaration" | "other"
+export type TaxDueDate = {
+  id: string // Unique ID for this occurrence (e.g., taxId-dueDate)
+  name: string
+  description?: string
+  calculatedDueDate: string
+  clientId: string
+  client: Client
+  type: "tax"
+  status: FiscalEventStatus
+  recurrence: RecurrenceType
+  createdAt: string
+  updatedAt: string
+  federalTaxCode?: string
+  stateTaxCode?: string
+  municipalTaxCode?: string
+  notes?: string
+}
 
-// --- New Unified Fiscal Event Types ---
-export type FiscalEventType = "obligation" | "tax" | "installment";
-export type FiscalEventStatus = "pending" | "in_progress" | "completed" | "overdue";
+export type ObligationCategory = "federal" | "state" | "municipal" | "other"
 
-export interface FiscalEventBase {
-  id: string;
-  name: string;
-  calculatedDueDate: string; // All events must have a calculated due date
-  client: Client; // All events must be linked to a client
-  status: FiscalEventStatus; // All events have a status
-  type: FiscalEventType; // Discriminator for union types
-  createdAt: string;
-  description?: string;
-  notes?: string;
-  tags?: string[];
-  // Specific fields for different types, made optional in base
-  completedAt?: string; // For obligations and installments
-  completedBy?: string; // For obligations and installments
+export type ObligationHistoryEntry = {
+  id: string
+  action: "created" | "status_changed" | "completed" | "edited"
+  description: string
+  timestamp: string
 }
 
 export type Obligation = {
@@ -78,133 +67,98 @@ export type Obligation = {
   clientId: string
   taxId?: string
   dueDay: number
-  dueMonth?: number
+  dueMonth?: number // For annual/semiannual/quarterly
   frequency: "monthly" | "quarterly" | "annual" | "custom"
   recurrence: RecurrenceType
-  recurrenceInterval?: number
-  recurrenceEndDate?: string
-  autoGenerate: boolean
-  weekendRule: WeekendRule
-  status: "pending" | "in_progress" | "completed" | "overdue"
-  priority: Priority
+  calculatedDueDate: string // Adicionado
+  status: FiscalEventStatus
+  priority: "low" | "medium" | "high" | "urgent"
   assignedTo?: string
   protocol?: string
-  realizationDate?: string
-  notes?: string
-  createdAt: string
+  realizationDate?: string // Date when the obligation was actually done
   completedAt?: string
   completedBy?: string
-  attachments?: string[]
-  history?: ObligationHistory[]
-  parentObligationId?: string
-  generatedFor?: string
+  createdAt: string
+  updatedAt: string
+  notes?: string
+  history?: ObligationHistoryEntry[]
   tags?: string[]
+  isArchived?: boolean // Adicionado
 }
 
 export type ObligationWithDetails = Obligation & {
-  client: Client;
-  tax?: Tax;
-} & FiscalEventBase; // Extend FiscalEventBase
-
-export type TaxDueDate = Tax & {
-  client: Client;
-} & FiscalEventBase; // Extend FiscalEventBase
+  client: Client
+  tax?: Tax
+  type: "obligation"
+}
 
 export type Installment = {
-  id: string;
-  name: string; // Name of the installment (e.g., "Parcela 1 de IPTU")
-  description?: string;
-  clientId: string;
-  installmentNumber: number; // e.g., 1
-  totalInstallments: number; // e.g., 12
-  dueDay: number;
-  dueMonth?: number; // For annual or specific month installments
-  recurrence: RecurrenceType; // How often installments occur (e.g., monthly)
-  recurrenceInterval?: number;
-  recurrenceEndDate?: string; // When the installment plan ends
-  autoGenerate: boolean; // Whether to auto-generate future installments
-  weekendRule: WeekendRule;
-  status: "pending" | "in_progress" | "completed" | "overdue";
-  notes?: string;
-  tags?: string[];
-  createdAt: string;
-  completedAt?: string;
-  completedBy?: string;
-  parentInstallmentId?: string; // If it's part of a larger installment plan
-  generatedFor?: string; // e.g., "2023-01"
-};
+  id: string
+  name: string
+  description?: string
+  clientId: string
+  installmentNumber: number
+  totalInstallments: number
+  dueDay: number
+  dueMonth?: number
+  recurrence: RecurrenceType
+  calculatedDueDate: string // Adicionado
+  status: FiscalEventStatus
+  completedAt?: string
+  completedBy?: string
+  createdAt: string
+  updatedAt: string
+  notes?: string
+  generatedFor?: string // Reference to the original installment series
+  isArchived?: boolean // Adicionado
+}
 
 export type InstallmentWithDetails = Installment & {
-  client: Client;
-} & FiscalEventBase; // Extend FiscalEventBase
-
-// Update CalendarEvent to be the union of these detailed types
-export type CalendarEvent = ObligationWithDetails | TaxDueDate | InstallmentWithDetails;
-
-export type ObligationHistory = {
-  id: string
-  action: "created" | "updated" | "completed" | "status_changed" | "comment_added"
-  description: string
-  timestamp: string
-  user?: string
+  client: Client
+  type: "installment"
 }
+
+// Union type for all fiscal events
+export type FiscalEvent = Obligation | Installment | TaxDueDate | Tax // Incluindo Tax para recorrência
 
 export type DashboardStats = {
   totalClients: number
-  activeClients: number
-  totalEvents: number
-  pendingEvents: number
-  completedThisMonth: number
-  overdueEvents: number
-  upcomingThisWeek: number
+  totalObligations: number // Includes obligations and installments
+  completed: number
+  overdue: number
+  completionRate: number
 }
 
 export const defaultDashboardStats: DashboardStats = {
   totalClients: 0,
-  activeClients: 0,
-  totalEvents: 0,
-  pendingEvents: 0,
-  completedThisMonth: 0,
-  overdueEvents: 0,
-  upcomingThisWeek: 0,
-};
-
-export type SavedFilter = {
-  id: string
-  name: string
-  filters: {
-    status?: string[]
-    priority?: string[]
-    clientId?: string
-    search?: string
-    dateRange?: { start: string; end: string }
-  }
-  createdAt: string
-}
-
-export type ExportFormat = "excel" | "pdf" | "csv"
-
-export type ExportOptions = {
-  format: ExportFormat
-  includeCompleted: boolean
-  dateRange?: { start: string; end: string }
-  clientIds?: string[]
+  totalObligations: 0,
+  completed: 0,
+  overdue: 0,
+  completionRate: 0,
 }
 
 export type ProductivityMetrics = {
   totalCompleted: number
-  averageCompletionTime: number // em dias
-  onTimeRate: number // percentual
+  averageCompletionTime: number // in days
+  onTimeRate: number // percentage
   byResponsible: { name: string; completed: number; onTime: number }[]
+  byPriority: { priority: string; count: number }[]
   byMonth: { month: string; completed: number; overdue: number }[]
-  byPriority: { priority: Priority; count: number }[]
 }
 
+export type CalendarEvent = ObligationWithDetails | InstallmentWithDetails | TaxDueDate
+
 export type Notification = {
-  id: string;
-  type: "info" | "warning" | "error" | "success";
-  message: string;
-  link?: string;
-  read: boolean;
-  timestamp: string;
-};
+  id: string
+  message: string
+  timestamp: string
+  read: boolean
+  createdAt: string // Adicionado
+  updatedAt: string // Adicionado
+}
+
+export type RecurrenceLog = { // Adicionado
+  lastRunMonthYear: string | null
+  timestamp: string | null
+  generatedCount: number
+}

@@ -22,7 +22,8 @@ import type {
   Installment,
   InstallmentWithDetails,
   FiscalEvent,
-} from "./types"
+}
+from "./types"
 import { isOverdue } from "./date-utils"
 import { calculateNextDueDate, generateNextRecurrence } from "./recurrence-utils"
 import { v4 as uuidv4 } from "uuid"
@@ -203,102 +204,30 @@ export async function runRecurrenceCheckAndGeneration() {
     if (obl.recurrence !== "none") {
       const nextDueDate = calculateNextDueDate(obl, now)
 
-      // Se a próxima data de vencimento for para o mês atual ou anterior (e ainda não foi gerada)
-      if (nextDueDate <= todayStr) {
-        const newObligation = generateNextRecurrence(obl, nextDueDate) as Obligation
-        newObligations.push(newObligation)
-
-        // Atualiza a obrigação original para apontar para a nova data de vencimento
-        // e marca a antiga como 'arquivada' se estiver concluída.
-        const updatedObl = { ...obl }
-        updatedObl.calculatedDueDate = nextDueDate // Atualiza a data de vencimento da base para a próxima
-        
-        // Lógica de Arquivamento:
-        // Se a obrigação original (do mês anterior) foi concluída, ela é mantida no histórico.
-        // Se não foi concluída, ela é mantida como está (overdue ou pending) e a nova é gerada.
-        // Para fins de organização, vamos manter apenas a última ocorrência recorrente ativa.
-        // A nova ocorrência gerada é a que deve ser trabalhada.
-        
-        // Para evitar duplicação, vamos apenas gerar a nova e manter a antiga no array
-        // se ela ainda não foi concluída. Se foi concluída, ela não precisa ser atualizada.
-        
-        // A abordagem mais simples para o frontend é:
-        // 1. Gerar a nova ocorrência.
-        // 2. Manter a antiga no array, mas não a atualizar.
-        // 3. A lista de exibição deve filtrar/organizar para mostrar apenas as relevantes.
-        
-        // Para simular o "arquivamento" e manter a lista limpa, vamos *remover* as obrigações
-        // concluídas do mês anterior e *manter* as não concluídas (que se tornarão atrasadas).
-        
-        // Se a obrigação original (do mês anterior) foi concluída, ela é removida do array principal
-        // para simular o arquivamento. Se não foi concluída, ela permanece (e se torna overdue).
-        if (obl.status !== "completed") {
-            updatedObligations.push(obl); // Mantém a antiga (agora atrasada)
-        }
-        
-        // A nova obrigação gerada é a que deve ser trabalhada no futuro.
-        // Para simplificar, vamos apenas gerar a nova e deixar a lógica de filtro
-        // nas listas para lidar com as antigas.
-        
-        // Para o modelo atual, onde cada item é uma "série" recorrente, a lógica é mais complexa.
-        // Vamos adotar a abordagem de "Ocorrências":
-        
-        // Se a obrigação original (obl) tem uma data de vencimento no passado (mês anterior)
-        // e não foi concluída, ela deve ser mantida como 'overdue'.
-        // Se ela foi concluída, ela é mantida como 'completed'.
-        
-        // O que precisamos é de uma nova OBRIGAÇÃO para o mês atual.
-        
-        // Se a data de vencimento da obrigação original (obl.calculatedDueDate) for anterior ao mês atual,
-        // e ela for recorrente, criamos uma nova.
-        
-        const lastDueDate = new Date(obl.calculatedDueDate);
-        const lastDueMonthYear = `${lastDueDate.getFullYear()}-${lastDueDate.getMonth() + 1}`;
-        
-        if (lastDueMonthYear !== currentMonthYear && lastDueDate < now) {
-            // Cria uma nova ocorrência para o mês atual
-            const newRecurrence = generateNextRecurrence(obl, nextDueDate) as Obligation;
-            newRecurrences.push(newRecurrence);
-            
-            // A obrigação original (obl) é mantida no array, mas não é atualizada aqui.
-            // A lista de obrigações deve ser uma lista de OCORRÊNCIAS.
-            // Como o modelo atual trata cada Obligation como uma série, vamos mudar a abordagem:
-            
-            // 1. Se a data de vencimento da obrigação original for anterior ao mês atual,
-            //    e ela for recorrente, criamos uma nova OBRIGAÇÃO (com novo ID) para o mês atual.
-            // 2. A obrigação original (do mês anterior) é mantida no array, mas não é mais recorrente.
-            
-            // Para simplificar, vamos apenas gerar a nova e manter a antiga no array.
-            // O sistema de listagem deve filtrar as obrigações que já passaram do mês.
-            
-            // Vamos reverter para a lógica mais simples:
-            // Se a data de vencimento da obrigação original for anterior ao mês atual,
-            // e ela for recorrente, criamos uma nova OBRIGAÇÃO (com novo ID) para o mês atual.
-            
-            const lastDue = new Date(obl.calculatedDueDate);
-            const firstDayOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
-            
-            if (lastDue < firstDayOfCurrentMonth) {
-                // 1. Cria a nova ocorrência
-                const newRecurrence = generateNextRecurrence(obl, nextDueDate) as Obligation;
-                newObligations.push(newRecurrence);
-                
-                // 2. Atualiza a obrigação original para que ela não gere mais recorrência
-                //    (ou a marca como 'arquivada' se estiver concluída)
-                if (obl.status === "completed") {
-                    // Se concluída, remove a recorrência para não gerar mais a partir dela
-                    const archivedObl = { ...obl, recurrence: "none" as const, isArchived: true };
-                    updatedObligations.push(archivedObl);
-                } else {
-                    // Se não concluída, ela permanece como está (agora overdue)
-                    updatedObligations.push(obl);
-                }
-            } else {
-                updatedObligations.push(obl);
-            }
-        } else {
-            updatedObligations.push(obl);
-        }
+      // Se a data de vencimento da obrigação original for anterior ao mês atual,
+      // e ela for recorrente, criamos uma nova OBRIGAÇÃO (com novo ID) para o mês atual.
+      
+      const lastDue = new Date(obl.calculatedDueDate);
+      const firstDayOfCurrentMonth = new Date(now.getFullYear(), now.getMonth(), 1);
+      
+      if (lastDue < firstDayOfCurrentMonth) {
+          // 1. Cria a nova ocorrência
+          const newRecurrence = generateNextRecurrence(obl, nextDueDate) as Obligation;
+          newObligations.push(newRecurrence);
+          
+          // 2. Atualiza a obrigação original para que ela não gere mais recorrência
+          //    (ou a marca como 'arquivada' se estiver concluída)
+          if (obl.status === "completed") {
+              // Se concluída, remove a recorrência para não gerar mais a partir dela
+              const archivedObl: Obligation = { ...obl, recurrence: "none", isArchived: true };
+              updatedObligations.push(archivedObl);
+          } else {
+              // Se não concluída, ela permanece como está (agora overdue)
+              updatedObligations.push(obl);
+          }
+      } else {
+          updatedObligations.push(obl);
+      }
     } else {
       updatedObligations.push(obl)
     }
@@ -320,7 +249,7 @@ export async function runRecurrenceCheckAndGeneration() {
         // 2. Atualiza o parcelamento original
         if (inst.status === "completed") {
             // Se concluído, remove a recorrência e marca como arquivado
-            const archivedInst = { ...inst, recurrence: "none" as const, isArchived: true };
+            const archivedInst: Installment = { ...inst, recurrence: "none", isArchived: true };
             updatedInstallments.push(archivedInst);
         } else {
             // Se não concluído, permanece como está (agora overdue)
@@ -335,12 +264,8 @@ export async function runRecurrenceCheckAndGeneration() {
   })
 
   // --- Processamento de Impostos (Templates) ---
-  // Impostos são gerados dinamicamente em getTaxesDueDates, mas precisamos garantir
-  // que o template base (Tax) não seja alterado, a menos que seja para arquivar.
+  // Impostos não precisam de geração de novas entidades, apenas o template base.
   allTaxes.forEach((tax) => {
-    // Impostos não precisam de geração de novas entidades, apenas o template base.
-    // A lógica de getTaxesDueDates já gera as datas futuras.
-    // Apenas garantimos que o template não seja arquivado.
     updatedTaxes.push(tax);
   });
 

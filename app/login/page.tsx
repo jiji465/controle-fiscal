@@ -1,39 +1,49 @@
 "use client"
 
+import { useEffect, useState } from 'react'
+import { useRouter } from 'next/navigation'
 import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
 import { supabase } from '@/integrations/supabase/client'
-import { useEffect } from 'react'
-import { useRouter } from 'next/navigation'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { useTheme } from 'next-themes'
 
 export default function LoginPage() {
   const router = useRouter()
+  const [loading, setLoading] = useState(true)
+  const { theme } = useTheme()
 
   useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
       if (session) {
         router.push('/')
+      } else {
+        setLoading(false)
       }
-    })
-
-    return () => subscription.unsubscribe()
+    }
+    checkSession()
   }, [router])
 
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <p>Carregando...</p>
+      </div>
+    )
+  }
+
   return (
-    <div className="flex min-h-screen flex-col items-center justify-center bg-background py-12 px-4 sm:px-6 lg:px-8">
-      <div className="w-full max-w-md space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-bold tracking-tight text-foreground">
-            Acesse sua conta
-          </h2>
-          <p className="mt-2 text-center text-sm text-muted-foreground">
-            Controle completo de obrigações fiscais
-          </p>
-        </div>
-        <div className="rounded-xl border bg-card p-8 shadow-lg">
+    <div className="flex items-center justify-center min-h-screen bg-gray-50 dark:bg-gray-900">
+      <Card className="w-full max-w-md">
+        <CardHeader className="text-center">
+          <CardTitle className="text-2xl">Controle Fiscal</CardTitle>
+          <CardDescription>Faça login para acessar o painel de controle.</CardDescription>
+        </CardHeader>
+        <CardContent>
           <Auth
             supabaseClient={supabase}
-            appearance={{ 
+            appearance={{
               theme: ThemeSupa,
               variables: {
                 default: {
@@ -42,40 +52,28 @@ export default function LoginPage() {
                     brandAccent: 'hsl(var(--primary-foreground))',
                     brandButtonText: 'hsl(var(--primary-foreground))',
                     defaultButtonBackground: 'hsl(var(--secondary))',
-                    defaultButtonBackgroundHover: 'hsl(var(--secondary)/80)',
+                    defaultButtonBackgroundHover: 'hsl(var(--secondary-foreground))',
+                    defaultButtonBorder: 'hsl(var(--border))',
                     defaultButtonText: 'hsl(var(--secondary-foreground))',
                     inputBackground: 'hsl(var(--input))',
                     inputBorder: 'hsl(var(--border))',
                     inputBorderHover: 'hsl(var(--ring))',
-                    inputFocus: 'hsl(var(--ring))',
                     inputText: 'hsl(var(--foreground))',
+                    anchorTextColor: 'hsl(var(--primary))',
+                    anchorTextHoverColor: 'hsl(var(--primary-foreground))',
                   },
                 },
               },
             }}
-            providers={[]}
-            view="sign_in" // Força a visualização apenas para login
-            localization={{
-              variables: {
-                sign_in: {
-                  email_label: 'Seu email',
-                  password_label: 'Sua senha',
-                  button_label: 'Entrar',
-                  loading_button_label: 'Entrando...',
-                  social_provider_text: 'Entrar com {{provider}}',
-                },
-                // Removendo variáveis de sign_up para garantir que não apareça
-                forgotten_password: {
-                  link_text: 'Esqueceu sua senha?',
-                  email_label: 'Seu email',
-                  button_label: 'Enviar instruções',
-                  loading_button_label: 'Enviando...',
-                },
-              },
-            }}
+            providers={['google']}
+            redirectTo={
+              typeof window !== 'undefined'
+                ? `${window.location.origin}/`
+                : '/'
+            }
           />
-        </div>
-      </div>
+        </CardContent>
+      </Card>
     </div>
   )
 }

@@ -8,6 +8,7 @@ import { v4 as uuidv4 } from "uuid"
  * @returns A próxima data de vencimento no formato 'YYYY-MM-DD'.
  */
 export function calculateNextDueDate(event: FiscalEvent, referenceDate: Date = new Date()): string {
+  // A propriedade calculatedDueDate existe em Obligation, Installment e Tax (após a correção em types.ts)
   const lastDueDate = new Date(event.calculatedDueDate)
   let nextDate = new Date(lastDueDate)
 

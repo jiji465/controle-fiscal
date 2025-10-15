@@ -154,32 +154,8 @@ export function deleteInstallment(id: string) {
 // --- Status de Imposto (TaxDueDate) ---
 
 export function saveTaxStatus(taxDueDateId: string, newStatus: "completed" | "in_progress") {
-  // Esta função é complexa no modelo atual, pois TaxDueDate é gerado dinamicamente.
-  // No modelo de armazenamento local, não podemos salvar o status de uma ocorrência dinâmica.
-  // Para simplificar, vamos ignorar esta função por enquanto, pois a lógica de recorrência
-  // de impostos é tratada em getTaxesDueDates.
-  // Em um sistema real, isso exigiria um banco de dados para armazenar o status de cada ocorrência.
-  // No entanto, para manter a funcionalidade de "marcar como concluído" nos impostos,
-  // vamos criar uma lista de "Impostos Concluídos" no storage.
-  
-  // A lógica de getTaxesDueDates já foi atualizada para gerar as datas futuras.
-  // Para marcar um imposto como concluído, precisamos de um mecanismo de persistência.
-  // Como não temos um backend, vamos manter a simulação:
-  // A lista de impostos (Tax) é o TEMPLATE.
-  // A lista de obrigações (Obligation) é onde o status é salvo.
-  
-  // Se o usuário está marcando um item na TaxList, ele está marcando a OBRIGAÇÃO
-  // ou o evento fiscal associado.
-  
-  // No modelo atual, TaxList exibe TaxDueDate, que é dinâmico.
-  // Para persistir o status, precisaríamos de um novo array no storage.
-  
-  // Por enquanto, vamos manter a simulação de que o status é salvo,
-  // mas a persistência real de TaxDueDate é limitada no localStorage.
-  // A função saveTaxStatus será removida ou adaptada para não fazer nada,
+  // A função saveTaxStatus foi removida ou adaptada para não fazer nada,
   // pois a lógica de TaxList foi alterada para não usar saveTaxStatus.
-  
-  // A função saveTaxStatus foi removida do TaxList.tsx.
 }
 
 // --- Recorrência Log ---
