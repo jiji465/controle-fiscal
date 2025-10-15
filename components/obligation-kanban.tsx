@@ -183,7 +183,13 @@ export function ObligationKanban({ obligations, clients, taxes, onUpdate, onEdit
             <div className="flex items-center gap-2 text-xs">
               <AlertCircle className="size-3" />
               <span className={`font-semibold ${getPriorityColor(obligation.priority)}`}>
-                {obligation.priority.charAt(0).toUpperCase() + obligation.priority.slice(1)}
+                {obligation.priority === "urgent"
+                  ? "Urgente"
+                  : obligation.priority === "high"
+                    ? "Alta"
+                    : obligation.priority === "medium"
+                      ? "Média"
+                      : "Baixa"}
               </span>
             </div>
           )}
@@ -204,21 +210,27 @@ export function ObligationKanban({ obligations, clients, taxes, onUpdate, onEdit
     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
       <div>
         <h3 className="font-semibold text-lg mb-2">Pendentes</h3>
-        {pendingObligations.map((obligation) => (
-          <ObligationCard key={obligation.id} obligation={obligation} />
-        ))}
+        <div className="space-y-3">
+          {pendingObligations.map((obligation) => (
+            <ObligationCard key={obligation.id} obligation={obligation} />
+          ))}
+        </div>
       </div>
       <div>
         <h3 className="font-semibold text-lg mb-2">Em Andamento</h3>
-        {inProgressObligations.map((obligation) => (
-          <ObligationCard key={obligation.id} obligation={obligation} />
-        ))}
+        <div className="space-y-3">
+          {inProgressObligations.map((obligation) => (
+            <ObligationCard key={obligation.id} obligation={obligation} />
+          ))}
+        </div>
       </div>
       <div>
         <h3 className="font-semibold text-lg mb-2">Concluídas</h3>
-        {completedObligations.map((obligation) => (
-          <ObligationCard key={obligation.id} obligation={obligation} />
-        ))}
+        <div className="space-y-3">
+          {completedObligations.map((obligation) => (
+            <ObligationCard key={obligation.id} obligation={obligation} />
+          ))}
+        </div>
       </div>
     </div>
   )

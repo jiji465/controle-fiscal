@@ -61,13 +61,16 @@ export function CalendarView({ events }: CalendarViewProps) {
         return { color: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30", text: "Pendente", badgeColor: "bg-yellow-600" };
       case "tax":
         const tax = event as TaxDueDate;
-        if (isEventOverdue) return { color: "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30", text: "Imposto Atrasado", badgeColor: "bg-red-600" };
-        return { color: "bg-purple-500/20 text-purple-700 dark:text-purple-300 border-purple-500/30", text: "Vencimento Imposto", badgeColor: "bg-purple-600" };
+        if (tax.status === "completed") return { color: "bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30", text: "Processado", badgeColor: "bg-green-600" };
+        if (tax.status === "in_progress") return { color: "bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30", text: "Em Processamento", badgeColor: "bg-blue-600" };
+        if (isEventOverdue) return { color: "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30", text: "Atrasado", badgeColor: "bg-red-600" };
+        return { color: "bg-purple-500/20 text-purple-700 dark:text-purple-300 border-purple-500/30", text: "Pendente", badgeColor: "bg-purple-600" };
       case "installment":
         const inst = event as InstallmentWithDetails;
-        if (inst.status === "completed") return { color: "bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30", text: "Parcelamento Concluído", badgeColor: "bg-green-600" };
-        if (isEventOverdue) return { color: "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30", text: "Parcelamento Atrasado", badgeColor: "bg-red-600" };
-        return { color: "bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-500/30", text: "Parcelamento Pendente", badgeColor: "bg-orange-600" };
+        if (inst.status === "completed") return { color: "bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30", text: "Concluído", badgeColor: "bg-green-600" };
+        if (inst.status === "in_progress") return { color: "bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30", text: "Em Andamento", badgeColor: "bg-blue-600" };
+        if (isEventOverdue) return { color: "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30", text: "Atrasado", badgeColor: "bg-red-600" };
+        return { color: "bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-500/30", text: "Pendente", badgeColor: "bg-orange-600" };
       default:
         return { color: "bg-gray-500/20 text-gray-700 dark:text-gray-300 border-gray-500/30", text: "Evento", badgeColor: "bg-gray-600" };
     }
@@ -138,7 +141,7 @@ export function CalendarView({ events }: CalendarViewProps) {
           <div className="flex items-center justify-between">
             <div>
               <CardTitle>Calendário de Vencimentos</CardTitle>
-              <CardDescription>Visualize as obrigações, impostos e parcelamentos por data com filtros personalizados</CardDescription>
+              <CardDescription>Visualize os vencimentos das obrigações, impostos e parcelamentos no calendário</CardDescription>
             </div>
             <CalendarIcon className="size-5 text-muted-foreground" />
           </div>
@@ -280,11 +283,11 @@ export function CalendarView({ events }: CalendarViewProps) {
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="size-4 bg-purple-500/20 border border-purple-500/30 rounded" />
-                  <span className="text-muted-foreground">Vencimento Imposto</span>
+                  <span className="text-muted-foreground">Imposto Pendente/Em Processamento</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="size-4 bg-orange-500/20 border border-orange-500/30 rounded" />
-                  <span className="text-muted-foreground">Parcelamento Pendente</span>
+                  <span className="text-muted-foreground">Parcelamento Pendente/Em Andamento</span>
                 </div>
               </div>
             </div>

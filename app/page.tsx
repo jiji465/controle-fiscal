@@ -169,8 +169,10 @@ export default function DashboardPage() {
                 <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
                   {allUpcomingThisWeek.slice(0, 6).map((event) => (
                     <div key={event.id} className="p-3 bg-background rounded-lg border">
-                      <p className="font-medium text-sm">{event.name}</p>
-                      <p className="text-xs text-muted-foreground">{event.client.name}</p>
+                      <div>
+                        <p className="font-medium text-sm">{event.name}</p>
+                        <p className="text-xs text-muted-foreground">{event.client.name}</p>
+                      </div>
                       <p className="text-xs text-blue-600 dark:text-blue-400 mt-1">
                         Vence: {new Date(event.calculatedDueDate).toLocaleDateString("pt-BR")}
                       </p>

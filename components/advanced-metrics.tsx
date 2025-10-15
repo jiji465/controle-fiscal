@@ -138,7 +138,15 @@ export function AdvancedMetrics({ metrics }: AdvancedMetricsProps) {
                     <div className="flex items-center justify-between">
                       <div className="flex items-center gap-2">
                         {getPriorityIcon(item.priority)}
-                        <span className="text-sm font-medium capitalize">{item.priority}</span>
+                        <span className="text-sm font-medium capitalize">
+                          {item.priority === "urgent"
+                            ? "Urgente"
+                            : item.priority === "high"
+                              ? "Alta"
+                              : item.priority === "medium"
+                                ? "Média"
+                                : "Baixa"}
+                        </span>
                       </div>
                       <Badge variant="outline">{item.count} obrigações</Badge>
                     </div>

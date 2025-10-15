@@ -141,8 +141,8 @@ export function TaxList({ taxesDueDates, clients, taxTemplates, onUpdate, onEdit
     if (tax.status === "in_progress") {
       return (
         <Badge className="bg-blue-600 hover:bg-blue-700 text-white">
-          <PlayCircle className="size-3 mr-1" />
-          Em Processamento
+            <PlayCircle className="size-3 mr-1" />
+            Em Processamento
         </Badge>
       )
     }
