@@ -2,12 +2,11 @@
 
 import { Auth } from '@supabase/auth-ui-react'
 import { ThemeSupa } from '@supabase/auth-ui-shared'
-import { createClient } from '@/integrations/supabase/client'
+import { supabase } from '@/integrations/supabase/client'
 import { useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 
 export default function LoginPage() {
-  const supabase = createClient()
   const router = useRouter()
 
   useEffect(() => {
@@ -18,7 +17,7 @@ export default function LoginPage() {
     })
 
     return () => subscription.unsubscribe()
-  }, [supabase, router])
+  }, [router])
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">

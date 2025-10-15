@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useRouter } from "next/navigation"
-import { createClient } from "@/integrations/supabase/client"
+import { supabase } from "@/integrations/supabase/client"
 import { Navigation } from "@/components/navigation"
 import { DashboardStatsCards } from "@/components/dashboard-stats"
 import { ProductivityStats } from "@/components/productivity-stats"
@@ -21,7 +21,6 @@ import { isOverdue } from "@/lib/date-utils"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export default function DashboardPage() {
-  const supabase = createClient()
   const router = useRouter()
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<DashboardStats>(defaultDashboardStats)
@@ -56,7 +55,7 @@ export default function DashboardPage() {
       }
     }
     checkSession()
-  }, [supabase, router])
+  }, [router])
 
   if (loading) {
     return (
