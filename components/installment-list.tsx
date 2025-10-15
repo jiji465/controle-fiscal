@@ -9,6 +9,7 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { InstallmentForm } from "./installment-form"
 import { InstallmentDetails } from "./installment-details"
+import { Checkbox } from "@/components/ui/checkbox" // Import Checkbox
 import {
   MoreVertical,
   Pencil,
@@ -46,6 +47,7 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
   const [showFilters, setShowFilters] = useState(false)
   const [sortBy, setSortBy] = useState<"dueDate" | "client" | "status">("dueDate")
   const [sortOrder, setSortOrder] = useState<"asc" | "desc">("asc")
+  const [selectedInstallmentIds, setSelectedInstallmentIds] = useState<string[]>([]); // State for selected installments
 
   const filteredInstallments = installments.filter((inst) => {
     const matchesSearch =
@@ -84,15 +86,13 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
   }
 
   const handleDelete = (id: string) => {
-    if (confirm("⚠️ Tem certeza que deseja excluir este parcelamento?\n\nEsta ação não pode ser desfeita.")) {
-      deleteInstallment(id)
-      onUpdate()
-      toast({
-        title: "Parcelamento excluído!",
-        description: "O parcelamento foi removido com sucesso.",
-        variant: "destructive",
-      });
-    }
+    deleteInstallment(id)
+    onUpdate()
+    toast({
+      title: "Parcelamento excluído!",
+      description: "O parcelamento foi removido com sucesso.",
+      variant: "destructive",
+    });
   }
 
   const handleComplete = (installment: InstallmentWithDetails) => {
@@ -204,6 +204,64 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
     }
   }
 
+  const handleSelectInstallment = (id: string, isSelected: boolean) => {
+    if (isSelected) {
+      setSelectedInstallmentIds((prev) => [...prev, id]);
+    } else {
+      setSelectedInstallmentIds((prev) => prev.filter((_id) => _id !== id));
+    }
+  };
+
+  const handleSelectAllInstallments = (isSelected: boolean) => {
+    if (isSelected) {
+      setSelectedInstallmentIds(sortedInstallments.map((inst) => inst.id));
+    } else {
+      setSelectedInstallmentIds([]);
+    }
+  };
+
+  const handleBulkComplete = () => {
+    if (selectedInstallmentIds.length === 0) return;
+    if (!confirm(`Tem certeza que deseja marcar ${selectedInstallmentIds.length} parcelamento(s) como concluído(s)?`)) return;
+
+    selectedInstallmentIds.forEach((id) => {
+      const installment = installments.find((i) => i.id === id);
+      if (installment) {
+        handleComplete(installment);
+      }
+    });
+    setSelectedInstallmentIds([]);
+  };
+
+  const handleBulkInProgress = () => {
+    if (selectedInstallmentIds.length === 0) return;
+    if (!confirm(`Tem certeza que deseja marcar ${selectedInstallmentIds.length} parcelamento(s) como em andamento?`)) return;
+
+    selectedInstallmentIds.forEach((id) => {
+      const installment = installments.find((i) => i.id === id);
+      if (installment) {
+        handleInProgress(installment);
+      }
+    });
+    setSelectedInstallmentIds([]);
+  };
+
+  const handleBulkDelete = () => {
+    if (selectedInstallmentIds.length === 0) return;
+    if (!confirm(`⚠️ Tem certeza que deseja excluir ${selectedInstallmentIds.length} parcelamento(s)?\n\nEsta ação não pode ser desfeita.`)) return;
+
+    selectedInstallmentIds.forEach((id) => {
+      deleteInstallment(id);
+    });
+    onUpdate();
+    setSelectedInstallmentIds([]);
+    toast({
+      title: "Parcelamentos excluídos!",
+      description: `${selectedInstallmentIds.length} parcelamentos foram removidos com sucesso.`,
+      variant: "destructive",
+    });
+  };
+
   const QuickActionButtons = ({ installment }: { installment: InstallmentWithDetails }) => {
     if (installment.status === "completed") {
       return null
@@ -280,10 +338,37 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
         </div>
       )}
 
+      {selectedInstallmentIds.length > 0 && (
+        <div className="flex items-center gap-2 p-3 border rounded-lg bg-primary/10 dark:bg-primary/20">
+          <span className="text-sm font-medium">
+            {selectedInstallmentIds.length} parcelamento(s) selecionado(s)
+          </span>
+          <Button variant="outline" size="sm" onClick={handleBulkComplete} className="ml-auto">
+            <CheckCircle2 className="size-4 mr-2" />
+            Concluir Selecionados
+          </Button>
+          <Button variant="outline" size="sm" onClick={handleBulkInProgress}>
+            <PlayCircle className="size-4 mr-2" />
+            Iniciar Selecionados
+          </Button>
+          <Button variant="destructive" size="sm" onClick={handleBulkDelete}>
+            <Trash2 className="size-4 mr-2" />
+            Excluir Selecionados
+          </Button>
+        </div>
+      )}
+
       <div className="border rounded-lg">
         <Table>
           <TableHeader>
             <TableRow>
+              <TableHead className="w-[40px]">
+                <Checkbox
+                  checked={selectedInstallmentIds.length === sortedInstallments.length && sortedInstallments.length > 0}
+                  onCheckedChange={(checked) => handleSelectAllInstallments(checked as boolean)}
+                  aria-label="Selecionar todos os parcelamentos"
+                />
+              </TableHead>
               <TableHead>Parcelamento</TableHead>
               <TableHead>
                 <Button variant="ghost" size="sm" onClick={() => toggleSort("client")} className="-ml-3">
@@ -310,7 +395,7 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
           <TableBody>
             {sortedInstallments.length === 0 ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center text-muted-foreground py-8">
+                <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
                   Nenhum parcelamento encontrado
                 </TableCell>
               </TableRow>
@@ -323,7 +408,15 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
                       ? "bg-red-50/50 dark:bg-red-950/10"
                       : ""
                   }
-                ><TableCell>
+                >
+                  <TableCell>
+                    <Checkbox
+                      checked={selectedInstallmentIds.includes(installment.id)}
+                      onCheckedChange={(checked) => handleSelectInstallment(installment.id, checked as boolean)}
+                      aria-label={`Selecionar parcelamento ${installment.name}`}
+                    />
+                  </TableCell>
+                  <TableCell>
                     <div className="space-y-1">
                       <div className="font-medium">{installment.name}</div>
                       <div className="text-sm text-muted-foreground">
@@ -333,9 +426,12 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
                         <div className="text-sm text-muted-foreground line-clamp-1">{installment.description}</div>
                       )}
                     </div>
-                  </TableCell><TableCell>
+                  </TableCell>
+                  <TableCell>
                     <div className="font-medium">{installment.client.name}</div>
-                  </TableCell><TableCell>{getStatusBadge(installment)}</TableCell><TableCell>
+                  </TableCell>
+                  <TableCell>{getStatusBadge(installment)}</TableCell>
+                  <TableCell>
                     <div className="space-y-1">
                       <div className="font-mono text-sm font-medium">{formatDate(installment.calculatedDueDate)}</div>
                       <div className="text-xs text-muted-foreground">
@@ -345,9 +441,11 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
                         {getRecurrenceDescription(installment)}
                       </Badge>
                     </div>
-                  </TableCell><TableCell>
+                  </TableCell>
+                  <TableCell>
                     <QuickActionButtons installment={installment} />
-                  </TableCell><TableCell>
+                  </TableCell>
+                  <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon">
@@ -363,13 +461,18 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
                           <Pencil className="size-4 mr-2" />
                           Editar
                         </DropdownMenuItem>
-                        <DropdownMenuItem onClick={() => handleDelete(installment.id)} className="text-destructive">
+                        <DropdownMenuItem onClick={() => {
+                          if (confirm("⚠️ Tem certeza que deseja excluir este parcelamento?\n\nEsta ação não pode ser desfeita.")) {
+                            handleDelete(installment.id)
+                          }
+                        }} className="text-destructive">
                           <Trash2 className="size-4 mr-2" />
                           Excluir
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </TableCell></TableRow>
+                  </TableCell>
+                </TableRow>
               ))
             )}
           </TableBody>
