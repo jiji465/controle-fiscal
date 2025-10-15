@@ -149,7 +149,7 @@ export function useToast() {
     return () => {
       listeners.splice(listeners.indexOf(setActiveToasts), 1)
     }
-  }, [])
+  }, []) // <-- Dependência removida
 
   return {
     ...activeToasts,
