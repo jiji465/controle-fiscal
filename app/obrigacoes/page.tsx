@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { useRouter } from "next/navigation" // Importando useRouter
 import { Navigation } from "@/components/navigation"
 import { ObligationList } from "@/components/obligation-list"
 import { ObligationCardView } from "@/components/obligation-card-view"
@@ -19,7 +20,8 @@ import { toast } from "@/hooks/use-toast"
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 
 export default function ObligationsPage() {
-  const { isAuthenticated, isLoading: isAuthLoading, router } = useSupabaseAuth()
+  const router = useRouter() // Inicializando useRouter
+  const { isAuthenticated, isLoading: isAuthLoading } = useSupabaseAuth()
   const [loading, setLoading] = useState(true)
   const [obligations, setObligations] = useState<ObligationWithDetails[]>([])
   const [clients, setClients] = useState<Client[]>([])

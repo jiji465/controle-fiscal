@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { useRouter } from "next/navigation" // Importando useRouter
 import { Navigation } from "@/components/navigation"
 import { ClientList } from "@/components/client-list"
 import { getClients } from "@/lib/storage"
@@ -9,7 +10,8 @@ import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export default function ClientesPage() {
-  const { isAuthenticated, isLoading: isAuthLoading, router } = useSupabaseAuth()
+  const router = useRouter() // Inicializando useRouter
+  const { isAuthenticated, isLoading: isAuthLoading } = useSupabaseAuth()
   const [clients, setClients] = useState<Client[]>([])
   const [loading, setLoading] = useState(true)
 

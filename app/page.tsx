@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { useRouter } from "next/navigation" // Importando useRouter
 import { Navigation } from "@/components/navigation"
 import { DashboardStatsCards } from "@/components/dashboard-stats"
 import { ProductivityStats } from "@/components/productivity-stats"
@@ -9,7 +10,7 @@ import { ClientOverview } from "@/components/client-overview"
 import { TaxCalendar } from "@/components/tax-calendar"
 import { QuickActions } from "@/components/quick-actions"
 import { getObligationsWithDetails, calculateDashboardStats, getTaxesDueDates, getInstallmentsWithDetails, runRecurrenceCheckAndGeneration } from "@/lib/dashboard-utils"
-import { CalendarIcon, AlertCircle } from "lucide-react"
+import { CalendarIcon, AlertCircle, TrendingUp } from "lucide-react" // Importando TrendingUp
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import type { Client, ObligationWithDetails, DashboardStats, TaxDueDate, InstallmentWithDetails } from "@/lib/types"
@@ -20,7 +21,8 @@ import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 import { getClients } from "@/lib/storage"
 
 export default function DashboardPage() {
-  const { isAuthenticated, isLoading: isAuthLoading, router } = useSupabaseAuth()
+  const router = useRouter() // Inicializando useRouter
+  const { isAuthenticated, isLoading: isAuthLoading } = useSupabaseAuth()
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<DashboardStats>(defaultDashboardStats)
   const [obligations, setObligations] = useState<ObligationWithDetails[]>([])

@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { useRouter } from "next/navigation" // Importando useRouter
 import { Navigation } from "@/components/navigation"
 import { CalendarView } from "@/components/calendar-view"
 import { getObligationsWithDetails, getTaxesDueDates, getInstallmentsWithDetails, runRecurrenceCheckAndGeneration } from "@/lib/dashboard-utils"
@@ -9,7 +10,8 @@ import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export default function CalendarioPage() {
-  const { isAuthenticated, isLoading: isAuthLoading, router } = useSupabaseAuth()
+  const router = useRouter() // Inicializando useRouter
+  const { isAuthenticated, isLoading: isAuthLoading } = useSupabaseAuth()
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
 

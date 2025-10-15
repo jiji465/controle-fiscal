@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { useRouter } from "next/navigation" // Importando useRouter
 import { Navigation } from "@/components/navigation"
 import { TaxList } from "@/components/tax-list"
 import { TaxForm } from "@/components/tax-form"
@@ -14,7 +15,8 @@ import { toast } from "@/hooks/use-toast"
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 
 export default function TaxesPage() {
-  const { isAuthenticated, isLoading: isAuthLoading, router } = useSupabaseAuth()
+  const router = useRouter() // Inicializando useRouter
+  const { isAuthenticated, isLoading: isAuthLoading } = useSupabaseAuth()
   const [loading, setLoading] = useState(true)
   const [taxesDueDates, setTaxesDueDates] = useState<TaxDueDate[]>([])
   const [taxTemplates, setTaxTemplates] = useState<Tax[]>([])

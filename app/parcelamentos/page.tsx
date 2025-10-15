@@ -1,6 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
+import { useRouter } from "next/navigation" // Importando useRouter
 import { Navigation } from "@/components/navigation"
 import { InstallmentList } from "@/components/installment-list"
 import { InstallmentForm } from "@/components/installment-form"
@@ -14,7 +15,8 @@ import { toast } from "@/hooks/use-toast"
 import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 
 export default function InstallmentsPage() {
-  const { isAuthenticated, isLoading: isAuthLoading, router } = useSupabaseAuth()
+  const router = useRouter() // Inicializando useRouter
+  const { isAuthenticated, isLoading: isAuthLoading } = useSupabaseAuth()
   const [loading, setLoading] = useState(true)
   const [installments, setInstallments] = useState<InstallmentWithDetails[]>([])
   const [clients, setClients] = useState<Client[]>([])

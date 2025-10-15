@@ -158,7 +158,8 @@ export function useToast() {
 }
 
 // Definindo o tipo ToastProps com o variant customizado
-export type ToastVariant = "default" | "destructive" | "success"
+export type ToastVariant = "default" | "destructive" | "success" | "warning" // Adicionado 'warning'
+// Atualizando o tipo ToastProps em components/ui/toast.tsx para incluir 'success' e 'warning'
 
 type CustomToastProps = Omit<ToastProps, 'variant'> & {
   variant?: ToastVariant
