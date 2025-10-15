@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { useRouter } from "next/navigation" // Importando useRouter
+import { useRouter } from "next/navigation"
 import { Navigation } from "@/components/navigation"
 import { CalendarView } from "@/components/calendar-view"
 import { getObligationsWithDetails, getTaxesDueDates, getInstallmentsWithDetails, runRecurrenceCheckAndGeneration } from "@/lib/dashboard-utils"
@@ -10,7 +10,7 @@ import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 import { Skeleton } from "@/components/ui/skeleton"
 
 export default function CalendarioPage() {
-  const router = useRouter() // Inicializando useRouter
+  const router = useRouter()
   const { isAuthenticated, isLoading: isAuthLoading } = useSupabaseAuth()
   const [calendarEvents, setCalendarEvents] = useState<CalendarEvent[]>([])
   const [loading, setLoading] = useState(true)
@@ -37,7 +37,19 @@ export default function CalendarioPage() {
     loadData()
   }, [isAuthenticated, isAuthLoading, router, loadData])
 
-  if (isAuthLoading || loading) {
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Carregando autenticação...</p>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    return null
+  }
+
+  if (loading) {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />

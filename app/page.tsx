@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState, useCallback } from "react"
-import { useRouter } from "next/navigation" // Importando useRouter
+import { useRouter } from "next/navigation"
 import { Navigation } from "@/components/navigation"
 import { DashboardStatsCards } from "@/components/dashboard-stats"
 import { ProductivityStats } from "@/components/productivity-stats"
@@ -10,7 +10,7 @@ import { ClientOverview } from "@/components/client-overview"
 import { TaxCalendar } from "@/components/tax-calendar"
 import { QuickActions } from "@/components/quick-actions"
 import { getObligationsWithDetails, calculateDashboardStats, getTaxesDueDates, getInstallmentsWithDetails, runRecurrenceCheckAndGeneration } from "@/lib/dashboard-utils"
-import { CalendarIcon, AlertCircle, TrendingUp } from "lucide-react" // Importando TrendingUp
+import { CalendarIcon, AlertCircle, TrendingUp } from "lucide-react"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
 import type { Client, ObligationWithDetails, DashboardStats, TaxDueDate, InstallmentWithDetails } from "@/lib/types"
@@ -21,7 +21,7 @@ import { useSupabaseAuth } from "@/hooks/use-supabase-auth"
 import { getClients } from "@/lib/storage"
 
 export default function DashboardPage() {
-  const router = useRouter() // Inicializando useRouter
+  const router = useRouter()
   const { isAuthenticated, isLoading: isAuthLoading } = useSupabaseAuth()
   const [loading, setLoading] = useState(true)
   const [stats, setStats] = useState<DashboardStats>(defaultDashboardStats)
@@ -68,7 +68,22 @@ export default function DashboardPage() {
     initialize()
   }, [isAuthenticated, isAuthLoading, router, updateData])
 
-  if (isAuthLoading || loading) {
+  // Adicionando verificação de autenticação e carregamento inicial
+  if (isAuthLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <p>Carregando autenticação...</p>
+      </div>
+    )
+  }
+
+  if (!isAuthenticated) {
+    // Se não estiver autenticado, o useEffect já deve ter redirecionado.
+    // Retornamos null para evitar renderizar o dashboard.
+    return null
+  }
+
+  if (loading) {
     return (
       <div className="min-h-screen bg-background">
         <Navigation />
