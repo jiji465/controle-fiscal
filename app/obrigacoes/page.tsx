@@ -1,77 +1,164 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { supabase } from "@/integrations/supabase/client"
 import { Navigation } from "@/components/navigation"
 import { ObligationList } from "@/components/obligation-list"
-import { GlobalSearch } from "@/components/global-search"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { ObligationCardView } from "@/components/obligation-card-view"
+import { ObligationKanban } from "@/components/obligation-kanban"
+import { ObligationForm } from "@/components/obligation-form"
+import { ObligationDetails } from "@/components/obligation-details"
 import { Button } from "@/components/ui/button"
-import { getClients, getTaxes, getInstallments } from "@/lib/storage"
-import { getObligationsWithDetails, getInstallmentsWithDetails } from "@/lib/dashboard-utils"
-import { isOverdue } from "@/lib/date-utils"
-import { CheckCircle2, Clock, PlayCircle, AlertTriangle, Search } from "lucide-react"
-import type { Client, Tax, ObligationWithDetails, InstallmentWithDetails } from "@/lib/types"
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { List, LayoutGrid, Kanban, Plus, Download } from "lucide-react"
+import { getClients, getTaxes, saveObligation, deleteObligation } from "@/lib/storage"
+import { getObligationsWithDetails, runRecurrenceCheckAndGeneration } from "@/lib/dashboard-utils"
+import type { Client, Tax, ObligationWithDetails } from "@/lib/types"
+import { Skeleton } from "@/components/ui/skeleton"
+import { ExportDialog } from "@/components/export-dialog"
+import { toast } from "@/hooks/use-toast"
 
-export default function ObligacoesPage() {
+export default function ObligationsPage() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
   const [obligations, setObligations] = useState<ObligationWithDetails[]>([])
   const [clients, setClients] = useState<Client[]>([])
   const [taxes, setTaxes] = useState<Tax[]>([])
-  const [installments, setInstallments] = useState<InstallmentWithDetails[]>([])
-  const [activeTab, setActiveTab] = useState("all")
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [editingObligation, setEditingObligation] = useState<ObligationWithDetails | undefined>()
+  const [isDetailsOpen, setIsDetailsOpen] = useState(false)
+  const [viewingObligation, setViewingObligation] = useState<ObligationWithDetails | undefined>()
+  const [isExportOpen, setIsExportOpen] = useState(false)
 
   const updateData = async () => {
     setLoading(true)
-    const [obligationsData, clientsData, taxesData, installmentsData] = await Promise.all([
-      getObligationsWithDetails(),
-      getClients(),
-      getTaxes(),
-      getInstallmentsWithDetails(),
-    ])
+    // Executa a verificação de recorrência antes de carregar os dados
+    await runRecurrenceCheckAndGeneration()
+    
+    const obligationsData = await getObligationsWithDetails()
+    const clientsData = await getClients()
+    const taxesData = await getTaxes()
+
     setObligations(obligationsData)
     setClients(clientsData)
     setTaxes(taxesData)
-    setInstallments(installmentsData)
     setLoading(false)
   }
 
   useEffect(() => {
-    updateData()
-  }, [])
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-        e.preventDefault()
-        setSearchOpen(true)
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.push('/login')
+      } else {
+        updateData()
       }
     }
+    checkSession()
+  }, [router])
 
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [])
+  const handleSave = (obligation: any) => {
+    saveObligation(obligation)
+    updateData()
+    setEditingObligation(undefined)
+    setIsFormOpen(false)
+    toast({
+      title: "Obrigação salva!",
+      description: `A obrigação "${obligation.name}" foi salva com sucesso.`,
+    });
+  }
 
-  const pendingObligations = obligations.filter((o) => o.status === "pending")
-  const inProgressObligations = obligations.filter((o) => o.status === "in_progress")
-  const completedObligations = obligations.filter((o) => o.status === "completed")
-  const overdueObligations = obligations.filter((o) => isOverdue(o.calculatedDueDate) && o.status !== "completed")
+  const handleEdit = (obligation: ObligationWithDetails) => {
+    setEditingObligation(obligation)
+    setIsFormOpen(true)
+  }
 
-  const getFilteredObligations = () => {
-    switch (activeTab) {
-      case "pending":
-        return pendingObligations
-      case "in_progress":
-        return inProgressObligations
-      case "completed":
-        return completedObligations
-      case "overdue":
-        return overdueObligations
-      default:
-        return obligations
+  const handleNew = () => {
+    setEditingObligation(undefined)
+    setIsFormOpen(true)
+  }
+
+  const handleDelete = (id: string) => {
+    if (confirm("⚠️ Tem certeza que deseja excluir esta obrigação?\n\nEsta ação não pode ser desfeita.")) {
+      deleteObligation(id)
+      updateData()
+      toast({
+        title: "Obrigação excluída!",
+        description: "A obrigação foi removida com sucesso.",
+        variant: "destructive",
+      });
     }
+  }
+
+  const handleView = (obligation: ObligationWithDetails) => {
+    setViewingObligation(obligation)
+    setIsDetailsOpen(true)
+  }
+
+  const handleComplete = (obligation: ObligationWithDetails) => {
+    const history = obligation.history || []
+    const completedDate = new Date().toISOString()
+    const updated = {
+      ...obligation,
+      status: "completed" as const,
+      completedAt: completedDate,
+      realizationDate: completedDate.split("T")[0],
+      completedBy: "Contador",
+      history: [
+        ...history,
+        {
+          id: crypto.randomUUID(),
+          action: "completed" as const,
+          description: `Obrigação concluída em ${new Date().toLocaleDateString("pt-BR")}`,
+          timestamp: completedDate,
+        },
+      ],
+    }
+    saveObligation(updated)
+    updateData()
+    toast({
+      title: "Obrigação concluída!",
+      description: `A obrigação "${obligation.name}" foi marcada como concluída.`,
+      variant: "default",
+    });
+  }
+
+  const handleInProgress = (obligation: ObligationWithDetails) => {
+    const history = obligation.history || []
+    const updated = {
+      ...obligation,
+      status: "in_progress" as const,
+      history: [
+        ...history,
+        {
+          id: crypto.randomUUID(),
+          action: "status_changed" as const,
+          description: "Status alterado para Em Andamento",
+          timestamp: new Date().toISOString(),
+        },
+      ],
+    }
+    saveObligation(updated)
+    updateData()
+    toast({
+      title: "Obrigação em andamento!",
+      description: `A obrigação "${obligation.name}" foi marcada como em andamento.`,
+      variant: "default",
+    });
+  }
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <main className="container mx-auto px-4 py-8 space-y-8">
+          <Skeleton className="h-12 w-1/3" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-[500px] w-full" />
+        </main>
+      </div>
+    )
   }
 
   return (
@@ -79,100 +166,88 @@ export default function ObligacoesPage() {
       <Navigation />
       <main className="container mx-auto px-4 py-8">
         <div className="space-y-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-2">
-              <h1 className="text-4xl font-bold tracking-tight text-balance">Obrigações Acessórias</h1>
-              <p className="text-lg text-muted-foreground">Gerencie todas as obrigações fiscais dos seus clientes</p>
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold">Obrigações Acessórias</h1>
+            <div className="flex gap-2">
+              <Button variant="outline" onClick={() => setIsExportOpen(true)}>
+                <Download className="size-4 mr-2" />
+                Exportar
+              </Button>
+              <Button onClick={handleNew}>
+                <Plus className="size-4 mr-2" />
+                Nova Obrigação
+              </Button>
             </div>
-            <Button variant="outline" onClick={() => setSearchOpen(true)} className="gap-2">
-              <Search className="size-4" />
-              Buscar
-              <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
-                <span className="text-xs">⌘</span>K
-              </kbd>
-            </Button>
           </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-5 h-auto">
-              <TabsTrigger value="all" className="flex flex-col gap-1 py-3">
-                <span className="text-sm font-medium">Todas</span>
-                <Badge variant="secondary" className="text-xs">
-                  {obligations.length}
-                </Badge>
+          <Tabs defaultValue="list">
+            <TabsList>
+              <TabsTrigger value="list">
+                <List className="size-4 mr-2" />
+                Lista
               </TabsTrigger>
-              <TabsTrigger value="pending" className="flex flex-col gap-1 py-3">
-                <div className="flex items-center gap-1.5">
-                  <Clock className="size-3.5" />
-                  <span className="text-sm font-medium">Pendentes</span>
-                </div>
-                <Badge variant="secondary" className="text-xs">
-                  {pendingObligations.length}
-                </Badge>
+              <TabsTrigger value="cards">
+                <LayoutGrid className="size-4 mr-2" />
+                Cartões
               </TabsTrigger>
-              <TabsTrigger value="in_progress" className="flex flex-col gap-1 py-3">
-                <div className="flex items-center gap-1.5">
-                  <PlayCircle className="size-3.5" />
-                  <span className="text-sm font-medium">Em Andamento</span>
-                </div>
-                <Badge
-                  variant="secondary"
-                  className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-                >
-                  {inProgressObligations.length}
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="completed" className="flex flex-col gap-1 py-3">
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="size-3.5" />
-                  <span className="text-sm font-medium">Concluídas</span>
-                </div>
-                <Badge
-                  variant="secondary"
-                  className="text-xs bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300"
-                >
-                  {completedObligations.length}
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="overdue" className="flex flex-col gap-1 py-3">
-                <div className="flex items-center gap-1.5">
-                  <AlertTriangle className="size-3.5" />
-                  <span className="text-sm font-medium">Atrasadas</span>
-                </div>
-                <Badge
-                  variant="secondary"
-                  className="text-xs bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
-                >
-                  {overdueObligations.length}
-                </Badge>
+              <TabsTrigger value="kanban">
+                <Kanban className="size-4 mr-2" />
+                Kanban
               </TabsTrigger>
             </TabsList>
 
-            <TabsContent value={activeTab} className="mt-6">
-              <Card className="p-6">
-                {loading ? (
-                  <p>Carregando obrigações...</p>
-                ) : (
-                  <ObligationList
-                    obligations={getFilteredObligations()}
-                    clients={clients}
-                    taxes={taxes}
-                    onUpdate={updateData}
-                  />
-                )}
-              </Card>
+            <TabsContent value="list" className="mt-4">
+              <ObligationList
+                obligations={obligations}
+                clients={clients}
+                taxes={taxes}
+                onUpdate={updateData}
+              />
+            </TabsContent>
+
+            <TabsContent value="cards" className="mt-4">
+              <ObligationCardView
+                obligations={obligations}
+                onComplete={handleComplete}
+                onInProgress={handleInProgress}
+                onEdit={handleEdit}
+                onDelete={handleDelete}
+                onView={handleView}
+              />
+            </TabsContent>
+
+            <TabsContent value="kanban" className="mt-4">
+              <ObligationKanban
+                obligations={obligations}
+                clients={clients}
+                taxes={taxes}
+                onUpdate={updateData}
+                onEdit={handleEdit}
+                onView={handleView}
+              />
             </TabsContent>
           </Tabs>
         </div>
       </main>
 
-      <GlobalSearch
-        open={searchOpen}
-        onOpenChange={setSearchOpen}
+      <ObligationForm
+        obligation={editingObligation}
         clients={clients}
         taxes={taxes}
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        onSave={handleSave}
+      />
+
+      {viewingObligation && (
+        <ObligationDetails obligation={viewingObligation} open={isDetailsOpen} onOpenChange={setIsDetailsOpen} />
+      )}
+
+      <ExportDialog
+        open={isExportOpen}
+        onOpenChange={setIsExportOpen}
         obligations={obligations}
-        installments={installments}
+        clients={clients}
       />
     </div>
   )

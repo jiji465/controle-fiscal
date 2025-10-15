@@ -1,77 +1,79 @@
 "use client"
 
 import { useEffect, useState } from "react"
+import { useRouter } from "next/navigation"
+import { supabase } from "@/integrations/supabase/client"
 import { Navigation } from "@/components/navigation"
 import { InstallmentList } from "@/components/installment-list"
-import { GlobalSearch } from "@/components/global-search"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Card } from "@/components/ui/card"
-import { Badge } from "@/components/ui/badge"
+import { InstallmentForm } from "@/components/installment-form"
 import { Button } from "@/components/ui/button"
-import { getClients, getTaxes } from "@/lib/storage"
-import { getObligationsWithDetails, getInstallmentsWithDetails } from "@/lib/dashboard-utils"
-import { isOverdue } from "@/lib/date-utils"
-import { CheckCircle2, Clock, PlayCircle, AlertTriangle, Search } from "lucide-react"
-import type { Client, Tax, ObligationWithDetails, InstallmentWithDetails } from "@/lib/types"
+import { Plus, Download } from "lucide-react"
+import { getClients, saveInstallment, deleteInstallment } from "@/lib/storage"
+import { getInstallmentsWithDetails, runRecurrenceCheckAndGeneration } from "@/lib/dashboard-utils"
+import type { Client, InstallmentWithDetails, Installment } from "@/lib/types"
+import { Skeleton } from "@/components/ui/skeleton"
+import { toast } from "@/hooks/use-toast"
 
-export default function ParcelamentosPage() {
+export default function InstallmentsPage() {
+  const router = useRouter()
+  const [loading, setLoading] = useState(true)
   const [installments, setInstallments] = useState<InstallmentWithDetails[]>([])
   const [clients, setClients] = useState<Client[]>([])
-  const [taxes, setTaxes] = useState<Tax[]>([])
-  const [obligations, setObligations] = useState<ObligationWithDetails[]>([])
-  const [activeTab, setActiveTab] = useState("all")
-  const [searchOpen, setSearchOpen] = useState(false)
-  const [loading, setLoading] = useState(true)
+  const [isFormOpen, setIsFormOpen] = useState(false)
+  const [editingInstallment, setEditingInstallment] = useState<InstallmentWithDetails | undefined>()
 
   const updateData = async () => {
     setLoading(true)
-    const [installmentsData, clientsData, taxesData, obligationsData] = await Promise.all([
-      getInstallmentsWithDetails(),
-      getClients(),
-      getTaxes(),
-      getObligationsWithDetails(),
-    ])
+    // Executa a verificação de recorrência antes de carregar os dados
+    await runRecurrenceCheckAndGeneration()
+    
+    const installmentsData = await getInstallmentsWithDetails()
+    const clientsData = await getClients()
+
     setInstallments(installmentsData)
     setClients(clientsData)
-    setTaxes(taxesData)
-    setObligations(obligationsData)
     setLoading(false)
   }
 
   useEffect(() => {
-    updateData()
-  }, [])
-
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === "k") {
-        e.preventDefault()
-        setSearchOpen(true)
+    const checkSession = async () => {
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session) {
+        router.push('/login')
+      } else {
+        updateData()
       }
     }
+    checkSession()
+  }, [router])
 
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [])
+  const handleSave = (installment: Installment) => {
+    saveInstallment(installment)
+    updateData()
+    setEditingInstallment(undefined)
+    setIsFormOpen(false)
+    toast({
+      title: "Parcelamento salvo!",
+      description: `O parcelamento "${installment.name}" foi salvo com sucesso.`,
+    });
+  }
 
-  const pendingInstallments = installments.filter((i) => i.status === "pending")
-  const inProgressInstallments = installments.filter((i) => i.status === "in_progress")
-  const completedInstallments = installments.filter((i) => i.status === "completed")
-  const overdueInstallments = installments.filter((i) => isOverdue(i.calculatedDueDate) && i.status !== "completed")
+  const handleNew = () => {
+    setEditingInstallment(undefined)
+    setIsFormOpen(true)
+  }
 
-  const getFilteredInstallments = () => {
-    switch (activeTab) {
-      case "pending":
-        return pendingInstallments
-      case "in_progress":
-        return inProgressInstallments
-      case "completed":
-        return completedInstallments
-      case "overdue":
-        return overdueInstallments
-      default:
-        return installments
-    }
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navigation />
+        <main className="container mx-auto px-4 py-8 space-y-8">
+          <Skeleton className="h-12 w-1/3" />
+          <Skeleton className="h-10 w-full" />
+          <Skeleton className="h-[500px] w-full" />
+        </main>
+      </div>
+    )
   }
 
   return (
@@ -79,99 +81,34 @@ export default function ParcelamentosPage() {
       <Navigation />
       <main className="container mx-auto px-4 py-8">
         <div className="space-y-6">
-          <div className="flex items-start justify-between gap-4">
-            <div className="space-y-2">
-              <h1 className="text-4xl font-bold tracking-tight text-balance">Parcelamentos</h1>
-              <p className="text-lg text-muted-foreground">Gerencie todos os parcelamentos fiscais dos seus clientes</p>
+          <div className="flex items-center justify-between">
+            <h1 className="text-3xl font-bold">Parcelamentos</h1>
+            <div className="flex gap-2">
+              <Button variant="outline" disabled>
+                <Download className="size-4 mr-2" />
+                Exportar
+              </Button>
+              <Button onClick={handleNew}>
+                <Plus className="size-4 mr-2" />
+                Novo Parcelamento
+              </Button>
             </div>
-            <Button variant="outline" onClick={() => setSearchOpen(true)} className="gap-2">
-              <Search className="size-4" />
-              Buscar
-              <kbd className="pointer-events-none hidden h-5 select-none items-center gap-1 rounded border bg-muted px-1.5 font-mono text-[10px] font-medium opacity-100 sm:flex">
-                <span className="text-xs">⌘</span>K
-              </kbd>
-            </Button>
           </div>
 
-          <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
-            <TabsList className="grid w-full grid-cols-5 h-auto">
-              <TabsTrigger value="all" className="flex flex-col gap-1 py-3">
-                <span className="text-sm font-medium">Todos</span>
-                <Badge variant="secondary" className="text-xs">
-                  {installments.length}
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="pending" className="flex flex-col gap-1 py-3">
-                <div className="flex items-center gap-1.5">
-                  <Clock className="size-3.5" />
-                  <span className="text-sm font-medium">Pendentes</span>
-                </div>
-                <Badge variant="secondary" className="text-xs">
-                  {pendingInstallments.length}
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="in_progress" className="flex flex-col gap-1 py-3">
-                <div className="flex items-center gap-1.5">
-                  <PlayCircle className="size-3.5" />
-                  <span className="text-sm font-medium">Em Andamento</span>
-                </div>
-                <Badge
-                  variant="secondary"
-                  className="text-xs bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-300"
-                >
-                  {inProgressInstallments.length}
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="completed" className="flex flex-col gap-1 py-3">
-                <div className="flex items-center gap-1.5">
-                  <CheckCircle2 className="size-3.5" />
-                  <span className="text-sm font-medium">Concluídos</span>
-                </div>
-                <Badge
-                  variant="secondary"
-                  className="text-xs bg-green-100 text-green-700 dark:bg-green-950 dark:text-green-300"
-                >
-                  {completedInstallments.length}
-                </Badge>
-              </TabsTrigger>
-              <TabsTrigger value="overdue" className="flex flex-col gap-1 py-3">
-                <div className="flex items-center gap-1.5">
-                  <AlertTriangle className="size-3.5" />
-                  <span className="text-sm font-medium">Atrasados</span>
-                </div>
-                <Badge
-                  variant="secondary"
-                  className="text-xs bg-red-100 text-red-700 dark:bg-red-950 dark:text-red-300"
-                >
-                  {overdueInstallments.length}
-                </Badge>
-              </TabsTrigger>
-            </TabsList>
-
-            <TabsContent value={activeTab} className="mt-6">
-              <Card className="p-6">
-                {loading ? (
-                  <p>Carregando parcelamentos...</p>
-                ) : (
-                  <InstallmentList
-                    installments={getFilteredInstallments()}
-                    clients={clients}
-                    onUpdate={updateData}
-                  />
-                )}
-              </Card>
-            </TabsContent>
-          </Tabs>
+          <InstallmentList
+            installments={installments}
+            clients={clients}
+            onUpdate={updateData}
+          />
         </div>
       </main>
 
-      <GlobalSearch
-        open={searchOpen}
-        onOpenChange={setSearchOpen}
+      <InstallmentForm
+        installment={editingInstallment}
         clients={clients}
-        taxes={taxes}
-        obligations={obligations}
-        installments={installments}
+        open={isFormOpen}
+        onOpenChange={setIsFormOpen}
+        onSave={handleSave}
       />
     </div>
   )
