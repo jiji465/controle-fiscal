@@ -7,19 +7,15 @@ export function useNotifications() {
   const [notifications, setNotifications] = useState<Notification[]>([])
 
   const loadNotifications = useCallback(() => {
+    // console.log("Loading notifications...")
     const loaded = getNotifications()
     setNotifications(loaded.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()))
   }, [])
 
+  // Carrega notificações na montagem do hook
   useEffect(() => {
     loadNotifications()
   }, [loadNotifications])
-
-  const initializeNotifications = () => {
-    // Lógica para inicializar notificações, se necessário
-    // Por exemplo, verificar se há notificações de recorrência pendentes
-    loadNotifications()
-  }
 
   const addNotification = (message: string) => {
     const newNotification: Notification = {
@@ -50,7 +46,6 @@ export function useNotifications() {
     unreadCount,
     addNotification,
     markAsRead,
-    initializeNotifications,
-    loadNotifications,
+    loadNotifications, // Mantendo loadNotifications para re-fetch manual
   }
 }
