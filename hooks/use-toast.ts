@@ -126,30 +126,30 @@ export const reducer = (state: State, action: Action): State => {
 
 const listeners: Array<(state: State) => void> = []
 
-let state: State = {
+let memoryState: State = {
   toasts: [],
 }
 
 function setState(data: State) {
-  state = data
+  memoryState = data
   listeners.forEach((listener) => {
-    listener(state)
+    listener(memoryState)
   })
 }
 
 function dispatch(action: Action) {
-  setState(reducer(state, action))
+  setState(reducer(memoryState, action))
 }
 
 export function useToast() {
-  const [activeToasts, setActiveToasts] = React.useState(state)
+  const [activeToasts, setActiveToasts] = React.useState(memoryState)
 
   React.useEffect(() => {
     listeners.push(setActiveToasts)
     return () => {
       listeners.splice(listeners.indexOf(setActiveToasts), 1)
     }
-  }, []) // <-- Dependência removida
+  }, []) // Array de dependências vazio garante que só roda uma vez
 
   return {
     ...activeToasts,
