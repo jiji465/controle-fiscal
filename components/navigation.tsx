@@ -35,45 +35,49 @@ export function Navigation() {
   };
 
   useEffect(() => {
-    const obligations = getObligationsWithDetails()
-    const installments = getInstallmentsWithDetails()
-    const taxesDueDates = getTaxesDueDates(1); // Check current month for overdue/pending
+    const loadData = async () => {
+      const obligations = await getObligationsWithDetails()
+      const installments = await getInstallmentsWithDetails()
+      const taxesDueDates = await getTaxesDueDates(1); // Check current month for overdue/pending
 
-    const overdueObligations = obligations.filter((o) => isOverdue(o.calculatedDueDate) && o.status !== "completed").length
-    const pendingObligations = obligations.filter((o) => o.status === "pending").length
+      const overdueObligations = obligations.filter((o) => isOverdue(o.calculatedDueDate) && o.status !== "completed").length
+      const pendingObligations = obligations.filter((o) => o.status === "pending").length
 
-    const overdueInstallments = installments.filter((i) => isOverdue(i.calculatedDueDate) && i.status !== "completed").length
-    const pendingInstallments = installments.filter((i) => i.status === "pending").length
+      const overdueInstallments = installments.filter((i) => isOverdue(i.calculatedDueDate) && i.status !== "completed").length
+      const pendingInstallments = installments.filter((i) => i.status === "pending").length
 
-    const overdueTaxes = taxesDueDates.filter((t) => isOverdue(t.calculatedDueDate) && t.status !== "completed").length;
-    const pendingTaxes = taxesDueDates.filter((t) => t.status === "pending").length;
+      const overdueTaxes = taxesDueDates.filter((t) => isOverdue(t.calculatedDueDate) && t.status !== "completed").length;
+      const pendingTaxes = taxesDueDates.filter((t) => t.status === "pending").length;
 
 
-    const today = new Date()
-    const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
-    const upcomingObligations = obligations.filter((o) => {
-      const dueDate = new Date(o.calculatedDueDate)
-      return dueDate >= today && dueDate <= nextWeek && o.status !== "completed"
-    }).length
-    const upcomingInstallments = installments.filter((i) => {
-      const dueDate = new Date(i.calculatedDueDate)
-      return dueDate >= today && dueDate <= nextWeek && i.status !== "completed"
-    }).length
-    const upcomingTaxes = taxesDueDates.filter((t) => {
-      const dueDate = new Date(t.calculatedDueDate)
-      return dueDate >= today && dueDate <= nextWeek && t.status !== "overdue" // Taxes don't have 'completed' status
-    }).length
+      const today = new Date()
+      const nextWeek = new Date(today.getTime() + 7 * 24 * 60 * 60 * 1000)
+      const upcomingObligations = obligations.filter((o) => {
+        const dueDate = new Date(o.calculatedDueDate)
+        return dueDate >= today && dueDate <= nextWeek && o.status !== "completed"
+      }).length
+      const upcomingInstallments = installments.filter((i) => {
+        const dueDate = new Date(i.calculatedDueDate)
+        return dueDate >= today && dueDate <= nextWeek && i.status !== "completed"
+      }).length
+      const upcomingTaxes = taxesDueDates.filter((t) => {
+        const dueDate = new Date(t.calculatedDueDate)
+        return dueDate >= today && dueDate <= nextWeek && t.status !== "overdue" // Taxes don't have 'completed' status
+      }).length
 
-    setAlertCounts({
-      overdueObligations,
-      pendingObligations,
-      upcomingThisWeek: upcomingObligations + upcomingInstallments + upcomingTaxes,
-      overdueInstallments,
-      pendingInstallments,
-      overdueTaxes,
-      pendingTaxes,
-    })
-    loadNotifications();
+      setAlertCounts({
+        overdueObligations,
+        pendingObligations,
+        upcomingThisWeek: upcomingObligations + upcomingInstallments + upcomingTaxes,
+        overdueInstallments,
+        pendingInstallments,
+        overdueTaxes,
+        pendingTaxes,
+      })
+      loadNotifications();
+    }
+    
+    loadData();
   }, [pathname])
 
   const handleMarkAsRead = (id: string) => {
