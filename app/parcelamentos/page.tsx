@@ -47,15 +47,25 @@ export default function InstallmentsPage() {
     updateData()
   }, [isAuthenticated, isAuthLoading, router, updateData])
 
-  const handleSave = (installment: Installment) => {
-    saveInstallment(installment)
-    updateData()
-    setEditingInstallment(undefined)
-    setIsFormOpen(false)
-    toast({
-      title: "Parcelamento salvo!",
-      description: `O parcelamento "${installment.name}" foi salvo com sucesso.`,
-    });
+  const handleSave = async (installment: Installment) => {
+    try {
+      await saveInstallment(installment)
+      await updateData()
+      setEditingInstallment(undefined)
+      setIsFormOpen(false)
+      toast({
+        title: "Parcelamento salvo!",
+        description: `O parcelamento "${installment.name}" foi salvo com sucesso.`,
+      })
+    } catch (error) {
+      console.error("Erro ao salvar parcelamento:", error)
+      toast({
+        title: "Erro ao salvar parcelamento",
+        description: error instanceof Error ? error.message : "Não foi possível salvar o parcelamento.",
+        variant: "destructive",
+      })
+      throw error
+    }
   }
 
   const handleNew = () => {

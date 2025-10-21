@@ -128,6 +128,110 @@ function mapInstallmentToDB(installment: Installment, user_id: string) {
   }
 }
 
+function mapClientFromDB(record: any): Client {
+  return {
+    id: record.id,
+    name: record.name,
+    cnpj: record.cnpj,
+    email: record.email ?? "",
+    phone: record.phone ?? "",
+    taxRegime: record.tax_regime ?? "",
+    status: record.status,
+    createdAt: record.created_at,
+    updatedAt: record.updated_at,
+  }
+}
+
+function mapObligationFromDB(record: any): Obligation {
+  return {
+    id: record.id,
+    name: record.name,
+    description: record.description ?? undefined,
+    category: record.category,
+    clientId: record.client_id,
+    taxId: record.tax_id ?? undefined,
+    dueDay: record.due_day,
+    dueMonth: record.due_month ?? undefined,
+    frequency: record.frequency,
+    recurrence: record.recurrence,
+    recurrenceInterval: record.recurrence_interval ?? undefined,
+    recurrenceEndDate: record.recurrence_end_date ?? undefined,
+    autoGenerate: record.auto_generate ?? false,
+    weekendRule: record.weekend_rule ?? "none",
+    calculatedDueDate: record.calculated_due_date,
+    status: (record.status as Obligation['status']) ?? "pending",
+    priority: (record.priority as Obligation['priority']) ?? "medium",
+    assignedTo: record.assigned_to ?? undefined,
+    protocol: record.protocol ?? undefined,
+    realizationDate: record.realization_date ?? undefined,
+    completedAt: record.completed_at ?? undefined,
+    completedBy: record.completed_by ?? undefined,
+    createdAt: record.created_at,
+    updatedAt: record.updated_at,
+    notes: record.notes ?? undefined,
+    history: record.history ?? [],
+    tags: record.tags ?? [],
+    attachments: record.attachments ?? [],
+    isArchived: record.is_archived ?? false,
+    type: (record.type as Obligation['type']) ?? "obligation",
+  }
+}
+
+function mapTaxFromDB(record: any): Tax {
+  return {
+    id: record.id,
+    name: record.name,
+    description: record.description ?? "",
+    federalTaxCode: record.federal_tax_code ?? undefined,
+    stateTaxCode: record.state_tax_code ?? undefined,
+    municipalTaxCode: record.municipal_tax_code ?? undefined,
+    recurrence: record.recurrence,
+    recurrenceInterval: record.recurrence_interval ?? undefined,
+    recurrenceEndDate: record.recurrence_end_date ?? undefined,
+    autoGenerate: record.auto_generate ?? false,
+    weekendRule: record.weekend_rule ?? "none",
+    dueDay: record.due_day,
+    dueMonth: record.due_month ?? undefined,
+    clientId: record.client_id,
+    createdAt: record.created_at,
+    updatedAt: record.updated_at,
+    notes: record.notes ?? undefined,
+    isArchived: record.is_archived ?? false,
+    calculatedDueDate: record.calculated_due_date,
+    tags: record.tags ?? [],
+    type: (record.type as Tax['type']) ?? "tax",
+  }
+}
+
+function mapInstallmentFromDB(record: any): Installment {
+  return {
+    id: record.id,
+    name: record.name,
+    description: record.description ?? undefined,
+    clientId: record.client_id,
+    installmentNumber: record.installment_number,
+    totalInstallments: record.total_installments,
+    dueDay: record.due_day,
+    dueMonth: record.due_month ?? undefined,
+    recurrence: record.recurrence,
+    recurrenceInterval: record.recurrence_interval ?? undefined,
+    recurrenceEndDate: record.recurrence_end_date ?? undefined,
+    autoGenerate: record.auto_generate ?? false,
+    weekendRule: record.weekend_rule ?? "none",
+    calculatedDueDate: record.calculated_due_date,
+    status: (record.status as Installment['status']) ?? "pending",
+    completedAt: record.completed_at ?? undefined,
+    completedBy: record.completed_by ?? undefined,
+    createdAt: record.created_at,
+    updatedAt: record.updated_at,
+    notes: record.notes ?? undefined,
+    generatedFor: record.generated_for ?? undefined,
+    isArchived: record.is_archived ?? false,
+    tags: record.tags ?? [],
+    type: (record.type as Installment['type']) ?? "installment",
+  }
+}
+
 // --- Clientes ---
 
 export async function getClients(): Promise<Client[]> {
@@ -136,33 +240,26 @@ export async function getClients(): Promise<Client[]> {
     console.error("Supabase Error (getClients):", error);
     throw new Error(`Falha ao carregar clientes: ${error.message}`);
   }
-  // Mapeamento de volta para camelCase (se necessário, mas o Supabase geralmente faz isso na leitura)
-  return data.map(c => ({
-    ...c,
-    taxRegime: c.tax_regime,
-    createdAt: c.created_at,
-    updatedAt: c.updated_at,
-  })) as Client[]
+  return (data ?? []).map(mapClientFromDB)
 }
 
 export async function saveClient(client: Client) {
   const user_id = await getUserId()
-  const clientData = mapClientToDB(client, user_id)
+  const now = new Date().toISOString()
+  const clientToSave: Client = {
+    ...client,
+    createdAt: client.createdAt || now,
+    updatedAt: now,
+  }
+  const clientData = mapClientToDB(clientToSave, user_id)
 
-  if (client.id && client.createdAt) {
-    // Update
-    const { error } = await supabase.from("clients").update(clientData).eq("id", client.id)
-    if (error) {
-      console.error("Supabase Error (saveClient update):", error);
-      throw new Error(`Falha ao atualizar cliente: ${error.message}`);
-    }
-  } else {
-    // Insert
-    const { error } = await supabase.from("clients").insert(clientData)
-    if (error) {
-      console.error("Supabase Error (saveClient insert):", error);
-      throw new Error(`Falha ao inserir cliente: ${error.message}`);
-    }
+  const { error } = await supabase
+    .from("clients")
+    .upsert(clientData, { onConflict: 'id' })
+
+  if (error) {
+    console.error("Supabase Error (saveClient):", error);
+    throw new Error(`Falha ao salvar cliente: ${error.message}`);
   }
 }
 
@@ -177,19 +274,31 @@ export async function deleteClient(id: string) {
 // --- Obrigações ---
 
 export async function getObligations(): Promise<Obligation[]> {
-  const { data, error } = await supabase.from("obligations").select("*").eq("isArchived", false).order("calculatedDueDate", { ascending: true })
+  const { data, error } = await supabase
+    .from("obligations")
+    .select("*")
+    .eq("is_archived", false)
+    .order("calculated_due_date", { ascending: true })
   if (error) {
     console.error("Supabase Error (getObligations):", error);
     throw new Error(`Falha ao carregar obrigações: ${error.message}`);
   }
-  // O mapeamento de volta é complexo, mas o PostgREST geralmente lida com isso.
-  // Se houver problemas futuros, precisaremos de uma função mapDBToObligation.
-  return data as Obligation[]
+  return (data ?? []).map(mapObligationFromDB)
 }
 
 export async function saveAllObligations(obligations: Obligation[]) {
   const user_id = await getUserId()
-  const obligationsWithDBKeys = obligations.map(o => mapObligationToDB(o, user_id))
+  const now = new Date().toISOString()
+  const obligationsWithDBKeys = obligations.map(o =>
+    mapObligationToDB(
+      {
+        ...o,
+        createdAt: o.createdAt || now,
+        updatedAt: now,
+      },
+      user_id,
+    ),
+  )
 
   const { error } = await supabase.from("obligations").upsert(obligationsWithDBKeys, { onConflict: 'id' })
   if (error) {
@@ -200,22 +309,21 @@ export async function saveAllObligations(obligations: Obligation[]) {
 
 export async function saveObligation(obligation: Obligation) {
   const user_id = await getUserId()
-  const obligationData = mapObligationToDB(obligation, user_id)
+  const now = new Date().toISOString()
+  const obligationToSave: Obligation = {
+    ...obligation,
+    createdAt: obligation.createdAt || now,
+    updatedAt: now,
+  }
+  const obligationData = mapObligationToDB(obligationToSave, user_id)
 
-  if (obligation.id && obligation.createdAt) {
-    // Update
-    const { error } = await supabase.from("obligations").update(obligationData).eq("id", obligation.id)
-    if (error) {
-      console.error("Supabase Error (saveObligation update):", error);
-      throw new Error(`Falha ao atualizar obrigação: ${error.message}`);
-    }
-  } else {
-    // Insert
-    const { error } = await supabase.from("obligations").insert(obligationData)
-    if (error) {
-      console.error("Supabase Error (saveObligation insert):", error);
-      throw new Error(`Falha ao inserir obrigação: ${error.message}`);
-    }
+  const { error } = await supabase
+    .from("obligations")
+    .upsert(obligationData, { onConflict: 'id' })
+
+  if (error) {
+    console.error("Supabase Error (saveObligation):", error);
+    throw new Error(`Falha ao salvar obrigação: ${error.message}`);
   }
 }
 
@@ -230,17 +338,31 @@ export async function deleteObligation(id: string) {
 // --- Impostos (Templates) ---
 
 export async function getTaxes(): Promise<Tax[]> {
-  const { data, error } = await supabase.from("taxes").select("*").eq("isArchived", false).order("name", { ascending: true })
+  const { data, error } = await supabase
+    .from("taxes")
+    .select("*")
+    .eq("is_archived", false)
+    .order("name", { ascending: true })
   if (error) {
     console.error("Supabase Error (getTaxes):", error);
     throw new Error(`Falha ao carregar impostos: ${error.message}`);
   }
-  return data as Tax[]
+  return (data ?? []).map(mapTaxFromDB)
 }
 
 export async function saveAllTaxes(taxes: Tax[]) {
   const user_id = await getUserId()
-  const taxesWithDBKeys = taxes.map(t => mapTaxToDB(t, user_id))
+  const now = new Date().toISOString()
+  const taxesWithDBKeys = taxes.map(t =>
+    mapTaxToDB(
+      {
+        ...t,
+        createdAt: t.createdAt || now,
+        updatedAt: now,
+      },
+      user_id,
+    ),
+  )
 
   const { error } = await supabase.from("taxes").upsert(taxesWithDBKeys, { onConflict: 'id' })
   if (error) {
@@ -251,22 +373,21 @@ export async function saveAllTaxes(taxes: Tax[]) {
 
 export async function saveTax(tax: Tax) {
   const user_id = await getUserId()
-  const taxData = mapTaxToDB(tax, user_id)
+  const now = new Date().toISOString()
+  const taxToSave: Tax = {
+    ...tax,
+    createdAt: tax.createdAt || now,
+    updatedAt: now,
+  }
+  const taxData = mapTaxToDB(taxToSave, user_id)
 
-  if (tax.id && tax.createdAt) {
-    // Update
-    const { error } = await supabase.from("taxes").update(taxData).eq("id", tax.id)
-    if (error) {
-      console.error("Supabase Error (saveTax update):", error);
-      throw new Error(`Falha ao atualizar imposto: ${error.message}`);
-    }
-  } else {
-    // Insert
-    const { error } = await supabase.from("taxes").insert(taxData)
-    if (error) {
-      console.error("Supabase Error (saveTax insert):", error);
-      throw new Error(`Falha ao inserir imposto: ${error.message}`);
-    }
+  const { error } = await supabase
+    .from("taxes")
+    .upsert(taxData, { onConflict: 'id' })
+
+  if (error) {
+    console.error("Supabase Error (saveTax):", error);
+    throw new Error(`Falha ao salvar imposto: ${error.message}`);
   }
 }
 
@@ -281,17 +402,31 @@ export async function deleteTax(id: string) {
 // --- Parcelamentos ---
 
 export async function getInstallments(): Promise<Installment[]> {
-  const { data, error } = await supabase.from("installments").select("*").eq("isArchived", false).order("calculatedDueDate", { ascending: true })
+  const { data, error } = await supabase
+    .from("installments")
+    .select("*")
+    .eq("is_archived", false)
+    .order("calculated_due_date", { ascending: true })
   if (error) {
     console.error("Supabase Error (getInstallments):", error);
     throw new Error(`Falha ao carregar parcelamentos: ${error.message}`);
   }
-  return data as Installment[]
+  return (data ?? []).map(mapInstallmentFromDB)
 }
 
 export async function saveAllInstallments(installments: Installment[]) {
   const user_id = await getUserId()
-  const installmentsWithDBKeys = installments.map(i => mapInstallmentToDB(i, user_id))
+  const now = new Date().toISOString()
+  const installmentsWithDBKeys = installments.map(i =>
+    mapInstallmentToDB(
+      {
+        ...i,
+        createdAt: i.createdAt || now,
+        updatedAt: now,
+      },
+      user_id,
+    ),
+  )
 
   const { error } = await supabase.from("installments").upsert(installmentsWithDBKeys, { onConflict: 'id' })
   if (error) {
@@ -302,22 +437,21 @@ export async function saveAllInstallments(installments: Installment[]) {
 
 export async function saveInstallment(installment: Installment) {
   const user_id = await getUserId()
-  const installmentData = mapInstallmentToDB(installment, user_id)
+  const now = new Date().toISOString()
+  const installmentToSave: Installment = {
+    ...installment,
+    createdAt: installment.createdAt || now,
+    updatedAt: now,
+  }
+  const installmentData = mapInstallmentToDB(installmentToSave, user_id)
 
-  if (installment.id && installment.createdAt) {
-    // Update
-    const { error } = await supabase.from("installments").update(installmentData).eq("id", installment.id)
-    if (error) {
-      console.error("Supabase Error (saveInstallment update):", error);
-      throw new Error(`Falha ao atualizar parcelamento: ${error.message}`);
-    }
-  } else {
-    // Insert
-    const { error } = await supabase.from("installments").insert(installmentData)
-    if (error) {
-      console.error("Supabase Error (saveInstallment insert):", error);
-      throw new Error(`Falha ao inserir parcelamento: ${error.message}`);
-    }
+  const { error } = await supabase
+    .from("installments")
+    .upsert(installmentData, { onConflict: 'id' })
+
+  if (error) {
+    console.error("Supabase Error (saveInstallment):", error);
+    throw new Error(`Falha ao salvar parcelamento: ${error.message}`);
   }
 }
 

@@ -34,7 +34,7 @@ import { toast } from "@/hooks/use-toast"
 type InstallmentListProps = {
   installments: InstallmentWithDetails[]
   clients: Client[]
-  onUpdate: () => void
+  onUpdate: () => Promise<void>
 }
 
 export function InstallmentList({ installments, clients, onUpdate }: InstallmentListProps) {
@@ -75,54 +75,96 @@ export function InstallmentList({ installments, clients, onUpdate }: Installment
     return sortOrder === "asc" ? comparison : -comparison
   })
 
-  const handleSave = (installment: Installment) => {
-    saveInstallment(installment)
-    onUpdate()
-    setEditingInstallment(undefined)
-    toast({
-      title: "Parcelamento salvo!",
-      description: `O parcelamento "${installment.name}" foi salvo com sucesso.`,
-    });
-  }
-
-  const handleDelete = (id: string) => {
-    if (confirm("⚠️ Tem certeza que deseja excluir este parcelamento?\n\nEsta ação não pode ser desfeita.")) {
-      deleteInstallment(id)
-      onUpdate()
+  const handleSave = async (installment: Installment) => {
+    try {
+      await saveInstallment(installment)
+      await onUpdate()
+      setEditingInstallment(undefined)
+      setIsFormOpen(false)
       toast({
-        title: "Parcelamento excluído!",
-        description: "O parcelamento foi removido com sucesso.",
+        title: "Parcelamento salvo!",
+        description: `O parcelamento "${installment.name}" foi salvo com sucesso.`,
+      })
+    } catch (error) {
+      console.error("Erro ao salvar parcelamento:", error)
+      toast({
+        title: "Erro ao salvar parcelamento",
+        description: error instanceof Error ? error.message : "Não foi possível salvar o parcelamento.",
         variant: "destructive",
-      });
+      })
+      throw error
     }
   }
 
-  const handleComplete = (installment: InstallmentWithDetails) => {
+  const handleDelete = async (id: string) => {
+    if (confirm("⚠️ Tem certeza que deseja excluir este parcelamento?\n\nEsta ação não pode ser desfeita.")) {
+      try {
+        await deleteInstallment(id)
+        await onUpdate()
+        toast({
+          title: "Parcelamento excluído!",
+          description: "O parcelamento foi removido com sucesso.",
+          variant: "destructive",
+        })
+      } catch (error) {
+        console.error("Erro ao excluir parcelamento:", error)
+        toast({
+          title: "Erro ao excluir parcelamento",
+          description: error instanceof Error ? error.message : "Não foi possível excluir o parcelamento.",
+          variant: "destructive",
+        })
+      }
+    }
+  }
+
+  const handleComplete = async (installment: InstallmentWithDetails) => {
     const updated = {
       ...installment,
       status: "completed" as const,
       completedAt: new Date().toISOString(),
       completedBy: "Usuário",
     }
-    saveInstallment(updated)
-    onUpdate()
-    toast({
-      title: "Parcelamento concluído!",
-      description: `O parcelamento "${installment.name}" foi marcado como concluído.`,
-    });
+    const { client: _client, ...rest } = updated
+    const installmentToSave: Installment = { ...rest }
+    try {
+      await saveInstallment(installmentToSave)
+      await onUpdate()
+      toast({
+        title: "Parcelamento concluído!",
+        description: `O parcelamento "${installment.name}" foi marcado como concluído.`,
+      })
+    } catch (error) {
+      console.error("Erro ao concluir parcelamento:", error)
+      toast({
+        title: "Erro ao concluir parcelamento",
+        description: error instanceof Error ? error.message : "Não foi possível atualizar o parcelamento.",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleInProgress = (installment: InstallmentWithDetails) => {
+  const handleInProgress = async (installment: InstallmentWithDetails) => {
     const updated = {
       ...installment,
       status: "in_progress" as const,
     }
-    saveInstallment(updated)
-    onUpdate()
-    toast({
-      title: "Parcelamento em andamento!",
-      description: `O parcelamento "${installment.name}" foi marcado como em andamento.`,
-    });
+    const { client: _client, ...rest } = updated
+    const installmentToSave: Installment = { ...rest }
+    try {
+      await saveInstallment(installmentToSave)
+      await onUpdate()
+      toast({
+        title: "Parcelamento em andamento!",
+        description: `O parcelamento "${installment.name}" foi marcado como em andamento.`,
+      })
+    } catch (error) {
+      console.error("Erro ao atualizar parcelamento:", error)
+      toast({
+        title: "Erro ao atualizar parcelamento",
+        description: error instanceof Error ? error.message : "Não foi possível atualizar o parcelamento.",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleEdit = (installment: InstallmentWithDetails) => {

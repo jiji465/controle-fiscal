@@ -25,7 +25,7 @@ import {
   Square, // Added for checkbox
   CheckSquare, // Added for checkbox
 } from "lucide-react"
-import type { ObligationWithDetails, Client, Tax } from "@/lib/types"
+import type { ObligationWithDetails, Client, Tax, Obligation } from "@/lib/types"
 import { saveObligation, deleteObligation } from "@/lib/storage"
 import { formatDate, isOverdue } from "@/lib/date-utils"
 import { getRecurrenceDescription } from "@/lib/recurrence-utils"
@@ -36,7 +36,7 @@ type ObligationListProps = {
   obligations: ObligationWithDetails[]
   clients: Client[]
   taxes: Tax[]
-  onUpdate: () => void
+  onUpdate: () => Promise<void>
 }
 
 export function ObligationList({ obligations, clients, taxes, onUpdate }: ObligationListProps) {
@@ -77,29 +77,49 @@ export function ObligationList({ obligations, clients, taxes, onUpdate }: Obliga
     return sortOrder === "asc" ? comparison : -comparison
   })
 
-  const handleSave = (obligation: any) => {
-    saveObligation(obligation)
-    onUpdate()
-    setEditingObligation(undefined)
-    toast({
-      title: "Obrigação salva!",
-      description: `A obrigação "${obligation.name}" foi salva com sucesso.`,
-    });
-  }
-
-  const handleDelete = (id: string) => {
-    if (confirm("⚠️ Tem certeza que deseja excluir esta obrigação?\n\nEsta ação não pode ser desfeita.")) {
-      deleteObligation(id)
-      onUpdate()
+  const handleSave = async (obligation: Obligation) => {
+    try {
+      await saveObligation(obligation)
+      await onUpdate()
+      setEditingObligation(undefined)
+      setIsFormOpen(false)
       toast({
-        title: "Obrigação excluída!",
-        description: "A obrigação foi removida com sucesso.",
+        title: "Obrigação salva!",
+        description: `A obrigação "${obligation.name}" foi salva com sucesso.`,
+      })
+    } catch (error) {
+      console.error("Erro ao salvar obrigação:", error)
+      toast({
+        title: "Erro ao salvar obrigação",
+        description: error instanceof Error ? error.message : "Não foi possível salvar a obrigação.",
         variant: "destructive",
-      });
+      })
+      throw error
     }
   }
 
-  const handleComplete = (obligation: ObligationWithDetails) => {
+  const handleDelete = async (id: string) => {
+    if (confirm("⚠️ Tem certeza que deseja excluir esta obrigação?\n\nEsta ação não pode ser desfeita.")) {
+      try {
+        await deleteObligation(id)
+        await onUpdate()
+        toast({
+          title: "Obrigação excluída!",
+          description: "A obrigação foi removida com sucesso.",
+          variant: "destructive",
+        })
+      } catch (error) {
+        console.error("Erro ao excluir obrigação:", error)
+        toast({
+          title: "Erro ao excluir obrigação",
+          description: error instanceof Error ? error.message : "Não foi possível excluir a obrigação.",
+          variant: "destructive",
+        })
+      }
+    }
+  }
+
+  const handleComplete = async (obligation: ObligationWithDetails) => {
     const history = obligation.history || []
     const completedDate = new Date().toISOString()
     const updated = {
@@ -118,16 +138,27 @@ export function ObligationList({ obligations, clients, taxes, onUpdate }: Obliga
         },
       ],
     }
-    saveObligation(updated)
-    onUpdate()
-    toast({
-      title: "Obrigação concluída!",
-      description: `A obrigação "${obligation.name}" foi marcada como concluída.`,
-      variant: "default",
-    });
+    const { client: _client, tax: _tax, ...rest } = updated
+    const obligationToSave: Obligation = { ...rest }
+    try {
+      await saveObligation(obligationToSave)
+      await onUpdate()
+      toast({
+        title: "Obrigação concluída!",
+        description: `A obrigação "${obligation.name}" foi marcada como concluída.`,
+        variant: "default",
+      })
+    } catch (error) {
+      console.error("Erro ao concluir obrigação:", error)
+      toast({
+        title: "Erro ao concluir obrigação",
+        description: error instanceof Error ? error.message : "Não foi possível atualizar a obrigação.",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleInProgress = (obligation: ObligationWithDetails) => {
+  const handleInProgress = async (obligation: ObligationWithDetails) => {
     const history = obligation.history || []
     const updated = {
       ...obligation,
@@ -142,13 +173,24 @@ export function ObligationList({ obligations, clients, taxes, onUpdate }: Obliga
         },
       ],
     }
-    saveObligation(updated)
-    onUpdate()
-    toast({
-      title: "Obrigação em andamento!",
-      description: `A obrigação "${obligation.name}" foi marcada como em andamento.`,
-      variant: "default",
-    });
+    const { client: _client, tax: _tax, ...rest } = updated
+    const obligationToSave: Obligation = { ...rest }
+    try {
+      await saveObligation(obligationToSave)
+      await onUpdate()
+      toast({
+        title: "Obrigação em andamento!",
+        description: `A obrigação "${obligation.name}" foi marcada como em andamento.`,
+        variant: "default",
+      })
+    } catch (error) {
+      console.error("Erro ao atualizar obrigação:", error)
+      toast({
+        title: "Erro ao atualizar obrigação",
+        description: error instanceof Error ? error.message : "Não foi possível atualizar a obrigação.",
+        variant: "destructive",
+      })
+    }
   }
 
   const handleEdit = (obligation: ObligationWithDetails) => {

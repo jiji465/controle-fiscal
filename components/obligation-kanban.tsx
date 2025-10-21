@@ -16,15 +16,16 @@ import {
   Tag,
   User,
 } from "lucide-react"
-import type { ObligationWithDetails, Client, Tax } from "@/lib/types"
+import type { ObligationWithDetails, Client, Tax, Obligation } from "@/lib/types"
 import { saveObligation, deleteObligation } from "@/lib/storage"
 import { formatDate, isOverdue } from "@/lib/date-utils"
+import { toast } from "@/hooks/use-toast"
 
 type ObligationKanbanProps = {
   obligations: ObligationWithDetails[]
   clients: Client[]
   taxes: Tax[]
-  onUpdate: () => void
+  onUpdate: () => Promise<void>
   onEdit: (obligation: ObligationWithDetails) => void
   onView: (obligation: ObligationWithDetails) => void
 }
@@ -34,7 +35,7 @@ export function ObligationKanban({ obligations, clients, taxes, onUpdate, onEdit
   const inProgressObligations = obligations.filter((o) => o.status === "in_progress")
   const completedObligations = obligations.filter((o) => o.status === "completed")
 
-  const handleStatusChange = (
+  const handleStatusChange = async (
     obligation: ObligationWithDetails,
     newStatus: "pending" | "in_progress" | "completed",
   ) => {
@@ -59,14 +60,46 @@ export function ObligationKanban({ obligations, clients, taxes, onUpdate, onEdit
         },
       ],
     }
-    saveObligation(updated)
-    onUpdate()
+    const { client: _client, tax: _tax, ...rest } = updated
+    const obligationToSave: Obligation = { ...rest }
+
+    try {
+      await saveObligation(obligationToSave)
+      await onUpdate()
+      toast({
+        title: "Status atualizado!",
+        description: `A obrigação "${obligation.name}" foi marcada como ${
+          newStatus === "pending" ? "Pendente" : newStatus === "in_progress" ? "Em Andamento" : "Concluída"
+        }`,
+      })
+    } catch (error) {
+      console.error("Erro ao atualizar status da obrigação:", error)
+      toast({
+        title: "Erro ao atualizar status",
+        description: error instanceof Error ? error.message : "Não foi possível atualizar a obrigação.",
+        variant: "destructive",
+      })
+    }
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("⚠️ Tem certeza que deseja excluir esta obrigação?\n\nEsta ação não pode ser desfeita.")) {
-      deleteObligation(id)
-      onUpdate()
+      try {
+        await deleteObligation(id)
+        await onUpdate()
+        toast({
+          title: "Obrigação excluída!",
+          description: "A obrigação foi removida com sucesso.",
+          variant: "destructive",
+        })
+      } catch (error) {
+        console.error("Erro ao excluir obrigação:", error)
+        toast({
+          title: "Erro ao excluir obrigação",
+          description: error instanceof Error ? error.message : "Não foi possível excluir a obrigação.",
+          variant: "destructive",
+        })
+      }
     }
   }
 
@@ -132,19 +165,19 @@ export function ObligationKanban({ obligations, clients, taxes, onUpdate, onEdit
                   Ver detalhes
                 </DropdownMenuItem>
                 {obligation.status === "pending" && (
-                  <DropdownMenuItem onClick={() => handleStatusChange(obligation, "in_progress")}>
+                  <DropdownMenuItem onClick={async () => { await handleStatusChange(obligation, "in_progress") }}>
                     <PlayCircle className="size-4 mr-2" />
                     Iniciar
                   </DropdownMenuItem>
                 )}
                 {obligation.status === "in_progress" && (
-                  <DropdownMenuItem onClick={() => handleStatusChange(obligation, "completed")}>
+                  <DropdownMenuItem onClick={async () => { await handleStatusChange(obligation, "completed") }}>
                     <CheckCircle2 className="size-4 mr-2" />
                     Concluir
                   </DropdownMenuItem>
                 )}
                 {obligation.status === "completed" && (
-                  <DropdownMenuItem onClick={() => handleStatusChange(obligation, "pending")}>
+                  <DropdownMenuItem onClick={async () => { await handleStatusChange(obligation, "pending") }}>
                     <Clock className="size-4 mr-2" />
                     Reabrir
                   </DropdownMenuItem>
@@ -153,7 +186,7 @@ export function ObligationKanban({ obligations, clients, taxes, onUpdate, onEdit
                   <Pencil className="size-4 mr-2" />
                   Editar
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => handleDelete(obligation.id)} className="text-destructive">
+                <DropdownMenuItem onClick={async () => { await handleDelete(obligation.id) }} className="text-destructive">
                   <Trash2 className="size-4 mr-2" />
                   Excluir
                 </DropdownMenuItem>

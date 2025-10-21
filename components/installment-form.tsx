@@ -17,7 +17,7 @@ interface InstallmentFormProps {
   clients: Client[]
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSave: (installment: Installment) => void
+  onSave: (installment: Installment) => Promise<void>
 }
 
 export function InstallmentForm({ installment, clients, open, onOpenChange, onSave }: InstallmentFormProps) {
@@ -47,7 +47,7 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
     setFormData({ ...formData, tags: formData.tags?.filter((t) => t !== tag) })
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.name || !formData.clientId || !formData.calculatedDueDate) {
       toast({
@@ -68,7 +68,11 @@ export function InstallmentForm({ installment, clients, open, onOpenChange, onSa
       type: "installment",
     } as Installment
 
-    onSave(finalInstallment)
+    try {
+      await onSave(finalInstallment)
+    } catch (error) {
+      console.error("Erro ao salvar parcelamento:", error)
+    }
   }
 
   const recurrenceOptions: { value: RecurrenceType, label: string }[] = [

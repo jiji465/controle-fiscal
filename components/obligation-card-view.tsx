@@ -23,10 +23,10 @@ import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigge
 
 type ObligationCardViewProps = {
   obligations: ObligationWithDetails[]
-  onComplete: (obligation: ObligationWithDetails) => void
-  onInProgress: (obligation: ObligationWithDetails) => void
+  onComplete: (obligation: ObligationWithDetails) => Promise<void>
+  onInProgress: (obligation: ObligationWithDetails) => Promise<void>
   onEdit: (obligation: ObligationWithDetails) => void
-  onDelete: (id: string) => void
+  onDelete: (id: string) => Promise<void>
   onView: (obligation: ObligationWithDetails) => void
 }
 
@@ -122,18 +122,18 @@ export function ObligationCardView({
                   <Pencil className="mr-2 h-4 w-4" />
                   Editar
                 </DropdownMenuItem>
-                <DropdownMenuItem onClick={() => onDelete(obligation.id)}>
+                <DropdownMenuItem onClick={async () => { await onDelete(obligation.id) }}>
                   <Trash2 className="mr-2 h-4 w-4" />
                   Excluir
                 </DropdownMenuItem>
                 {obligation.status !== "completed" && (
-                  <DropdownMenuItem onClick={() => onComplete(obligation)}>
+                  <DropdownMenuItem onClick={async () => { await onComplete(obligation) }}>
                     <CheckCircle2 className="mr-2 h-4 w-4" />
                     Marcar como concluída
                   </DropdownMenuItem>
                 )}
                 {obligation.status !== "in_progress" && (
-                  <DropdownMenuItem onClick={() => onInProgress(obligation)}>
+                  <DropdownMenuItem onClick={async () => { await onInProgress(obligation) }}>
                     <PlayCircle className="mr-2 h-4 w-4" />
                     Marcar como em andamento
                   </DropdownMenuItem>
