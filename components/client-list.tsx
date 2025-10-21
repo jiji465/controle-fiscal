@@ -14,7 +14,7 @@ import { toast } from "@/hooks/use-toast" // Import toast
 
 type ClientListProps = {
   clients: Client[]
-  onUpdate: () => void
+  onUpdate: () => Promise<void>
 }
 
 export function ClientList({ clients, onUpdate }: ClientListProps) {
@@ -26,25 +26,44 @@ export function ClientList({ clients, onUpdate }: ClientListProps) {
     (client) => client.name.toLowerCase().includes(search.toLowerCase()) || client.cnpj.includes(search),
   )
 
-  const handleSave = (client: Client) => {
-    saveClient(client)
-    onUpdate()
-    setEditingClient(undefined)
-    toast({
-      title: "Cliente salvo!",
-      description: `O cliente "${client.name}" foi salvo com sucesso.`,
-    });
+  const handleSave = async (client: Client) => {
+    try {
+      await saveClient(client)
+      await onUpdate()
+      setEditingClient(undefined)
+      toast({
+        title: "Cliente salvo!",
+        description: `O cliente "${client.name}" foi salvo com sucesso.`,
+      })
+    } catch (error) {
+      console.error("Erro ao salvar cliente:", error)
+      toast({
+        title: "Erro ao salvar cliente",
+        description: error instanceof Error ? error.message : "Não foi possível salvar o cliente.",
+        variant: "destructive",
+      })
+      throw error
+    }
   }
 
-  const handleDelete = (id: string) => {
+  const handleDelete = async (id: string) => {
     if (confirm("Tem certeza que deseja excluir este cliente?")) {
-      deleteClient(id)
-      onUpdate()
-      toast({
-        title: "Cliente excluído!",
-        description: "O cliente foi removido com sucesso.",
-        variant: "destructive",
-      });
+      try {
+        await deleteClient(id)
+        await onUpdate()
+        toast({
+          title: "Cliente excluído!",
+          description: "O cliente foi removido com sucesso.",
+          variant: "destructive",
+        })
+      } catch (error) {
+        console.error("Erro ao excluir cliente:", error)
+        toast({
+          title: "Erro ao excluir cliente",
+          description: error instanceof Error ? error.message : "Não foi possível excluir o cliente.",
+          variant: "destructive",
+        })
+      }
     }
   }
 
@@ -98,11 +117,18 @@ export function ClientList({ clients, onUpdate }: ClientListProps) {
               </TableRow>
             ) : (
               filteredClients.map((client) => (
-                <TableRow key={client.id}><TableCell className="font-medium">{client.name}</TableCell><TableCell className="font-mono text-sm">{client.cnpj}</TableCell><TableCell>{client.taxRegime || "Não informado"}</TableCell><TableCell>{client.email}</TableCell><TableCell>{client.phone}</TableCell><TableCell>
+                <TableRow key={client.id}>
+                  <TableCell className="font-medium">{client.name}</TableCell>
+                  <TableCell className="font-mono text-sm">{client.cnpj}</TableCell>
+                  <TableCell>{client.taxRegime || "Não informado"}</TableCell>
+                  <TableCell>{client.email}</TableCell>
+                  <TableCell>{client.phone}</TableCell>
+                  <TableCell>
                     <Badge variant={client.status === "active" ? "default" : "secondary"}>
                       {client.status === "active" ? "Ativo" : "Inativo"}
                     </Badge>
-                  </TableCell><TableCell>
+                  </TableCell>
+                  <TableCell>
                     <DropdownMenu>
                       <DropdownMenuTrigger asChild>
                         <Button variant="ghost" size="icon">
@@ -120,7 +146,8 @@ export function ClientList({ clients, onUpdate }: ClientListProps) {
                         </DropdownMenuItem>
                       </DropdownMenuContent>
                     </DropdownMenu>
-                  </TableCell></TableRow>
+                  </TableCell>
+                </TableRow>
               ))
             )}
           </TableBody>

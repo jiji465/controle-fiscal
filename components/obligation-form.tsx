@@ -18,7 +18,7 @@ interface ObligationFormProps {
   taxes: Tax[]
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSave: (obligation: Obligation) => void
+  onSave: (obligation: Obligation) => Promise<void>
 }
 
 export function ObligationForm({ obligation, clients, taxes, open, onOpenChange, onSave }: ObligationFormProps) {
@@ -60,7 +60,7 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
     }
   }
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     if (!formData.name || !formData.clientId || !formData.calculatedDueDate) {
       toast({
@@ -90,7 +90,11 @@ export function ObligationForm({ obligation, clients, taxes, open, onOpenChange,
       history: [...history, newHistoryEntry],
     } as Obligation
 
-    onSave(finalObligation)
+    try {
+      await onSave(finalObligation)
+    } catch (error) {
+      console.error("Erro ao salvar obrigação:", error)
+    }
   }
 
   const addAttachment = () => {

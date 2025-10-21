@@ -16,14 +16,13 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog"
 import type { Client } from "@/lib/types"
-import { toast } from "@/hooks/use-toast" // Import toast
 import { createClient } from "@/lib/factory"
 
 type ClientFormProps = {
   client?: Client
   open: boolean
   onOpenChange: (open: boolean) => void
-  onSave: (client: Client) => void
+  onSave: (client: Client) => Promise<void>
 }
 
 export function ClientForm({ client, open, onOpenChange, onSave }: ClientFormProps) {
@@ -37,14 +36,14 @@ export function ClientForm({ client, open, onOpenChange, onSave }: ClientFormPro
     }
   }, [client, open])
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    onSave(formData)
-    onOpenChange(false)
-    toast({
-      title: "Cliente salvo!",
-      description: `O cliente "${formData.name}" foi salvo com sucesso.`,
-    });
+    try {
+      await onSave(formData)
+      onOpenChange(false)
+    } catch (error) {
+      console.error("Erro ao salvar cliente:", error)
+    }
   }
 
   return (
