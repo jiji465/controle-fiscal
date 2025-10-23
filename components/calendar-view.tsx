@@ -52,27 +52,63 @@ export function CalendarView({ events }: CalendarViewProps) {
   const getStatusInfo = (event: CalendarEvent) => {
     const isEventOverdue = isOverdue(event.calculatedDueDate);
 
+    const baseClasses = "bg-opacity-20 border";
+    const statusColors = {
+      completed: {
+        color: `bg-status-green-bg text-status-green-fg border-status-green-border`,
+        badgeColor: `bg-status-green-badge text-white`,
+      },
+      in_progress: {
+        color: `bg-status-blue-bg text-status-blue-fg border-status-blue-border`,
+        badgeColor: `bg-status-blue-badge text-white`,
+      },
+      overdue: {
+        color: `bg-status-red-bg text-status-red-fg border-status-red-border`,
+        badgeColor: `bg-status-red-badge text-white`,
+      },
+      pending_obligation: {
+        color: `bg-status-yellow-bg text-status-yellow-fg border-status-yellow-border`,
+        badgeColor: `bg-status-yellow-badge text-white`,
+      },
+      pending_tax: {
+        color: `bg-status-purple-bg text-status-purple-fg border-status-purple-border`,
+        badgeColor: `bg-status-purple-badge text-white`,
+      },
+      pending_installment: {
+        color: `bg-status-orange-bg text-status-orange-fg border-status-orange-border`,
+        badgeColor: `bg-status-orange-badge text-white`,
+      },
+      default: {
+        color: `bg-muted text-muted-foreground border`,
+        badgeColor: `bg-muted-foreground text-muted`,
+      },
+    };
+
+
     switch (event.type) {
-      case "obligation":
+      case "obligation": {
         const obl = event as ObligationWithDetails;
-        if (obl.status === "completed") return { color: "bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30", text: "Concluída", badgeColor: "bg-green-600" };
-        if (obl.status === "in_progress") return { color: "bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30", text: "Em Andamento", badgeColor: "bg-blue-600" };
-        if (isEventOverdue) return { color: "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30", text: "Atrasada", badgeColor: "bg-red-600" };
-        return { color: "bg-yellow-500/20 text-yellow-700 dark:text-yellow-300 border-yellow-500/30", text: "Pendente", badgeColor: "bg-yellow-600" };
-      case "tax":
+        if (obl.status === "completed") return { ...statusColors.completed, text: "Concluída" };
+        if (obl.status === "in_progress") return { ...statusColors.in_progress, text: "Em Andamento" };
+        if (isEventOverdue) return { ...statusColors.overdue, text: "Atrasada" };
+        return { ...statusColors.pending_obligation, text: "Pendente" };
+      }
+      case "tax": {
         const tax = event as TaxDueDate;
-        if (tax.status === "completed") return { color: "bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30", text: "Processado", badgeColor: "bg-green-600" };
-        if (tax.status === "in_progress") return { color: "bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30", text: "Em Processamento", badgeColor: "bg-blue-600" };
-        if (isEventOverdue) return { color: "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30", text: "Atrasado", badgeColor: "bg-red-600" };
-        return { color: "bg-purple-500/20 text-purple-700 dark:text-purple-300 border-purple-500/30", text: "Pendente", badgeColor: "bg-purple-600" };
-      case "installment":
+        if (tax.status === "completed") return { ...statusColors.completed, text: "Processado" };
+        if (tax.status === "in_progress") return { ...statusColors.in_progress, text: "Em Processamento" };
+        if (isEventOverdue) return { ...statusColors.overdue, text: "Atrasado" };
+        return { ...statusColors.pending_tax, text: "Pendente" };
+      }
+      case "installment": {
         const inst = event as InstallmentWithDetails;
-        if (inst.status === "completed") return { color: "bg-green-500/20 text-green-700 dark:text-green-300 border-green-500/30", text: "Concluído", badgeColor: "bg-green-600" };
-        if (inst.status === "in_progress") return { color: "bg-blue-500/20 text-blue-700 dark:text-blue-300 border-blue-500/30", text: "Em Andamento", badgeColor: "bg-blue-600" };
-        if (isEventOverdue) return { color: "bg-red-500/20 text-red-700 dark:text-red-300 border-red-500/30", text: "Atrasado", badgeColor: "bg-red-600" };
-        return { color: "bg-orange-500/20 text-orange-700 dark:text-orange-300 border-orange-500/30", text: "Pendente", badgeColor: "bg-orange-600" };
+        if (inst.status === "completed") return { ...statusColors.completed, text: "Concluído" };
+        if (inst.status === "in_progress") return { ...statusColors.in_progress, text: "Em Andamento" };
+        if (isEventOverdue) return { ...statusColors.overdue, text: "Atrasado" };
+        return { ...statusColors.pending_installment, text: "Pendente" };
+      }
       default:
-        return { color: "bg-gray-500/20 text-gray-700 dark:text-gray-300 border-gray-500/30", text: "Evento", badgeColor: "bg-gray-600" };
+        return { ...statusColors.default, text: "Evento" };
     }
   };
 
@@ -266,28 +302,28 @@ export function CalendarView({ events }: CalendarViewProps) {
                   <span className="text-muted-foreground">Final de semana</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="size-4 bg-yellow-500/20 border border-yellow-500/30 rounded" />
+                  <div className="size-4 bg-status-yellow-bg border border-status-yellow-border rounded" />
                   <span className="text-muted-foreground">Obrigação Pendente</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="size-4 bg-blue-500/20 border border-blue-500/30 rounded" />
-                  <span className="text-muted-foreground">Obrigação Em Andamento</span>
+                  <div className="size-4 bg-status-blue-bg border border-status-blue-border rounded" />
+                  <span className="text-muted-foreground">Em Andamento</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="size-4 bg-green-500/20 border border-green-500/30 rounded" />
-                  <span className="text-muted-foreground">Concluído (Obrigação/Parcelamento)</span>
+                  <div className="size-4 bg-status-green-bg border border-status-green-border rounded" />
+                  <span className="text-muted-foreground">Concluído</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="size-4 bg-red-500/20 border border-red-500/30 rounded" />
-                  <span className="text-muted-foreground">Atrasado (Todos)</span>
+                  <div className="size-4 bg-status-red-bg border border-status-red-border rounded" />
+                  <span className="text-muted-foreground">Atrasado</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="size-4 bg-purple-500/20 border border-purple-500/30 rounded" />
-                  <span className="text-muted-foreground">Imposto Pendente/Em Processamento</span>
+                  <div className="size-4 bg-status-purple-bg border border-status-purple-border rounded" />
+                  <span className="text-muted-foreground">Imposto Pendente</span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <div className="size-4 bg-orange-500/20 border border-orange-500/30 rounded" />
-                  <span className="text-muted-foreground">Parcelamento Pendente/Em Andamento</span>
+                  <div className="size-4 bg-status-orange-bg border border-status-orange-border rounded" />
+                  <span className="text-muted-foreground">Parcelamento Pendente</span>
                 </div>
               </div>
             </div>
