@@ -1,5 +1,4 @@
 @import 'tailwindcss';
-@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -37,6 +36,36 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  --status-green-bg: oklch(0.922 0.13 144.1);
+  --status-green-fg: oklch(0.408 0.1 144.1);
+  --status-green-border: oklch(0.816 0.13 144.1);
+  --status-green-badge: oklch(0.512 0.13 144.1);
+
+  --status-blue-bg: oklch(0.882 0.088 232.8);
+  --status-blue-fg: oklch(0.42 0.088 232.8);
+  --status-blue-border: oklch(0.749 0.088 232.8);
+  --status-blue-badge: oklch(0.553 0.088 232.8);
+
+  --status-red-bg: oklch(0.882 0.17 25.7);
+  --status-red-fg: oklch(0.51 0.17 25.7);
+  --status-red-border: oklch(0.784 0.17 25.7);
+  --status-red-badge: oklch(0.635 0.17 25.7);
+
+  --status-yellow-bg: oklch(0.969 0.145 84.4);
+  --status-yellow-fg: oklch(0.612 0.145 84.4);
+  --status-yellow-border: oklch(0.859 0.145 84.4);
+  --status-yellow-badge: oklch(0.769 0.145 84.4);
+
+  --status-purple-bg: oklch(0.929 0.07 282.4);
+  --status-purple-fg: oklch(0.553 0.07 282.4);
+  --status-purple-border: oklch(0.824 0.07 282.4);
+  --status-purple-badge: oklch(0.655 0.07 282.4);
+
+  --status-orange-bg: oklch(0.91 0.13 54.4);
+  --status-orange-fg: oklch(0.58 0.13 54.4);
+  --status-orange-border: oklch(0.824 0.13 54.4);
+  --status-orange-badge: oklch(0.729 0.13 54.4);
 }
 
 .dark {
@@ -72,6 +101,36 @@
   --sidebar-accent-foreground: oklch(0.985 0 0);
   --sidebar-border: oklch(0.269 0 0);
   --sidebar-ring: oklch(0.439 0 0);
+
+  --status-green-bg: oklch(0.294 0.13 144.1 / 20%);
+  --status-green-fg: oklch(0.855 0.13 144.1);
+  --status-green-border: oklch(0.294 0.13 144.1 / 30%);
+  --status-green-badge: oklch(0.408 0.1 144.1);
+
+  --status-blue-bg: oklch(0.31 0.088 232.8 / 20%);
+  --status-blue-fg: oklch(0.816 0.088 232.8);
+  --status-blue-border: oklch(0.31 0.088 232.8 / 30%);
+  --status-blue-badge: oklch(0.42 0.088 232.8);
+
+  --status-red-bg: oklch(0.365 0.17 25.7 / 20%);
+  --status-red-fg: oklch(0.859 0.17 25.7);
+  --status-red-border: oklch(0.365 0.17 25.7 / 30%);
+  --status-red-badge: oklch(0.51 0.17 25.7);
+
+  --status-yellow-bg: oklch(0.412 0.145 84.4 / 20%);
+  --status-yellow-fg: oklch(0.929 0.145 84.4);
+  --status-yellow-border: oklch(0.412 0.145 84.4 / 30%);
+  --status-yellow-badge: oklch(0.612 0.145 84.4);
+
+  --status-purple-bg: oklch(0.365 0.07 282.4 / 20%);
+  --status-purple-fg: oklch(0.875 0.07 282.4);
+  --status-purple-border: oklch(0.365 0.07 282.4 / 30%);
+  --status-purple-badge: oklch(0.553 0.07 282.4);
+
+  --status-orange-bg: oklch(0.412 0.13 54.4 / 20%);
+  --status-orange-fg: oklch(0.89 0.13 54.4);
+  --status-orange-border: oklch(0.412 0.13 54.4 / 30%);
+  --status-orange-badge: oklch(0.58 0.13 54.4);
 }
 
 @theme inline {
@@ -101,6 +160,30 @@
   --color-chart-3: var(--chart-3);
   --color-chart-4: var(--chart-4);
   --color-chart-5: var(--chart-5);
+  --color-status-green-bg: var(--status-green-bg);
+  --color-status-green-fg: var(--status-green-fg);
+  --color-status-green-border: var(--status-green-border);
+  --color-status-green-badge: var(--status-green-badge);
+  --color-status-blue-bg: var(--status-blue-bg);
+  --color-status-blue-fg: var(--status-blue-fg);
+  --color-status-blue-border: var(--status-blue-border);
+  --color-status-blue-badge: var(--status-blue-badge);
+  --color-status-red-bg: var(--status-red-bg);
+  --color-status-red-fg: var(--status-red-fg);
+  --color-status-red-border: var(--status-red-border);
+  --color-status-red-badge: var(--status-red-badge);
+  --color-status-yellow-bg: var(--status-yellow-bg);
+  --color-status-yellow-fg: var(--status-yellow-fg);
+  --color-status-yellow-border: var(--status-yellow-border);
+  --color-status-yellow-badge: var(--status-yellow-badge);
+  --color-status-purple-bg: var(--status-purple-bg);
+  --color-status-purple-fg: var(--status-purple-fg);
+  --color-status-purple-border: var(--status-purple-border);
+  --color-status-purple-badge: var(--status-purple-badge);
+  --color-status-orange-bg: var(--status-orange-bg);
+  --color-status-orange-fg: var(--status-orange-fg);
+  --color-status-orange-border: var(--status-orange-border);
+  --color-status-orange-badge: var(--status-orange-badge);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
